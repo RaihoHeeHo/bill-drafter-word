@@ -24,6 +24,7 @@
   class Proxy { load() { return this; } }
   class CC extends Proxy {
     constructor(node) { super(); this.node = node; this.tag = tagOf(node); this.title = aliasOf(node); this._title = this.title; }
+    get text() { return contentOf(this.node).textContent; }
     get contentControls() { return new CCs(this.node); }
     get paragraphs() { return new Paras(contentOf(this.node)); }
     getRange() { return new Range(this.node); }

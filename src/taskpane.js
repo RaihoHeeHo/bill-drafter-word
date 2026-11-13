@@ -59,6 +59,12 @@ async function insertSection(kind, xml) {
     const secs = await sectionControls(ctx);
     const kinds = secs.map(c => BD.parseTag(c.tag).act);
     const idx = BD.insertIndex(kinds, kind), P = BD.pkg(xml);
+    // A blank section (just its number, as New bill leaves section 1) is taken over by the section inserted.
+    const blank = [];
+    if (kind !== 'new') {
+      secs.forEach(c => c.load('text')); await ctx.sync();
+      secs.forEach((c, i) => { if (kinds[i] === 'new' && !c.text.replace(/^\s*(Section|\u00a7)\s*[\d_]+\.\s*/, '').trim()) blank.push(c); });
+    }
     if (idx < secs.length) secs[idx].getRange('Whole').insertOoxml(P, 'Before');
     else if (secs.length) secs[secs.length - 1].getRange('Whole').insertOoxml(P, 'After');
     else {
@@ -66,6 +72,7 @@ async function insertSection(kind, xml) {
       if (en.length) en[0].getRange('Whole').insertOoxml(P, 'After'); else ctx.document.body.insertOoxml(P, 'End');
     }
     await ctx.sync();
+    if (blank.length && kind !== 'shortTitle' && kind !== 'findings' && kind !== 'severability' && kind !== 'effective') { blank.forEach(c => c.delete(false)); await ctx.sync(); }
   }));
   await renumber(true);
 }
@@ -100,11 +107,13 @@ async function updateTitle(subjectFromPane) {
 async function newBill() {
   await word(async ctx => quietly(ctx, async () => {
     const t = BD.longTitle([], $('nb-subject').value);
-    const xml = BD.titleXml(t) + BD.enactingXml() + BD.sectionXml({ act: 'effective', num: 'Section 1.', content: [{ t: BD.effectiveText('immediately.'), k: '' }] });
+    // Section 1 blank for the drafter to type in (or to be taken over by the first section inserted), § 2 the effective date.
+    const xml = BD.titleXml(t) + BD.enactingXml() + BD.sectionXml({ act: 'new', num: 'Section 1.', content: [] }) +
+      BD.sectionXml({ act: 'effective', num: '\u00a7 2.', content: [{ t: BD.effectiveText('immediately.'), k: '' }] });
     ctx.document.body.insertOoxml(BD.pkg(xml), 'Start'); await ctx.sync();
   }));
   $('subject').value = $('nb-subject').value;
-  await refresh(); notice('Bill started. Add sections with Amend a law or Standard sections.');
+  await refresh(); notice('Bill started: section 1 is blank for you to type in; the first section you insert from Amend a law takes its place.');
 }
 
 /* ---------- amending a law ---------- */

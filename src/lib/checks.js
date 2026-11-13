@@ -82,6 +82,7 @@
     for (const s of S) {
       const i = s.index, all = [s.heading, s.clause, s.text, ...(s.quoted ? s.quoted.paras.map(BD.textOf) : [])].join(' ');
       if (/_{3,}/.test(all)) add('error', 'Blanks', 'There is a blank (____) to fill in.', i);
+      if (s.act === 'new' && !s.text.trim()) add('error', 'Blanks', 'This section is empty: type its text, or remove it and renumber.', i);
       if (s.act === 'amend' || s.act === 'add' || s.act === 'repeal') await checkAmendment(s, getLaw, add);
       if (s.law && s.loc && s.act !== 'add') {
         const key = s.law + ' ' + BD.locKey(s.loc) + (s.unit ? '/' + s.unit : '');
