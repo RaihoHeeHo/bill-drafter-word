@@ -298,6 +298,22 @@ function saveAkn() {
   document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+let pdfUrl = null;
+async function toPdf() {
+  await toAkn();
+  const status = t => { $('pdf-status').textContent = t; };
+  const t0 = Date.now();
+  const pdf = await BD.cleanCopyPdf(aknText, status);
+  if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+  pdfUrl = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+  $('pdf-open').disabled = $('pdf-save').disabled = false;
+  status('Clean copy ready (' + Math.max(1, Math.round(pdf.length / 1024)) + ' KB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s).');
+}
+function savePdf() {
+  const a = el('a', { href: pdfUrl, download: ($('lbd').value.trim() || 'bill') + ' clean copy.pdf' });
+  document.body.append(a); a.click(); a.remove();
+}
+
 /* ---------- the Bank ---------- */
 async function loadBankFiles(files) {
   files = [...files].filter(f => /\.json$/i.test(f.name) && !/^(catalog|manifest)\.json$/i.test(f.name));
@@ -336,6 +352,8 @@ function wire() {
   on('refresh', refresh); on('run-checks', runChecks); on('to-akn', toAkn); on('save-info', saveInfo);
   on('akn-copy', async () => { $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
   on('akn-save', async () => saveAkn());
+  on('to-pdf', toPdf); on('pdf-save', async () => savePdf());
+  on('pdf-open', async () => { if (!window.open(pdfUrl, '_blank')) savePdf(); });
   on('bank-clear', async () => { await BD.bank.clear(); await showBank(); await fillLaws(); notice('The Bank was removed from this computer.'); });
   $('law-filter').oninput = () => fillLaws();
   $('law').onchange = () => busy(null, chooseLaw);

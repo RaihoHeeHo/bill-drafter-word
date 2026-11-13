@@ -13,7 +13,7 @@ Nothing is installed on the computer and there is no .exe: Word loads the add-in
 
 ## Clean copy
 
-The exported XML has the shape of LBDC's clean-copy demo (front matter, `proprietary` house and LBD number, lead-ins outside `mod`, amended text nested by numbering), so its Typst template turns it into a clean-copy PDF. See [clean-copy/](clean-copy/README.md); `examples/Example bill - clean copy.pdf` is the example bill printed that way.
+**Export > Make clean copy (PDF)** typesets the bill right in the pane with LBDC's clean-copy template, using the Typst compiler built for the browser (`vendor/typst`, Apache-2.0); nothing is installed and the bill never leaves the computer. The exported XML has the shape of LBDC's clean-copy demo (front matter, `proprietary` house and LBD number, lead-ins outside `mod`, amended text nested by numbering), so its Typst template turns it into a clean-copy PDF. See [clean-copy/](clean-copy/README.md); `examples/Example bill - clean copy.pdf` is the example bill printed that way.
 
 ## Add it to Word on Windows
 
@@ -46,6 +46,7 @@ src/lib/ooxml.js      writing the content controls and styles; reading .docx XML
 src/lib/checks.js     drafting checks
 src/lib/akn.js        model -> Akoma Ntoso 3.0
 src/taskpane.*        the pane (Office.js)
+src/cleancopy.js      clean copy PDF in the pane (Typst in WebAssembly + clean-copy/bill.typ)
 tools/docx2akn.cjs    command-line converter (same code)
 clean-copy/           Typst clean-copy template (from LBDC's demo) for the exported XML
 tests/unit.cjs        unit tests          (npm install && npm test)

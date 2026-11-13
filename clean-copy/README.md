@@ -10,7 +10,9 @@ Word (add-in) ──Export──▶ bill.akn.xml ──bill.typ (Typst)──▶
 
 ## Build the PDF
 
-With [Typst](https://typst.app/) installed:
+In Word: **Export > Make clean copy (PDF)** does this inside the pane (Typst compiled to WebAssembly, loaded from the add-in's site; nothing to install). Outside Word:
+
+With [Typst](https://typst.app/) installed (0.13 or later):
 
 ```
 typst compile --font-path fonts --input xml=bill.akn.xml bill.typ clean-copy.pdf

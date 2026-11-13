@@ -108,7 +108,13 @@
     <button id="to-akn" class="primary wide">Convert to Akoma Ntoso</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
     <textarea id="akn-out" rows="14" readonly spellcheck="false"></textarea>
-    <p class="hint">Clean copy: the saved .xml works with the LBDC clean-copy template (<code>clean-copy/bill.typ</code> in the add-in's files): <code>typst compile --font-path fonts --input xml=bill.akn.xml bill.typ clean-copy.pdf</code>.</p>
+  </div>
+  <div class="card">
+    <h2>Clean copy</h2>
+    <p class="hint">Typesets the Akoma Ntoso with the LBDC clean-copy template: cover, numbered lines, new matter underscored, old matter in brackets. It runs here on this computer; the first time, the typesetter takes a moment to load.</p>
+    <button id="to-pdf" class="primary wide">Make clean copy (PDF)</button>
+    <div class="row"><button id="pdf-open" disabled>Open</button><button id="pdf-save" disabled>Save .pdf</button></div>
+    <p id="pdf-status" class="hint"></p>
   </div>
 </section>
 
@@ -134,6 +140,7 @@
 <script src="src/lib/ooxml.js"></script>
 <script src="src/lib/checks.js"></script>
 <script src="src/lib/akn.js"></script>
+<script src="src/cleancopy.js"></script>
 <script src="src/taskpane.js"></script>
 </body>
 </html>
