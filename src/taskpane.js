@@ -53,12 +53,31 @@ async function dropTrailingEmpty(ctx, cc) {
   if (ps.items.length > 1 && !ps.items[ps.items.length - 1].text.trim()) { ps.items[ps.items.length - 1].delete(); await ctx.sync(); }
 }
 
+// Word merges the first and last paragraph of inserted OOXML into the paragraph where it lands, which turns a
+// one-paragraph content control into an inline one. An empty paragraph on each side takes that merge instead;
+// tidy() then removes the empty paragraphs left between the bill's parts.
+const padded = xml => BD.pkg('<w:p/>' + xml + '<w:p/>');
+async function tidy(ctx) {
+  const ps = ctx.document.body.paragraphs; ps.load('items/text'); await ctx.sync();
+  const empty = ps.items.map((p, i) => i < ps.items.length - 1 && !p.text.trim() ? p : null);
+  const parents = empty.map(p => p && p.parentContentControlOrNullObject);
+  parents.forEach(c => c && c.load('isNullObject')); await ctx.sync();
+  empty.forEach((p, i) => { if (p && parents[i].isNullObject) p.delete(); });
+  await ctx.sync();
+}
+// Put new OOXML where a content control is and remove the control (works whether Word made it inline or not).
+async function replaceControl(ctx, cc, xml) {
+  cc.getRange('Whole').insertOoxml(padded(xml), 'Before'); await ctx.sync();
+  cc.delete(false); await ctx.sync();
+  await tidy(ctx);
+}
+
 /* ---------- writing sections ---------- */
 async function insertSection(kind, xml) {
   await word(async ctx => quietly(ctx, async () => {
     const secs = await sectionControls(ctx);
     const kinds = secs.map(c => BD.parseTag(c.tag).act);
-    const idx = BD.insertIndex(kinds, kind), P = BD.pkg(xml);
+    const idx = BD.insertIndex(kinds, kind), P = padded(xml);
     // A blank section (just its number, as New bill leaves section 1) is taken over by the section inserted.
     const blank = [];
     if (kind !== 'new') {
@@ -73,6 +92,7 @@ async function insertSection(kind, xml) {
     }
     await ctx.sync();
     if (blank.length && kind !== 'shortTitle' && kind !== 'findings' && kind !== 'severability' && kind !== 'effective') { blank.forEach(c => c.delete(false)); await ctx.sync(); }
+    await tidy(ctx);
   }));
   await renumber(true);
 }
@@ -98,9 +118,8 @@ async function updateTitle(subjectFromPane) {
     const subject = (subjectFromPane != null ? subjectFromPane : $('subject').value).trim() || (model.title && model.title.subject) || '____';
     const t = BD.longTitle(model.sections.filter(s => s.act !== 'new').map(s => ({ ...s, lawName: names[s.law] })), subject);
     const old = await controlsByName(ctx, 'akn:longTitle');
-    if (old.length) { old[0].getRange('Whole').insertOoxml(BD.pkg(BD.titleXml(t)), 'Before'); await ctx.sync(); old[0].delete(false); }
-    else ctx.document.body.insertOoxml(BD.pkg(BD.titleXml(t)), 'Start');
-    await ctx.sync();
+    if (old.length) await replaceControl(ctx, old[0], BD.titleXml(t));
+    else { ctx.document.body.insertOoxml(padded(BD.titleXml(t)), 'Start'); await ctx.sync(); await tidy(ctx); }
   }));
   await refresh();
 }
@@ -110,7 +129,8 @@ async function newBill() {
     // Section 1 blank for the drafter to type in (or to be taken over by the first section inserted), § 2 the effective date.
     const xml = BD.titleXml(t) + BD.enactingXml() + BD.sectionXml({ act: 'new', num: 'Section 1.', content: [] }) +
       BD.sectionXml({ act: 'effective', num: '\u00a7 2.', content: [{ t: BD.effectiveText('immediately.'), k: '' }] });
-    ctx.document.body.insertOoxml(BD.pkg(xml), 'Start'); await ctx.sync();
+    ctx.document.body.insertOoxml(padded(xml), 'Start'); await ctx.sync();
+    await tidy(ctx);
   }));
   $('subject').value = $('nb-subject').value;
   await refresh(); notice('Bill started: section 1 is blank for you to type in; the first section you insert from Amend a law takes its place.');
@@ -172,7 +192,7 @@ function showActions() {
 }
 async function insertAmendment() {
   const law = pick.law, s = pick.sec; if (!law || !s) throw new Error('Pick a law and a section first.');
-  const how = document.querySelector('input[name=act]:checked').value, history = $('history').value;
+  const how = document.querySelector('input[name=act]:checked').value, history = historyText();
   let o;
   if (how === 'amend') o = { act: 'amend', loc: s.loc, quoted: BD.lawParagraphs(s.text).map(t => [{ t, k: '' }]) };
   else if (how === 'amendSub') {
@@ -198,9 +218,10 @@ async function markChanges() {
     const secs = await sectionControls(ctx);
     for (const c of secs) {
       const tag = BD.parseTag(c.tag); if (tag.act !== 'amend' && tag.act !== 'add') continue;
-      const q = (await controlsByName(ctx, 'akn:quoted', c))[0]; if (!q) continue;
-      const ox = q.getOoxml(); await ctx.sync();
-      const paras = BD.parasOf(ox.value), now = BD.readings(paras).now;
+      const ox = c.getOoxml(); await ctx.sync();
+      const inner = BD.readBill(ox.value).sections, s = inner[0];
+      if (!s || !s.quoted) continue;
+      const now = BD.readings(s.quoted.paras).now;
       let out;
       if (tag.act === 'add') out = now.map(t => [{ t, k: 'ins' }]);
       else {
@@ -208,11 +229,57 @@ async function markChanges() {
         if (!want) { problems.push((c.title || tag.loc) + ': the law is not in the Bank on this computer'); continue; }
         out = BD.markChanges(want, now);
       }
-      q.insertOoxml(BD.pkg(BD.quotedInner(out)), 'Replace'); await ctx.sync();
-      await dropTrailingEmpty(ctx, q); done++;
+      if (inner.length === 1) {
+        // The whole section is written again (number, heading, clause, marked text), so it comes out right
+        // even where Word made a part of it an inline control.
+        await replaceControl(ctx, c, BD.sectionXml({ act: tag.act, law: tag.law, loc: tag.loc, unit: tag.unit, num: s.num, heading: s.heading, clause: s.clause, content: s.paras[0] || [], more: s.paras.slice(1), quoted: out }));
+      } else { // another section sits inside this one: change only the quoted text
+        const q = (await controlsByName(ctx, 'akn:quoted', c))[0]; if (!q) continue;
+        q.insertOoxml(BD.pkg(BD.quotedInner(out)), 'Replace'); await ctx.sync();
+        await dropTrailingEmpty(ctx, q);
+      }
+      done++;
     }
   }));
   notice(done ? 'Marked changes in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (problems.length ? ' Skipped: ' + problems.join('; ') : '') : 'No amended sections to mark.' + (problems.length ? ' ' + problems.join('; ') : ''), !!problems.length && !done);
+}
+
+// "As amended by …": what the drafter typed, as the clause will cite it.
+function historyText() {
+  const h = $('history').value.trim().replace(/^,\s*/, '').replace(/[,.]\s*$/, '');
+  return !h ? '' : /^as (amended|added|renumbered|relettered)\b/i.test(h) ? h.replace(/^As/, 'as') : 'as amended by ' + h;
+}
+// The bill section that holds the cursor (or the selection).
+async function sectionAtCursor(ctx) {
+  let cc = ctx.document.getSelection().parentContentControlOrNullObject;
+  for (let i = 0; i < 8; i++) {
+    cc.load('tag'); await ctx.sync();
+    if (cc.isNullObject) break;
+    if ((cc.tag || '').split(';')[0] === 'akn:section') return cc;
+    cc = cc.parentContentControlOrNullObject;
+  }
+  return null;
+}
+// Put the history into the amending clause of the section at the cursor, in place of any history it cites.
+async function applyHistory() {
+  const h = historyText();
+  if (!h) throw new Error('Type the history first, e.g. "chapter 55 of the laws of 2023".');
+  let where = '';
+  await word(async ctx => quietly(ctx, async () => {
+    const sec = await sectionAtCursor(ctx);
+    if (!sec) throw new Error('Click inside the section in the document (its amending clause or the law\'s text), then press the button again.');
+    const tag = BD.parseTag(sec.tag);
+    if (tag.act !== 'amend' && tag.act !== 'repeal') throw new Error('That section does not amend or repeal a provision, so it cites no history.');
+    const mod = (await controlsByName(ctx, 'akn:mod', sec))[0];
+    if (!mod) throw new Error('That section has no amending clause to put the history in.');
+    mod.load('text'); await ctx.sync();
+    const old = mod.text.trim(), without = old.replace(/,\s*as (amended|added|renumbered|relettered)\b[^]*?,\s*(?=is (amended|REPEALED))/, ' ');
+    let clause = /\s(is amended to read|is REPEALED)/.test(without) ? without.replace(/\s+(is amended to read|is REPEALED)/, ', ' + h + ', $1') : '';
+    if (!clause) { const law = await getLaw(tag.law); if (!law) throw new Error('The clause has an unusual form; type the history into it by hand.'); clause = BD.amendingClause({ act: tag.act, info: law.info, loc: tag.loc, unit: tag.unit, history: h }); }
+    mod.insertText(clause, 'Replace'); await ctx.sync();
+    where = sec.title || '';
+  }));
+  notice('History put in the amending clause' + (where ? ' (' + where + ')' : '') + '.');
 }
 
 /* ---------- standard sections ---------- */
@@ -232,7 +299,7 @@ async function setEffective() {
   let replaced = false;
   await word(async ctx => quietly(ctx, async () => {
     const secs = await sectionControls(ctx), old = secs.filter(c => BD.parseTag(c.tag).act === 'effective');
-    if (old.length) { old[old.length - 1].getRange('Whole').insertOoxml(BD.pkg(xml), 'After'); await ctx.sync(); old[old.length - 1].delete(false); await ctx.sync(); replaced = true; }
+    if (old.length) { await replaceControl(ctx, old[old.length - 1], xml); replaced = true; }
   }));
   if (!replaced) await insertSection('effective', xml); else await renumber(true);
   notice(replaced ? 'Effective date replaced.' : 'Effective date added.');
@@ -264,11 +331,11 @@ async function runChecks() {
   const errs = found.filter(f => f.level === 'error').length;
   $('check-count').textContent = String(errs); $('check-count').hidden = !errs;
   if (!found.length) { ul.append(el('li', { className: 'ok', textContent: 'No problems found.' })); return; }
-  const FIX = { renumber: ['Renumber', () => renumber()], title: ['Update title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', () => { showTab('draft'); $('subject').focus(); }] };
+  const FIX = { history: ['Add history', async f => { showTab('draft'); await goTo(f.sec); $('history').focus(); notice('Type the history (e.g. "chapter 55 of the laws of 2023") and press "Put in the section at the cursor".'); }], renumber: ['Renumber', () => renumber()], title: ['Update title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', () => { showTab('draft'); $('subject').focus(); }] };
   for (const f of found) {
     const li = el('li', { className: f.level }, el('span', { className: 'rule', textContent: f.rule + ':' }), f.text);
     if (f.sec != null) { const w = el('div', { className: 'where' }); const b = el('button', { textContent: 'Go to ' + (model.sections[f.sec].num || 'section') }); b.onclick = () => goTo(f.sec); w.append(b); li.append(w); }
-    if (f.fix && FIX[f.fix]) { const b = el('button', { textContent: FIX[f.fix][0] }); b.onclick = () => busy(b, async () => { await FIX[f.fix][1](); await runChecks(); }); li.append(b); }
+    if (f.fix && FIX[f.fix]) { const b = el('button', { textContent: FIX[f.fix][0] }); b.onclick = () => busy(b, async () => { await FIX[f.fix][1](f); if (f.fix !== 'history') await runChecks(); }); li.append(b); }
     ul.append(li);
   }
 }
@@ -354,8 +421,8 @@ function showTab(name) {
 function wire() {
   for (const b of document.querySelectorAll('nav button')) b.onclick = () => showTab(b.dataset.tab);
   const on = (id, fn) => { const b = $(id); b.onclick = () => busy(b, fn); };
-  on('nb-go', newBill); on('title-update', () => updateTitle(null)); on('renumber', () => renumber());
-  on('insert-amend', insertAmendment); on('mark', markChanges);
+  on('nb-go', newBill); on('title-update', async () => { await updateTitle(null); notice('Title updated.'); }); on('renumber', () => renumber());
+  on('insert-amend', insertAmendment); on('mark', markChanges); on('history-apply', applyHistory);
   on('add-short', () => addStandard('shortTitle')); on('add-findings', () => addStandard('findings'));
   on('add-sev', () => addStandard('severability')); on('add-new', () => addStandard('new')); on('add-eff', setEffective);
   on('refresh', refresh); on('run-checks', runChecks); on('to-akn', toAkn); on('save-info', saveInfo);

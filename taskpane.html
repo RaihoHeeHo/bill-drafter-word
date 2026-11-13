@@ -53,9 +53,13 @@
       <label><input type="radio" name="act" value="add"> Add a new section <input id="add-num" class="short"></label>
       <label><input type="radio" name="act" value="addSub"> Add a new subdivision <input id="add-sub" class="short"> to it</label>
       <label><input type="radio" name="act" value="repeal"> Repeal the section</label>
-      <label>As amended by <input id="history" placeholder="as amended by chapter 55 of the laws of 2023"></label>
       <button id="insert-amend" class="primary">Insert section</button>
     </fieldset>
+    <div class="history">
+      <label>As amended by <input id="history" placeholder="e.g. chapter 55 of the laws of 2023" autocomplete="off"></label>
+      <p class="hint">The Bank does not hold a section's history, so type its last amendment here. It goes into the next section you insert, or click in a section already in the bill and press:</p>
+      <button id="history-apply">Put in the section at the cursor</button>
+    </div>
     <p class="hint">Then edit the law's text right in the document, as if it were plain text. <b>Mark changes</b> compares it with the Bank and brackets what you took out and underlines what you added. Word's own Track Changes may be on or off.</p>
     <button id="mark" class="primary wide">Mark changes</button>
   </div>

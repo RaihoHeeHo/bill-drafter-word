@@ -9,12 +9,34 @@
   window.__mockDoc = doc;
   const ser = n => new XMLSerializer().serializeToString(n);
   const pkgOf = inner => '<pkg:package xmlns:pkg="http://schemas.microsoft.com/office/2006/xmlPackage"><pkg:part pkg:name="/word/document.xml"><pkg:xmlData><w:document xmlns:w="' + W + '"><w:body>' + inner + '</w:body></w:document></pkg:xmlData></pkg:part></pkg:package>';
+  // What Word does to inserted OOXML that matters to us:
+  //  - a style's id is made again from its name ("Bill Insert (new matter)" -> BillInsertnewmatter);
+  //  - the first and last paragraph merge into the paragraph where the content lands, so an empty paragraph
+  //    there disappears and a content control holding just one paragraph becomes an inline control in it.
   function bodyKids(pkg) {
     const d = parse(pkg), b = d.getElementsByTagNameNS(W, 'body')[0];
+    const ids = {};
+    for (const st of d.getElementsByTagNameNS(W, 'style')) { const nm = st.getElementsByTagNameNS(W, 'name')[0]; if (nm) ids[st.getAttribute('w:styleId')] = nm.getAttribute('w:val').replace(/[^A-Za-z0-9]/g, ''); }
+    for (const tagName of ['pStyle', 'rStyle']) for (const e of [...b.getElementsByTagNameNS(W, tagName)]) { const v = e.getAttribute('w:val'); if (ids[v]) e.setAttribute('w:val', ids[v]); }
     const out = []; for (let c = b.firstChild; c; c = c.nextSibling) if (c.nodeType === 1) out.push(doc.importNode(c, true));
-    // like Word, give every content control a fresh id
+    const edge = i => {
+      const k = out[i]; if (!k) return;
+      if (k.localName === 'p' && !k.textContent.trim()) { out.splice(i, 1); return; }
+      const c = k.localName === 'sdt' && contentOf(k), ps = c ? [...c.childNodes].filter(n => n.nodeType === 1) : [];
+      if (ps.length === 1 && ps[0].localName === 'p') {
+        const p = ps[0], pPr = [...p.childNodes].find(n => n.localName === 'pPr'), np = doc.createElementNS(W, 'w:p');
+        if (pPr) { np.appendChild(pPr); }
+        c.removeChild(p); while (p.firstChild) c.appendChild(p.firstChild);
+        np.appendChild(k); out[i] = np;
+      }
+    };
+    edge(out.length - 1); edge(0);
     return out;
   }
+  const blockOf = n => isInline(n) ? n.parentNode.localName === 'p' ? n.parentNode : blockOf(n.parentNode.parentNode) : n;
+  const NULL_CC = { isNullObject: true, tag: '', load() { return this; } };
+  const ccFor = n => { const c = CC.cache.get(n) || new CC(n); CC.cache.set(n, c); c.tag = tagOf(n); return c; };
+  const parentSdt = n => { for (let a = n.parentNode; a && a.nodeType === 1; a = a.parentNode) if (a.localName === 'sdt') return a; return null; };
   const tagOf = sdt => { const t = sdt.getElementsByTagNameNS(W, 'tag')[0]; return t ? t.getAttributeNS(W, 'val') || t.getAttribute('w:val') : ''; };
   const aliasOf = sdt => { const t = sdt.getElementsByTagNameNS(W, 'alias')[0]; return t ? t.getAttribute('w:val') : ''; };
   const contentOf = sdt => [...sdt.childNodes].find(n => n.localName === 'sdtContent');
@@ -28,7 +50,9 @@
     get contentControls() { return new CCs(this.node); }
     get paragraphs() { return new Paras(contentOf(this.node)); }
     getRange() { return new Range(this.node); }
-    getOoxml() { return { value: pkgOf(ser(this.node)) }; }
+    get isNullObject() { return false; }
+    get parentContentControlOrNullObject() { const a = parentSdt(this.node); return a ? ccFor(a) : NULL_CC; }
+    getOoxml() { return { value: pkgOf(isInline(this.node) ? '<w:p xmlns:w="' + W + '">' + ser(this.node) + '</w:p>' : ser(this.node)) }; }
     insertOoxml(x, where) {
       window.__ops.push('cc.insertOoxml ' + where);
       const c = contentOf(this.node), kids = bodyKids(x);
@@ -46,13 +70,13 @@
       }
     }
     delete(keep) { window.__ops.push('cc.delete'); if (!keep) this.node.parentNode.removeChild(this.node); }
-    select() { window.__selected = this.tag; }
+    select() { window.__selected = this.tag; window.__selectedNode = this.node; }
   }
   class CCs extends Proxy {
     constructor(root) { super(); this.root = root; }
     get items() {
       const all = [...this.root.getElementsByTagNameNS(W, 'sdt')].filter(n => n !== this.root);
-      return all.map(n => { const c = CC.cache.get(n) || new CC(n); CC.cache.set(n, c); c.tag = tagOf(n); return c; });
+      return all.map(ccFor);
     }
   }
   CC.cache = new WeakMap();
@@ -60,7 +84,7 @@
     constructor(node) { super(); this.node = node; }
     insertOoxml(x, where) {
       window.__ops.push('range.insertOoxml ' + where);
-      const kids = bodyKids(x), n = this.node;
+      const kids = bodyKids(x), n = blockOf(this.node); // inside a paragraph, Word splits it; near enough
       if (where === 'Before') kids.forEach(k => n.parentNode.insertBefore(k, n));
       else if (where === 'After') { let ref = n.nextSibling; kids.forEach(k => n.parentNode.insertBefore(k, ref)); }
     }
@@ -73,6 +97,11 @@
   const document_ = {
     body: {
       getOoxml() { return { value: pkgOf([...body.childNodes].map(ser).join('')) }; },
+      get paragraphs() {
+        return { load() { return this; }, items: [...body.getElementsByTagNameNS(W, 'p')].map(p => ({
+          text: p.textContent, load() { return this; }, delete() { if (p.parentNode) p.parentNode.removeChild(p); },
+          get parentContentControlOrNullObject() { const a = parentSdt(p); return a ? ccFor(a) : NULL_CC; } })) };
+      },
       insertOoxml(x, where) {
         window.__ops.push('body.insertOoxml ' + where);
         const kids = bodyKids(x);
@@ -80,6 +109,7 @@
       },
     },
     get contentControls() { return new CCs(body); },
+    getSelection() { const n = window.__selectedNode; return { parentContentControlOrNullObject: n && n.parentNode ? ccFor(n) : NULL_CC }; },
     changeTrackingMode: 'Off',
     load() {},
     properties: { customProperties: { load() {}, get items() { return props; }, add(key, value) { const p = props.find(x => x.key === key); if (p) p.value = value; else props.push({ key, value }); } } },

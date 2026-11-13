@@ -40,6 +40,10 @@ Section numbers are not stored anywhere else: **Renumber sections** rewrites eve
 | Bill Delete (`BillDelete`, text in brackets) | Matter in the law to be omitted. The brackets are typed characters for readers; the converter drops them. | `del` |
 | anything else | The law's words, unchanged | text |
 
+Readers match a style by how its id starts (`BillInsert…`, `BillDelete…`), because Word makes a style's id from its name and documents made with earlier versions of the add-in have `BillInsertnewmatter` / `BillDeletematteromitted`. Brackets typed in plain text also open and close omitted matter.
+
+Word keeps a content control that holds a single paragraph *inside* that paragraph (an inline control), so a title or a one-paragraph section (often the effective date) is saved as `w:p > w:sdt`. Readers treat a paragraph whose text sits in an `akn:longTitle`, `akn:enactingFormula`, `akn:section` or `akn:quoted` control exactly like the block control it was written as.
+
 Word's own tracked changes (`w:ins` / `w:del`) and plain underlining are read the same way, so a document edited with Track Changes on still converts correctly. **Mark changes** rewrites each amended text with the two styles by comparing it word by word with this computer's Bank, so the unmarked and bracketed words are always exactly the law.
 
 ## Paragraph styles (look only)

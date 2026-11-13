@@ -43,6 +43,11 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   await p.screenshot({ path: OUT + '/3-draft.png', fullPage: true });
   await p.click('[data-tab=checks]'); await step('checks', () => p.click('#run-checks')); await p.waitForTimeout(300);
   console.log(await p.$$eval('#findings li', l => l.map(x => x.className + ' ' + x.textContent)));
+  // The History finding's button goes to the section; the drafter types the history and puts it in.
+  await step('history fix', async () => { await p.click('#findings li.warning:has-text("History") button:has-text("Add history")'); });
+  await step('history apply', async () => { await p.fill('#history', 'chapter 55 of the laws of 2023'); await p.click('#history-apply'); });
+  await p.click('[data-tab=checks]'); await step('checks again', () => p.click('#run-checks')); await p.waitForTimeout(300);
+  console.log(await p.$$eval('#findings li', l => l.map(x => x.className + ' ' + x.textContent)));
   await p.screenshot({ path: OUT + '/4-checks.png', fullPage: true });
   await p.click('[data-tab=export]'); await p.fill('#lbd', '12345-01-6'); await p.fill('#sponsor', 'SMITH'); await p.fill('#committee', 'Judiciary'); await p.fill('#billno', '1234'); await p.click('#save-info'); await step('akn', () => p.click('#to-akn'));
   fs.writeFileSync(OUT + '/bill.akn.xml', await p.inputValue('#akn-out'));

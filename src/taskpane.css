@@ -66,3 +66,4 @@ textarea { font: 11px/1.35 Consolas, "Cascadia Mono", monospace; white-space: pr
 progress { width: 100%; }
 [hidden] { display: none !important; }
 .actions label > input.short { display: inline-block; width: 70px; margin: 0 2px; padding: 2px 4px; }
+.history { margin: 8px 0 4px; }

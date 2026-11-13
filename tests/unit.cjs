@@ -69,4 +69,21 @@ t('example .docx converts', () => {
   const out = require('child_process').execFileSync('node', [path.join(__dirname, '..', 'tools', 'docx2akn.cjs'), ex]).toString();
   assert.ok(out.includes('refersTo="#effectiveDate"'));
 });
+t('a document as Word saves it: inline controls and renamed styles', () => {
+  // Word keeps a one-paragraph control inside its paragraph and makes style ids from style names.
+  const sdt = (tag, inner) => '<w:sdt><w:sdtPr><w:tag w:val="' + tag + '"/></w:sdtPr><w:sdtContent>' + inner + '</w:sdtContent></w:sdt>';
+  const r = (t, st) => '<w:r>' + (st ? '<w:rPr><w:rStyle w:val="' + st + '"/></w:rPr>' : '') + '<w:t xml:space="preserve">' + t + '</w:t></w:r>';
+  const body = '<w:p><w:pPr><w:pStyle w:val="BillTitle"/></w:pPr>' + sdt('akn:longTitle', r('AN ACT to amend the general construction law, in relation to ') + sdt('akn:subject', r('affidavits'))) + '</w:p>' +
+    sdt('akn:enactingFormula', '<w:p>' + r(BD.ENACTING) + '</w:p>') +
+    sdt('akn:section;act=amend;law=GCN;loc=12', '<w:p>' + sdt('akn:num', r('Section 1.', 'BillSectionNumber')) + r(' ') + sdt('akn:mod', r('Section 12 of the general construction law is amended to read as follows:')) + '</w:p>' +
+      sdt('akn:quoted;law=GCN;loc=12', '<w:p>' + r('§ 12. Affidavit. It may be sworn to before any ') + r('[officer]', 'BillDeletematteromitted') + r(' ') + r('notary', 'BillInsertnewmatter') + r(' here.') + '</w:p>')) +
+    '<w:p>' + sdt('akn:section;act=effective', sdt('akn:num', r('§ 2.', 'BillSectionNumber')) + r(' This act shall take effect immediately.')) + '</w:p>';
+  const m = BD.readBill('<w:document xmlns:w="' + BD.W_NS + '"><w:body>' + body + '</w:body></w:document>', DOMParser);
+  assert.strictEqual(m.title.subject, 'affidavits');
+  assert.ok(m.enacting);
+  assert.deepStrictEqual(m.sections.map(s => s.act), ['amend', 'effective']);
+  assert.strictEqual(m.sections[1].num, '§ 2.'); assert.strictEqual(m.sections[1].text, 'This act shall take effect immediately.');
+  assert.deepStrictEqual(m.sections[0].quoted.paras[0].map(x => x.k), ['', 'del', '', 'ins', '']);
+  assert.deepStrictEqual(m.loose, []);
+});
 console.log(n + ' passed');

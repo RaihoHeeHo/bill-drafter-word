@@ -13,25 +13,29 @@
   // Character styles Bill Insert / Bill Delete DO carry meaning (new matter / matter to be omitted).
   const STYLES = [
     ['paragraph', 'BillTitle', 'Bill Title', '<w:pPr><w:spacing w:after="240"/><w:ind w:left="720" w:hanging="720"/></w:pPr><w:rPr><w:b/></w:rPr>'],
-    ['paragraph', 'BillEnacting', 'Bill Enacting Clause', '<w:pPr><w:spacing w:after="240"/><w:ind w:firstLine="720"/></w:pPr><w:rPr><w:i/></w:rPr>'],
+    ['paragraph', 'BillEnactingClause', 'Bill Enacting Clause', '<w:pPr><w:spacing w:after="240"/><w:ind w:firstLine="720"/></w:pPr><w:rPr><w:i/></w:rPr>'],
     ['paragraph', 'BillSection', 'Bill Section', '<w:pPr><w:spacing w:before="120" w:after="120"/><w:ind w:firstLine="360"/></w:pPr>'],
-    ['paragraph', 'BillQuoted', 'Bill Amended Text', '<w:pPr><w:spacing w:after="80"/><w:ind w:left="360" w:firstLine="360"/></w:pPr>'],
-    ['character', 'BillNum', 'Bill Section Number', '<w:rPr><w:b/></w:rPr>'],
-    ['character', 'BillHeading', 'Bill Section Heading', ''],
-    ['character', 'BillInsert', 'Bill Insert (new matter)', '<w:rPr><w:u w:val="single"/></w:rPr>'],
-    ['character', 'BillDelete', 'Bill Delete (matter omitted)', '<w:rPr><w:color w:val="9B1C1C"/></w:rPr>'],
+    ['paragraph', 'BillAmendedText', 'Bill Amended Text', '<w:pPr><w:spacing w:after="80"/><w:ind w:left="360" w:firstLine="360"/></w:pPr>'],
+    ['character', 'BillSectionNumber', 'Bill Section Number', '<w:rPr><w:b/></w:rPr>'],
+    ['character', 'BillSectionHeading', 'Bill Section Heading', ''],
+    ['character', 'BillInsert', 'Bill Insert', '<w:rPr><w:u w:val="single"/></w:rPr>'],
+    ['character', 'BillDelete', 'Bill Delete', '<w:rPr><w:color w:val="9B1C1C"/></w:rPr>'],
   ];
-  const STYLE_KIND = { BillInsert: 'ins', BillDelete: 'del', BillNum: 'num', BillHeading: 'heading' };
+  // Word makes a style's id from its name (spaces and brackets dropped), so each id here is its name without
+  // spaces; styles are recognized by how the id starts, which also covers documents made with older names
+  // ("Bill Insert (new matter)" became BillInsertnewmatter).
+  const styleKind = id => /^BillInsert/i.test(id) ? 'ins' : /^BillDelete/i.test(id) ? 'del' : /^Bill(Section)?Num/i.test(id) ? 'num' : /^Bill(Section)?Heading/i.test(id) ? 'heading' : '';
   const stylesXml = () => '<w:styles xmlns:w="' + W + '">' + STYLES.map(([type, id, name, body]) =>
     '<w:style w:type="' + type + '" w:customStyle="1" w:styleId="' + id + '"><w:name w:val="' + name + '"/>' +
     (type === 'paragraph' ? '<w:basedOn w:val="Normal"/><w:qFormat/>' : '<w:qFormat/>') + body + '</w:style>').join('') + '</w:styles>';
 
   /* ---------- writing ---------- */
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  const RSTYLE = { ins: 'BillInsert', del: 'BillDelete', num: 'BillNum', heading: 'BillHeading' };
+  const RSTYLE = { ins: 'BillInsert', del: 'BillDelete', num: 'BillSectionNumber', heading: 'BillSectionHeading' };
   function run(t, k) {
     if (!t) return '';
-    const st = RSTYLE[k] ? '<w:rPr><w:rStyle w:val="' + RSTYLE[k] + '"/></w:rPr>' : '';
+    // The style carries the meaning; new matter is also underlined directly, so it survives a lost style.
+    const st = RSTYLE[k] ? '<w:rPr><w:rStyle w:val="' + RSTYLE[k] + '"/>' + (k === 'ins' ? '<w:u w:val="single"/>' : '') + '</w:rPr>' : '';
     return '<w:r>' + st + '<w:t xml:space="preserve">' + esc(t) + '</w:t></w:r>';
   }
   const runs = rs => rs.map(r => run(r.t, r.k)).join('');
@@ -64,14 +68,14 @@
     first += runs(s.content || []);
     let inner = para('BillSection', first);
     for (const p of s.more || []) inner += para('BillSection', runs(p));
-    if (s.quoted) inner += sdt(tagOf('akn:quoted', { law: s.law, loc: s.loc, unit: s.unit }), 'Text of the law', s.quoted.map(p => para('BillQuoted', runs(p))).join('') || para('BillQuoted', ''));
+    if (s.quoted) inner += sdt(tagOf('akn:quoted', { law: s.law, loc: s.loc, unit: s.unit }), 'Text of the law', s.quoted.map(p => para('BillAmendedText', runs(p))).join('') || para('BillAmendedText', ''));
     return sdt(tagOf('akn:section', props), alias.trim(), inner);
   }
-  const quotedInner = paras => paras.map(p => para('BillQuoted', runs(p))).join('');
+  const quotedInner = paras => paras.map(p => para('BillAmendedText', runs(p))).join('');
   function titleXml(t) {
     return sdt('akn:longTitle', 'Title', para('BillTitle', run(t.before, '') + sdt('akn:subject', 'Subject (in relation to …)', run(t.subject, '')) + run(t.after, '')));
   }
-  const enactingXml = () => sdt('akn:enactingFormula', 'Enacting clause', para('BillEnacting', run(BD.ENACTING, '')));
+  const enactingXml = () => sdt('akn:enactingFormula', 'Enacting clause', para('BillEnactingClause', run(BD.ENACTING, '')));
 
   // A flat OPC package for insertOoxml: the body plus our styles.
   function pkg(bodyInner) {
@@ -104,7 +108,7 @@
     let k = '';
     if (pr) {
       const st = child(pr, 'rStyle'), u = child(pr, 'u'), strike = child(pr, 'strike');
-      if (st && STYLE_KIND[attr(st, 'val')]) k = STYLE_KIND[attr(st, 'val')];
+      if (st && styleKind(attr(st, 'val'))) k = styleKind(attr(st, 'val'));
       else if (u && attr(u, 'val') !== 'none') k = 'ins';
       else if (strike && attr(strike, 'val') !== '0' && attr(strike, 'val') !== 'false') k = 'del';
     }
@@ -117,21 +121,27 @@
       else if (n === 'br' || n === 'cr') t += '\n';
       else if (n === 'noBreakHyphen') t += '-';
     }
-    return { t, k, cc: ctx.cc || '', rev: !!ctx.rev };
+    return { t, k, cc: ctx.cc || '', rev: !!ctx.rev, part: ctx.part || null };
   }
   // Runs of a paragraph (or of an inline content control), with the inline control they sit in.
   function runsIn(n, ctx, out) {
     for (const c of kids(n)) {
       const name = ln(c);
       if (name === 'r') { const r = runOf(c, ctx); if (r.t) out.push(r); }
-      else if (name === 'sdt') { const s = sdtInfo(c); if (s.content) runsIn(s.content, { ...ctx, cc: BD.parseTag(s.tag).name || ctx.cc }, out); }
+      else if (name === 'sdt') {
+        const s = sdtInfo(c); if (!s.content) continue;
+        const tag = BD.parseTag(s.tag);
+        // A bill part (title, section, quoted text…) Word turned into an inline control: remember it, once.
+        if (PART_OR_QUOTED.test(tag.name)) runsIn(s.content, ctx.part ? ctx : { ...ctx, part: { tag, alias: s.alias } }, out);
+        else runsIn(s.content, { ...ctx, cc: tag.name || ctx.cc }, out);
+      }
       else if (name === 'ins' || name === 'moveTo') runsIn(c, { ...ctx, rev: 'ins' }, out);
       else if (name === 'del' || name === 'moveFrom') runsIn(c, { ...ctx, rev: 'del' }, out);
       else if (name === 'hyperlink' || name === 'smartTag' || name === 'fldSimple' || name === 'customXml') runsIn(c, ctx, out);
     }
     // Merge neighbours of the same kind.
     const m = [];
-    for (const r of out) { const l = m[m.length - 1]; if (l && l.k === r.k && l.cc === r.cc && l.rev === r.rev) l.t += r.t; else m.push({ ...r }); }
+    for (const r of out) { const l = m[m.length - 1]; if (l && l.k === r.k && l.cc === r.cc && l.rev === r.rev && l.part === r.part) l.t += r.t; else m.push({ ...r }); }
     out.length = 0; out.push(...m); return out;
   }
   // Paragraphs inside a block: [{runs, style, el}], and nested block controls in order.
@@ -141,7 +151,18 @@
       const name = ln(c);
       if (name === 'p') {
         const pPr = child(c, 'pPr'), ps = pPr && child(pPr, 'pStyle');
-        out.push({ type: 'p', style: ps ? attr(ps, 'val') : '', runs: runsIn(c, {}, []) });
+        const style = ps ? attr(ps, 'val') : '', rs = runsIn(c, {}, []);
+        if (!rs.some(r => r.part)) { out.push({ type: 'p', style, runs: rs }); continue; }
+        // Word keeps a one-paragraph content control inside its paragraph (an inline control), so a title or
+        // an effective date section can look like a plain paragraph. Read it as the block it was written as.
+        let cur = null;
+        for (const r of rs) {
+          if (r.part) {
+            if (!cur || cur.part !== r.part) { cur = { part: r.part, type: 'cc', tag: r.part.tag, alias: r.part.alias, blocks: [{ type: 'p', style, runs: [] }] }; out.push(cur); }
+            cur.blocks[0].runs.push(r);
+          } else if (r.t.trim()) { cur = null; out.push({ type: 'p', style, runs: [r] }); }
+          else if (cur) cur.blocks[0].runs.push(r);
+        }
       } else if (name === 'sdt') {
         const s = sdtInfo(c);
         if (!s.content) continue;
@@ -167,27 +188,61 @@
         if (b.type === 'p') { const t = textOf(b.runs).trim(); if (t) model.loose.push(t); continue; }
         const name = b.tag.name;
         if (name === 'akn:longTitle') {
-          const rs = b.blocks.filter(x => x.type === 'p').flatMap(x => x.runs);
-          model.title = { text: textOf(rs).trim(), subject: textOf(rs.filter(r => r.cc === 'akn:subject')).trim(), runs: rs };
+          const rs = ownParas(b.blocks).flatMap(x => x.runs);
+          if (!model.title || !model.title.text) {
+            const text = textOf(rs).trim(), m = /\bin relation to\s+(.*?)(;|\.?$)/.exec(text);
+            model.title = { text, subject: textOf(rs.filter(r => r.cc === 'akn:subject')).trim() || (m ? m[1].trim() : ''), runs: rs };
+          }
+          visit(b.blocks.filter(x => x.type === 'cc'));
         } else if (name === 'akn:enactingFormula') {
-          model.enacting = { text: b.blocks.filter(x => x.type === 'p').map(x => textOf(x.runs)).join(' ').trim() };
-        } else if (name === 'akn:section') model.sections.push(sectionOf(b));
-        else visit(b.blocks);
+          if (!model.enacting || !model.enacting.text) model.enacting = { text: ownParas(b.blocks).map(x => textOf(x.runs)).join(' ').trim() };
+          visit(b.blocks.filter(x => x.type === 'cc'));
+        } else if (name === 'akn:section') {
+          model.sections.push(sectionOf(b));
+          // A section Word put inside another one still counts, after it.
+          visit(b.blocks.filter(x => x.type === 'cc' && x.tag.name !== 'akn:quoted'));
+        } else visit(b.blocks);
       }
     };
     visit(blocksIn(body));
     model.sections.forEach((s, i) => { s.index = i; });
     return model;
   }
+  const PART = /^akn:(section|longTitle|enactingFormula)$/, PART_OR_QUOTED = /^akn:(section|longTitle|enactingFormula|quoted)$/;
+  // Paragraphs of a block, going into unnamed controls but not into other bill parts.
+  function ownParas(blocks) {
+    const out = [];
+    for (const x of blocks) { if (x.type === 'p') out.push(x); else if (!PART.test(x.tag.name) && x.tag.name !== 'akn:quoted') out.push(...ownParas(x.blocks)); }
+    return out;
+  }
+  // Brackets typed in plain text open and close old matter (as LBDC's work copies are read), so the meaning
+  // holds even if Word dropped the Bill Delete style; an open bracket carries over to the next paragraph.
+  function bracketize(paras) {
+    let open = false;
+    return paras.map(rs => {
+      const out = [];
+      const add = (t, k, r) => { const l = out[out.length - 1]; if (l && l.k === k) l.t += t; else out.push({ ...r, t, k }); };
+      for (const r of rs) {
+        if (r.k !== '' ) { if (r.k === 'del') { open = !/\]\s*$/.test(r.t) && (open || /\[/.test(r.t)); } add(r.t, r.k, r); continue; }
+        for (const ch of r.t) {
+          if (ch === '[' && !open) { open = true; add(ch, 'del', r); }
+          else if (ch === ']' && open) { add(ch, 'del', r); open = false; }
+          else add(ch, open ? 'del' : '', r);
+        }
+      }
+      return out;
+    });
+  }
   function sectionOf(b) {
     const s = { act: b.tag.act || 'new', law: b.tag.law || '', loc: b.tag.loc || '', unit: b.tag.unit || '', alias: b.alias, num: '', heading: '', clause: null, paras: [], quoted: null };
     let first = true;
     for (const x of b.blocks) {
       if (x.type === 'cc' && x.tag.name === 'akn:quoted') {
-        s.quoted = { law: x.tag.law || s.law, loc: x.tag.loc || s.loc, unit: x.tag.unit || s.unit, paras: x.blocks.filter(y => y.type === 'p').map(y => y.runs).filter(rs => textOf(rs).trim()) };
+        s.quoted = { law: x.tag.law || s.law, loc: x.tag.loc || s.loc, unit: x.tag.unit || s.unit, paras: bracketize(ownParas(x.blocks).map(y => y.runs).filter(rs => textOf(rs).trim())) };
         continue;
       }
-      const ps = x.type === 'p' ? [x] : x.blocks.filter(y => y.type === 'p');
+      if (x.type === 'cc' && PART.test(x.tag.name)) continue; // read on its own by readBill
+      const ps = x.type === 'p' ? [x] : ownParas(x.blocks);
       for (const p of ps) {
         if (first) {
           first = false;
@@ -222,7 +277,7 @@
     const out = [];
     const visit = bs => { for (const b of bs) { if (b.type === 'p') { if (BD.textOf(b.runs).trim()) out.push(b.runs); } else visit(b.blocks); } };
     visit(blocksIn(body));
-    return out;
+    return bracketize(out);
   }
   Object.assign(BD, { parasOf, W_NS: W, STYLES, stylesXml, run, runs, para, sdt, tagOf, parseTag, sectionXml, quotedInner, titleXml, enactingXml, pkg, readBill, textOf, esc });
   if (typeof module !== 'undefined') module.exports = BD;
