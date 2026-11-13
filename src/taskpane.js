@@ -297,18 +297,18 @@ function saveAkn() {
 
 /* ---------- the Bank ---------- */
 async function loadBankFiles(files) {
-  files = [...files].filter(f => /\.json$/i.test(f.name) && !/^catalog\.json$/i.test(f.name));
+  files = [...files].filter(f => /\.json$/i.test(f.name) && !/^(catalog|manifest)\.json$/i.test(f.name));
   if (!files.length) throw new Error('No law files (.json) were picked.');
   const bar = $('bank-progress'); bar.hidden = false; bar.max = files.length; bar.value = 0;
-  let ok = 0; const bad = [];
+  let ok = 0; const bad = [], empty = [];
   for (const f of files) {
-    try { const law = BD.parseLaw(await f.text()); if (law && law.sections.length) { await BD.bank.put(law); ok++; } else bad.push(f.name); }
+    try { const law = BD.parseLaw(await f.text()); if (law && law.sections.length) { await BD.bank.put(law); ok++; } else if (law) empty.push(law.info.lawId); else bad.push(f.name); }
     catch (e) { bad.push(f.name); }
     bar.value++;
   }
   bar.hidden = true;
   await showBank(); await fillLaws();
-  notice('Loaded ' + ok + ' law' + (ok === 1 ? '' : 's') + ' into the Bank.' + (bad.length ? ' Not law files: ' + bad.slice(0, 5).join(', ') + (bad.length > 5 ? '…' : '') : ''));
+  notice('Loaded ' + ok + ' law' + (ok === 1 ? '' : 's') + ' into the Bank.' + (empty.length ? ' Without sections (skipped): ' + empty.join(', ') + '.' : '') + (bad.length ? ' Not law files: ' + bad.slice(0, 5).join(', ') + (bad.length > 5 ? '…' : '') : ''));
 }
 async function showBank() {
   const idx = await BD.bank.index(), ids = Object.keys(idx).sort();
