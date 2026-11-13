@@ -44,7 +44,7 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   await p.click('[data-tab=checks]'); await step('checks', () => p.click('#run-checks')); await p.waitForTimeout(300);
   console.log(await p.$$eval('#findings li', l => l.map(x => x.className + ' ' + x.textContent)));
   await p.screenshot({ path: OUT + '/4-checks.png', fullPage: true });
-  await p.click('[data-tab=export]'); await p.fill('#lbd', '12345-01-6'); await step('akn', () => p.click('#to-akn'));
+  await p.click('[data-tab=export]'); await p.fill('#lbd', '12345-01-6'); await p.fill('#sponsor', 'SMITH'); await p.fill('#committee', 'Judiciary'); await p.fill('#billno', '1234'); await p.click('#save-info'); await step('akn', () => p.click('#to-akn'));
   fs.writeFileSync(OUT + '/bill.akn.xml', await p.inputValue('#akn-out'));
   await p.screenshot({ path: OUT + '/5-export.png' });
   fs.writeFileSync(OUT + '/document.xml', await p.evaluate(() => __docXml()));

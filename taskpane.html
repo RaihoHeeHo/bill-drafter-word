@@ -92,7 +92,13 @@
 <section data-panel="export" hidden>
   <div class="card">
     <h2>Bill information</h2>
+    <p class="hint">Goes into the Akoma Ntoso front matter, so the clean-copy template can print the cover.</p>
     <label>LBD number <input id="lbd" placeholder="12345-01-6"></label>
+    <label>House <select id="house"><option value="senate">Senate</option><option value="assembly">Assembly</option></select></label>
+    <label>Bill number (once printed) <input id="billno" placeholder="1234"></label>
+    <label>Sponsor <input id="sponsor" placeholder="SMITH"></label>
+    <label>Committee <input id="committee" placeholder="Budget and Revenue"></label>
+    <label>Date <input id="bdate" type="date"></label>
     <label>Session year <input id="year" class="short" placeholder="2026"></label>
     <button id="save-info">Save in the document</button>
   </div>
@@ -102,6 +108,7 @@
     <button id="to-akn" class="primary wide">Convert to Akoma Ntoso</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
     <textarea id="akn-out" rows="14" readonly spellcheck="false"></textarea>
+    <p class="hint">Clean copy: the saved .xml works with the LBDC clean-copy template (<code>clean-copy/bill.typ</code> in the add-in's files): <code>typst compile --font-path fonts --input xml=bill.akn.xml bill.typ clean-copy.pdf</code>.</p>
   </div>
 </section>
 

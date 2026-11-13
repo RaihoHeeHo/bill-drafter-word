@@ -265,25 +265,28 @@ async function runChecks() {
 }
 
 /* ---------- export ---------- */
+const INFO = [['lbd', 'LBD'], ['year', 'SessionYear'], ['house', 'House'], ['billno', 'BillNumber'], ['sponsor', 'Sponsor'], ['committee', 'Committee'], ['bdate', 'BillDate']];
 async function loadInfo() {
   if (!inWord || !Office.context.requirements.isSetSupported('WordApi', '1.3')) return {};
   return Word.run(async ctx => {
     const cp = ctx.document.properties.customProperties; cp.load('items/key,items/value'); await ctx.sync();
-    const get = k => { const p = cp.items.find(x => x.key === k); return p ? String(p.value) : ''; };
-    return { lbd: get('LBD'), year: get('SessionYear') };
+    const out = {}; for (const [id, key] of INFO) { const p = cp.items.find(x => x.key === key); out[id] = p ? String(p.value) : ''; }
+    return out;
   });
 }
 async function saveInfo() {
   await word(async ctx => {
     const cp = ctx.document.properties.customProperties;
-    cp.add('LBD', $('lbd').value.trim()); cp.add('SessionYear', $('year').value.trim()); await ctx.sync();
+    for (const [id, key] of INFO) cp.add(key, $(id).value.trim());
+    await ctx.sync();
   });
   notice('Saved in the document\'s properties.');
 }
+const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
 async function toAkn() {
   const model = await word(readModel);
-  const info = { lbd: $('lbd').value.trim(), year: $('year').value.trim(), lawNames: await lawNamesFor(model) };
+  const info = { ...paneInfo(), lawNames: await lawNamesFor(model) };
   aknText = BD.toAkn(model, info);
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   const errs = (await BD.check(model, getLaw)).filter(f => f.level === 'error').length;
@@ -351,7 +354,9 @@ async function start(host) {
   if (inWord) {
     await busy(null, refresh);
     const info = await loadInfo().catch(() => ({}));
-    $('lbd').value = info.lbd || ''; $('year').value = info.year || String(new Date().getFullYear());
+    for (const [id] of INFO) if (info[id]) $(id).value = info[id];
+    if (!$('year').value) $('year').value = String(new Date().getFullYear());
+    if (!$('bdate').value) $('bdate').value = new Date().toISOString().slice(0, 10);
   }
 }
 if (window.Office && Office.onReady) Office.onReady(info => start(info && info.host));

@@ -14,8 +14,8 @@ Each tag starts with `akn:` and may carry `;key=value` properties (Word allows 6
 | `akn:section;act=…;law=…;loc=…;unit=…` | block | One section of the bill | `body/section` with `eId="sec_N"` and `refersTo` from `act` |
 | `akn:num` | inline, first paragraph of a section | "Section 1." / "§ 2." | `section/num` |
 | `akn:heading` | inline, after the number | "Short title.", "Severability clause." … | `section/heading` |
-| `akn:mod` | inline, after the number | The amending clause ("Section 12 of the general construction law, as amended by …, is amended to read as follows:") | `content/p/mod`, with the law's name linked as `ref` |
-| `akn:quoted;law=…;loc=…;unit=…` | block, inside a section | The text of the provision as the bill would leave it | `mod/quotedStructure/section` (or `subsection` when `unit` is set) with `num`, `heading`, `content/p` |
+| `akn:mod` | inline, after the number | The amending clause ("Section 12 of the general construction law, as amended by …, is amended to read as follows:") | text of `content/p`, with the law's name linked as `ref`; the `mod` follows it in the same `p` |
+| `akn:quoted;law=…;loc=…;unit=…` | block, inside a section | The text of the provision as the bill would leave it | `p/mod/quotedStructure`, nested by numbering (below) |
 
 ### Section `act` values
 
@@ -46,22 +46,37 @@ Word's own tracked changes (`w:ins` / `w:del`) and plain underlining are read th
 
 `Bill Title`, `Bill Enacting Clause`, `Bill Section`, `Bill Amended Text`, plus character styles `Bill Section Number` and `Bill Section Heading`.
 
+## Amended text: nesting by numbering
+
+Inside `quotedStructure`, each numbered paragraph is a unit, nested by the order in which the kinds of number first appear, with the same rules as LBDC's clean-copy demo converter:
+
+| Number | Kind |
+|---|---|
+| `§ 296.` | section (then subsection, paragraph, …) |
+| `1.` `(a)` `(1)` `(i)` `(A)` `a.` | the next level down, in order of first appearance; `(i)` right after `(h)` is a letter, otherwise roman |
+
+A section's short verbless sentence after its number is its `heading` ("§ 12. Affidavit."); on other units, a short sentence standing alone before a deeper unit. "§ 296. Unlawful discriminatory practices. 1. It shall be …" is split into the section and its subsection 1. Text before a unit's sub-units goes in `intro`; unnumbered paragraphs join the unit above. eIds are prefixed with the `mod`'s (`sec_3__mod_1__subsec_1__para_a`) so two amendments of the same provision never collide.
+
 ## Document properties
 
-Custom document properties `LBD` (e.g. `12345-01-6`) and `SessionYear` feed the Akoma Ntoso identification block:
+The Export tab saves the bill information as custom document properties, and both converters read them:
 
-```
-FRBRWork        /akn/us-ny/bill/<year>/<lbd>/!main
-FRBRExpression  /akn/us-ny/bill/<year>/<lbd>/eng@<date>/!main
-FRBRnumber      <lbd>
-```
+| Property | Akoma Ntoso |
+|---|---|
+| `LBD` (e.g. `12345-01-6`) | `proprietary/lbdc:lbdNumber` (`LBD12345-01-6`) |
+| `House` (`senate` / `assembly`) | `proprietary/lbdc:house`, `docStage` ("IN SENATE"), FRBR author |
+| `BillNumber` | `docNumber`, FRBR number; work URI `/akn/us-ny/bill/<year>/S1234` (or `…/lbd-<lbd>` before printing) |
+| `Sponsor`, `Committee` | the "Introduced by" paragraph (`docProponent`, `docCommittee`) |
+| `BillDate`, `SessionYear` | `docDate`, `session` ("2025-2026 Regular Sessions"), FRBR dates |
+
+The front matter (`docAuthority` … `longTitle`) and `proprietary` follow the shape of LBDC's clean-copy demo, so its Typst template prints the cover; see `clean-copy/`.
 
 ## What the converter adds
 
 * `meta/analysis/activeModifications`: one `textualMod` per amending section, `type` = `substitution` (amend), `insertion` (add) or `repeal`, with `source` = the `mod` and `destination` = the law's URI, e.g. `/akn/us-ny/act/consolidated/gcn/!main#sec_12__subsec_1`.
 * `meta/references`: TLC entries for the legislature, the drafter, and each concept used in `refersTo`.
 
-The output validates against the OASIS Akoma Ntoso 3.0 schema (`akomantoso30.xsd`); `examples/Example bill.akn.xml` is a sample.
+The output validates against the OASIS Akoma Ntoso 3.0 schema (`akomantoso30.xsd`); `examples/Example bill.akn.xml` is a sample and `examples/Example bill - clean copy.pdf` is its clean copy.
 
 ## Converting a saved .docx
 
@@ -76,6 +91,5 @@ Both use the same code (`src/lib/ooxml.js` reads the .docx, `src/lib/akn.js` wri
 
 ## Known limits of the mapping
 
-* A subdivision's lettered paragraphs are kept as consecutive `p` elements, not nested `paragraph` elements.
 * Unconsolidated laws get a consolidated-style URI built from their Bank id; check those `ref`s.
 * Tables inside amended text are kept as plain text.

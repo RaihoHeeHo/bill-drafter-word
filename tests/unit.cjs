@@ -56,6 +56,13 @@ t('docx round trip and Akoma Ntoso', () => {
   assert.ok(x.includes('<num>§ 12.</num><heading>Affidavit.</heading><content><p>Old <del>words</del> <ins>new words</ins></p>'), x);
   assert.ok(x.includes('<textualMod eId="amod_1" type="substitution">'));
 });
+t('amended text nests by numbering', () => {
+  const m = { title: null, enacting: null, sections: [{ act: 'amend', law: 'EXC', loc: '296', num: 'Section 1.', clause: 'Section 296 of the executive law is amended to read as follows:', paras: [], quoted: { paras: [
+    [{ t: '\u00a7 296. Unlawful practices. 1. It shall be unlawful:', k: '' }], [{ t: '(a) For an employer;', k: '' }], [{ t: '(1) to refuse;', k: '' }], [{ t: '(b) For an agency.', k: '' }], [{ t: '2. Second.', k: '' }]] } }] };
+  const x = BD.toAkn(m, {});
+  assert.ok(x.includes('<section eId="sec_1__mod_1__sec_296"><num>\u00a7 296.</num><heading>Unlawful practices.</heading><subsection eId="sec_1__mod_1__sec_296__subsec_1"><num>1.</num><intro><p>It shall be unlawful:</p></intro><paragraph eId="sec_1__mod_1__sec_296__subsec_1__para_a"><num>(a)</num><intro><p>For an employer;</p></intro><subparagraph'), x);
+  assert.ok(x.includes('<subsection eId="sec_1__mod_1__sec_296__subsec_2"><num>2.</num><content><p>Second.</p></content></subsection>'), x);
+});
 t('example .docx converts', () => {
   const ex = path.join(__dirname, '..', 'examples', 'Example bill.docx');
   if (!fs.existsSync(ex)) return;

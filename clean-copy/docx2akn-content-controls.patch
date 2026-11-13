@@ -1,0 +1,32 @@
+--- a/docx2akn.py	2026-11-13 13:44:25.000000000 +0000
++++ b/docx2akn.py	2026-11-13 13:57:18.771577989 +0000
+@@ -94,12 +94,25 @@
+ 
+ 
+ def read_paragraphs(doc) -> list[Para]:
++    """Every paragraph in the body in order, including those inside content controls (w:sdt), which
++    python-docx's doc.paragraphs skips. Underlining counts whether it is direct or from a character style."""
++    from docx.oxml.ns import qn
++    styles = {}
++    for st in doc.styles.element.iter(qn("w:style")):
++        u = st.find(qn("w:rPr") + "/" + qn("w:u"))
++        styles[st.get(qn("w:styleId"))] = u is not None and u.get(qn("w:val")) not in ("none", None)
+     out = []
+-    for i, p in enumerate(doc.paragraphs):
++    for i, p in enumerate(doc.element.body.iter(qn("w:p"))):
+         chars = []
+-        for run in p.runs:
+-            u = bool(run.underline) or bool(run.font.underline)
+-            chars.extend((c, u) for c in run.text.replace("\t", " "))
++        for r in p.iter(qn("w:r")):
++            rpr = r.find(qn("w:rPr"))
++            u = False
++            if rpr is not None:
++                du = rpr.find(qn("w:u"))
++                rs = rpr.find(qn("w:rStyle"))
++                u = (du is not None and du.get(qn("w:val")) != "none") or (rs is not None and styles.get(rs.get(qn("w:val")), False))
++            text = "".join((t.text or "") if t.tag == qn("w:t") else " " for t in r if t.tag in (qn("w:t"), qn("w:tab")))
++            chars.extend((c, u) for c in text)
+         para = Para(i + 1, chars)
+         if para.text:
+             out.append(para)

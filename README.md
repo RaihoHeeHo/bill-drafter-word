@@ -11,6 +11,10 @@ It does **not** try to look like a printed bill: no line numbers, no bill spacin
 
 Nothing is installed on the computer and there is no .exe: Word loads the add-in from this site, and the laws stay on the computer.
 
+## Clean copy
+
+The exported XML has the shape of LBDC's clean-copy demo (front matter, `proprietary` house and LBD number, lead-ins outside `mod`, amended text nested by numbering), so its Typst template turns it into a clean-copy PDF. See [clean-copy/](clean-copy/README.md); `examples/Example bill - clean copy.pdf` is the example bill printed that way.
+
 ## Add it to Word on Windows
 
 You need the manifest file: [manifest.xml](https://raihoheeho.github.io/bill-drafter-word/manifest.xml) (right-click > Save link as).
@@ -43,6 +47,7 @@ src/lib/checks.js     drafting checks
 src/lib/akn.js        model -> Akoma Ntoso 3.0
 src/taskpane.*        the pane (Office.js)
 tools/docx2akn.cjs    command-line converter (same code)
+clean-copy/           Typst clean-copy template (from LBDC's demo) for the exported XML
 tests/unit.cjs        unit tests          (npm install && npm test)
 tests/flow.cjs        whole flow in Chromium against a Word stand-in (tests/word-mock.js)
 ```
