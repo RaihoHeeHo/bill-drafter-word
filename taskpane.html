@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bill Drafter</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<link rel="stylesheet" href="src/taskpane.css">
+</head>
+<body>
+<header>
+  <div class="brand"><img src="assets/icon-32.png" alt="" width="20" height="20"> Bill Drafter <span class="demo">DEMO</span></div>
+  <nav role="tablist">
+    <button role="tab" data-tab="draft" aria-selected="true">Draft</button>
+    <button role="tab" data-tab="checks">Checks <span id="check-count" class="count" hidden></span></button>
+    <button role="tab" data-tab="export">Export</button>
+    <button role="tab" data-tab="bank">Bank</button>
+  </nav>
+</header>
+<div id="notice" class="notice" hidden></div>
+
+<main>
+<!-- ============ Draft ============ -->
+<section data-panel="draft">
+  <div id="no-bill" class="card" hidden>
+    <h2>Start a bill</h2>
+    <p class="hint">Adds the title, the enacting clause and an effective-date section to this document.</p>
+    <label>In relation to <input id="nb-subject" placeholder="e.g. affidavits sworn before a notary public"></label>
+    <button id="nb-go" class="primary">New bill</button>
+  </div>
+
+  <div class="card" id="title-card">
+    <h2>Title</h2>
+    <label>In relation to <input id="subject" placeholder="what the bill is about"></label>
+    <div class="row"><button id="title-update">Update title</button><button id="renumber">Renumber sections</button></div>
+    <p class="hint">The title lists every law the sections amend or repeal; Update title rebuilds it.</p>
+  </div>
+
+  <div class="card">
+    <h2>Amend a law</h2>
+    <div id="bank-empty" class="hint warn" hidden>The Bank is empty on this computer. Load it on the Bank tab first.</div>
+    <label>Law
+      <input id="law-filter" placeholder="Filter: EDN, education, tax…" autocomplete="off">
+      <select id="law" size="5"></select>
+    </label>
+    <label>Section <input id="sec-q" placeholder="Number (296) or words of the heading" autocomplete="off"></label>
+    <ul id="sec-results" class="results"></ul>
+    <div id="sec-preview" class="preview" hidden></div>
+    <fieldset id="action" class="actions" disabled>
+      <legend>What the bill does</legend>
+      <label><input type="radio" name="act" value="amend" checked> Amend the section</label>
+      <label><input type="radio" name="act" value="amendSub"> Amend subdivision <select id="sub"></select></label>
+      <label><input type="radio" name="act" value="add"> Add a new section <input id="add-num" class="short"></label>
+      <label><input type="radio" name="act" value="addSub"> Add a new subdivision <input id="add-sub" class="short"> to it</label>
+      <label><input type="radio" name="act" value="repeal"> Repeal the section</label>
+      <label>As amended by <input id="history" placeholder="as amended by chapter 55 of the laws of 2023"></label>
+      <button id="insert-amend" class="primary">Insert section</button>
+    </fieldset>
+    <p class="hint">Then edit the law's text right in the document, as if it were plain text. <b>Mark changes</b> compares it with the Bank and brackets what you took out and underlines what you added. Word's own Track Changes may be on or off.</p>
+    <button id="mark" class="primary wide">Mark changes</button>
+  </div>
+
+  <div class="card">
+    <h2>Standard sections</h2>
+    <div class="row"><input id="st-name" placeholder='Short title, e.g. "notary modernization act"'><button id="add-short">Short title</button></div>
+    <div class="row"><button id="add-findings">Legislative findings</button><button id="add-sev">Severability</button><button id="add-new">Blank section</button></div>
+    <label>Effective date: This act shall take effect …
+      <select id="eff-form"></select></label>
+    <div id="eff-addons" class="addons"></div>
+    <button id="add-eff">Insert or replace effective date</button>
+    <p class="hint">Sections go where the Manual puts them: the short title first, findings next, severability just before the effective date, the effective date last. Numbers follow.</p>
+  </div>
+
+  <div class="card">
+    <h2>Sections</h2>
+    <ol id="outline" class="outline"></ol>
+    <button id="refresh" class="link">Refresh</button>
+  </div>
+</section>
+
+<!-- ============ Checks ============ -->
+<section data-panel="checks" hidden>
+  <div class="card">
+    <h2>Drafting checks</h2>
+    <p class="hint">Structure (title, enacting clause, numbers, order of the standard sections), amendments (citations, history, marking checked against the Bank) and style in new matter.</p>
+    <button id="run-checks" class="primary wide">Run checks</button>
+    <ul id="findings" class="findings"></ul>
+  </div>
+</section>
+
+<!-- ============ Export ============ -->
+<section data-panel="export" hidden>
+  <div class="card">
+    <h2>Bill information</h2>
+    <label>LBD number <input id="lbd" placeholder="12345-01-6"></label>
+    <label>Session year <input id="year" class="short" placeholder="2026"></label>
+    <button id="save-info">Save in the document</button>
+  </div>
+  <div class="card">
+    <h2>Akoma Ntoso</h2>
+    <p class="hint">Converts this document to Akoma Ntoso 3.0 XML: title, enacting formula, sections, each amendment as a &lt;mod&gt; with the amended text in a &lt;quotedStructure&gt;, new matter as &lt;ins&gt; and omitted matter as &lt;del&gt;.</p>
+    <button id="to-akn" class="primary wide">Convert to Akoma Ntoso</button>
+    <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
+    <textarea id="akn-out" rows="14" readonly spellcheck="false"></textarea>
+  </div>
+</section>
+
+<!-- ============ Bank ============ -->
+<section data-panel="bank" hidden>
+  <div class="card">
+    <h2>The Bank on this computer</h2>
+    <p id="bank-status" class="hint"></p>
+    <p class="hint">Pick the law files the NYS Law Library downloads (one .json per law, e.g. <i>EDN - Education.json</i>). They are kept in Word's storage on this computer only; nothing is sent anywhere.</p>
+    <div class="row">
+      <label class="filebtn">Choose a folder… <input id="bank-folder" type="file" webkitdirectory multiple hidden></label>
+      <label class="filebtn">Choose files… <input id="bank-files" type="file" accept=".json,application/json" multiple hidden></label>
+    </div>
+    <progress id="bank-progress" hidden></progress>
+    <ul id="bank-list" class="banklist"></ul>
+    <button id="bank-clear" class="link danger">Remove the Bank from this computer</button>
+  </div>
+</section>
+</main>
+
+<script src="src/lib/drafting.js"></script>
+<script src="src/lib/bank.js"></script>
+<script src="src/lib/ooxml.js"></script>
+<script src="src/lib/checks.js"></script>
+<script src="src/lib/akn.js"></script>
+<script src="src/taskpane.js"></script>
+</body>
+</html>

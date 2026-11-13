@@ -1,0 +1,14 @@
+{
+  "name": "bill-drafter-word",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bill Drafter (demo) - a Word add-in for drafting bills, with Akoma Ntoso export",
+  "scripts": {
+    "test": "node tests/unit.cjs",
+    "docx2akn": "node tools/docx2akn.cjs"
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "0.9.8"
+  },
+  "devDependencies": {}
+}

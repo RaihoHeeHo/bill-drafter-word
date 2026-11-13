@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bill Drafter for Word</title>
+<style>
+:root{--bg:#fafaf8;--ink:#1f2328;--muted:#5d636b;--accent:#1f5f4a;--line:#d9dcdf}
+@media (prefers-color-scheme:dark){:root{--bg:#1b1d1f;--ink:#e8eaec;--muted:#a2a8ae;--accent:#4fae8c;--line:#3a3e43}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;margin:0 0 4px;display:flex;gap:12px;align-items:center}
+h2{font-size:18px;margin:28px 0 8px}
+.sub{color:var(--muted);margin:0 0 24px}
+a{color:var(--accent)} .btn{display:inline-block;background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none;font-weight:600}
+ol li,ul li{margin:4px 0} code{font-family:Consolas,monospace;font-size:14px}
+.note{color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:32px;padding-top:12px}
+</style></head><body><main>
+<h1><img src="assets/icon-64.png" width="40" height="40" alt="">Bill Drafter for Word</h1>
+<p class="sub">A demo Word add-in: amendments from your own copy of the laws, standard sections, drafting checks, and Akoma Ntoso export.</p>
+<p><a class="btn" href="manifest.xml" download>Download manifest.xml</a></p>
+<h2>Add it to Word for Windows</h2>
+<ol>
+<li>Save <code>manifest.xml</code> in a folder on a network share, e.g. <code>\\server\share\Word add-ins</code>.</li>
+<li>Word: <b>File &gt; Options &gt; Trust Center &gt; Trust Center Settings &gt; Trusted Add-in Catalogs</b>. Add the folder's network path, tick <b>Show in Menu</b>, restart Word.</li>
+<li><b>Home &gt; Add-ins &gt; More Add-ins &gt; Shared Folder &gt; Bill Drafter (demo) &gt; Add</b>.</li>
+</ol>
+<p>Word on the web: <b>Home &gt; Add-ins &gt; More Add-ins &gt; My Add-ins &gt; Upload My Add-in</b>, then pick <code>manifest.xml</code>.</p>
+<h2>First use</h2>
+<ol>
+<li>Open <b>Home &gt; Bill Drafter</b>, go to the <b>Bank</b> tab and choose the folder with the law files. They stay on this computer.</li>
+<li>On <b>Draft</b>, start a new bill, then amend sections, add standard sections and run <b>Checks</b>.</li>
+<li><b>Export</b> converts the bill to Akoma Ntoso XML.</li>
+</ol>
+<p>Details: <a href="https://github.com/RaihoHeeHo/bill-drafter-word#readme">README</a> · <a href="https://github.com/RaihoHeeHo/bill-drafter-word/blob/main/FORMAT.md">the .docx format and its Akoma Ntoso mapping</a> · <a href="examples/Example%20bill.docx">example bill (.docx)</a> · <a href="examples/Example%20bill.akn.xml">its Akoma Ntoso</a></p>
+<p class="note">A demo by an individual, not an official product of any state agency. Nothing is installed on the computer; the add-in's code loads from this site and the laws never leave the computer.</p>
+</main></body></html>
