@@ -1,4 +1,4 @@
 typst_ts_web_compiler.mjs and typst_ts_web_compiler_bg.wasm are from the npm package
-@myriaddreamin/typst-ts-web-compiler 0.7.0 (https://github.com/Myriad-Dreamin/typst.ts),
+@myriaddreamin/typst-ts-web-compiler 0.8.0-rc4 (https://github.com/Myriad-Dreamin/typst.ts),
 licensed under the Apache License 2.0. They contain the Typst compiler (https://github.com/typst/typst),
 also Apache License 2.0. Unmodified.

@@ -38,7 +38,7 @@
     const s = BD.findSection(law, q.loc); if (!s) return null;
     const paras = BD.lawParagraphs(s.text);
     if (!q.unit) return paras;
-    const sub = BD.subdivisions(paras).find(x => x.unit.toLowerCase() === String(q.unit).toLowerCase());
+    const sub = BD.subdivisions(paras, BD.usesSubsections(law.info && law.info.lawId)).find(x => x.unit.toLowerCase() === String(q.unit).toLowerCase());
     return sub ? sub.paras : null;
   }
 
@@ -52,7 +52,7 @@
       if (!/^AN ACT\b/.test(model.title.text)) add('error', 'Title', 'The title should begin "AN ACT".', null, 'title');
       if (!model.title.subject || /_{2,}/.test(model.title.subject)) add('error', 'Title', 'Fill in what the bill is "in relation to".', null, 'subject');
       const lawsIn = await Promise.all(S.filter(s => s.law && s.act !== 'new').map(async s => ({ s, name: await nameOf(s.law, getLaw) })));
-      const want = BD.longTitle(lawsIn.map(x => ({ ...x.s, lawName: x.name })), model.title.subject).text;
+      const want = BD.longTitle(lawsIn.map(x => ({ ...x.s, lawName: x.name })).concat(S.filter(s => s.act === 'effective')), model.title.subject).text;
       if (lawsIn.length && want.replace(/\s+/g, ' ') !== model.title.text.replace(/\s+/g, ' ')) add('warning', 'Title', 'The title does not match what the sections do. It would read: "' + want + '".', null, 'title');
     }
     if (!model.enacting) add('error', 'Enacting clause', 'The enacting clause is missing.', null, 'enacting');

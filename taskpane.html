@@ -96,10 +96,10 @@
 <section data-panel="export" hidden>
   <div class="card">
     <h2>Bill information</h2>
-    <p class="hint">Goes into the Akoma Ntoso front matter, so the clean-copy template can print the cover.</p>
+    <p class="hint">Goes into the Akoma Ntoso front matter and LBDC metadata (AKN-NY profile 0.3), so the clean-copy template can print the cover.</p>
     <label>LBD number <input id="lbd" placeholder="12345-01-6"></label>
     <label>House <select id="house"><option value="senate">Senate</option><option value="assembly">Assembly</option></select></label>
-    <label>Bill number (once printed) <input id="billno" placeholder="1234"></label>
+    <label>Bill number (once printed) <input id="billno" placeholder="1234, or 1234-A for the A print"></label>
     <label>Sponsor <input id="sponsor" placeholder="SMITH"></label>
     <label>Committee <input id="committee" placeholder="Budget and Revenue"></label>
     <label>Date <input id="bdate" type="date"></label>
@@ -108,14 +108,14 @@
   </div>
   <div class="card">
     <h2>Akoma Ntoso</h2>
-    <p class="hint">Converts this document to Akoma Ntoso 3.0 XML: title, enacting formula, sections, each amendment as a &lt;mod&gt; with the amended text in a &lt;quotedStructure&gt;, new matter as &lt;ins&gt; and omitted matter as &lt;del&gt;.</p>
+    <p class="hint">Converts this document to Akoma Ntoso 3.0 XML in the shape of LBDC's AKN-NY profile (version 0.3): front matter, each amendment as a &lt;mod&gt; whose lead-in cites the law by its Bank ID, the amended text in a &lt;quotedStructure&gt; with New York's unit names, new matter as &lt;ins&gt; and old matter as &lt;del&gt;.</p>
     <button id="to-akn" class="primary wide">Convert to Akoma Ntoso</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
     <textarea id="akn-out" rows="14" readonly spellcheck="false"></textarea>
   </div>
   <div class="card">
     <h2>Clean copy</h2>
-    <p class="hint">Typesets the Akoma Ntoso with the LBDC clean-copy template: cover, numbered lines, new matter underscored, old matter in brackets. It runs here on this computer; the first time, the typesetter takes a moment to load.</p>
+    <p class="hint">Typesets the Akoma Ntoso with the LBDC clean-copy template, which matches the public PDFs line for line: bold front matter, numbered lines, new matter underscored, old matter in brackets, and words divided only where real prints divide them. It runs here on this computer; the first time, the typesetter takes a moment to load.</p>
     <button id="to-pdf" class="primary wide">Make clean copy (PDF)</button>
     <div class="row"><button id="pdf-open" disabled>Open</button><button id="pdf-save" disabled>Save .pdf</button></div>
     <p id="pdf-status" class="hint"></p>
@@ -140,6 +140,7 @@
 </main>
 
 <script src="src/lib/drafting.js"></script>
+<script src="src/lib/laws.js"></script>
 <script src="src/lib/bank.js"></script>
 <script src="src/lib/ooxml.js"></script>
 <script src="src/lib/checks.js"></script>

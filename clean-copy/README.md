@@ -1,7 +1,7 @@
 # Clean copy from the add-in's Akoma Ntoso
 
-Step 2 of LBDC's clean-copy demo pipeline (Akoma Ntoso XML -> clean-copy PDF), set up to take the XML that
-Bill Drafter for Word exports. Step 1 (Word -> Akoma Ntoso) is the add-in itself: **Export > Convert to
+Step 2 of LBDC's clean-copy demo pipeline (Akoma Ntoso XML -> clean-copy PDF), the same template the desktop demo uses,
+fed the AKN-NY profile XML that Bill Drafter for Word exports. Step 1 (Word -> Akoma Ntoso) is the add-in itself: **Export > Convert to
 Akoma Ntoso > Save .xml**, or `node tools/docx2akn.cjs bill.docx bill.akn.xml` for a saved document.
 
 ```
@@ -12,33 +12,29 @@ Word (add-in) ──Export──▶ bill.akn.xml ──bill.typ (Typst)──▶
 
 In Word: **Export > Make clean copy (PDF)** does this inside the pane (Typst compiled to WebAssembly, loaded from the add-in's site; nothing to install). Outside Word:
 
-With [Typst](https://typst.app/) installed (0.13 or later):
+With [Typst](https://typst.app/) installed (0.15 or later), from this folder:
 
 ```
 typst compile --font-path fonts --input xml=bill.akn.xml bill.typ clean-copy.pdf
 ```
 
-LBDC's demo app (`clean_copy.py`) works too: drop the add-in's `.akn.xml` into its window. Use this folder's
-`bill.typ` in place of the demo's.
+LBDC's demo app (`clean_copy.py`) works too: drop the add-in's `.akn.xml` into its window.
 
-## What changed from the demo's `bill.typ`
+## The template
 
-Two small additions, marked "Bill Drafter for Word" in the file:
+`bill.typ` and `hyphenation.json` are the desktop demo's, unchanged (AKN-NY profile 0.3). The template reads the
+profile's XML and prints it line for line as the public PDFs do: 10.5-point FreeMono, 72 characters a line, 56 lines a
+page, bold front matter and enacting clause, new matter underscored, old matter in brackets (a pair split across units
+with `spanStart` / `spanMiddle` / `spanEnd` prints as one pair), the running header, and the EXPLANATION and LBD
+number on page 1. Words are divided at a line end only at the points in `hyphenation.json`, learned from real prints.
+The pane loads both files and compiles with Typst 0.15.1 for the browser, the same Typst as the desktop app.
 
-1. A unit that has sub-units keeps its opening words ("1. It shall be an unlawful discriminatory practice:")
-   in `<intro>`, which is how Akoma Ntoso's schema wants it; the template now prints `<intro>` like `<content>`.
-2. A bill section's `<heading>` ("Section 1. Short title. …") is printed after its number.
+## The add-in's XML is profile XML
 
-Nothing else changed, so the demo's own sample XML prints the same as before.
-
-## The add-in's XML matches the demo's shape
-
-* Front matter: `docAuthority`, `docNumber`, `session`, `docStage`, `docDate`, the "Introduced by" paragraph and
-  `longTitle`, from the Export tab's bill information (saved in the document's properties).
-* `<proprietary>` with `lbdc:house` and `lbdc:lbdNumber` (the running header and the page-1 footer).
-* The lead-in ("Section 12 of the … law … is amended to read as follows:") stays in the section's paragraph, with
-  a `<ref>` to the law; `<mod><quotedStructure>` holds the amended text, nested section / subsection / paragraph /
-  subparagraph … by the same numbering rules as the demo's `docx2akn.py`.
+* Front matter as the profile's classed paragraphs, and `lbdc:documentInfo` (house, session, print number, LBD
+  number) for the running header and the page-1 footer.
+* The whole lead-in inside the `mod`, the citation a `ref` to the provision by Bank ID, `quotedStructure` after it,
+  nested by numbering with New York's unit names.
 * `<ins>` for new matter, `<del>` for old matter (no brackets in the XML; the template adds them).
 
 ## Cross-check with the demo's round-trip check

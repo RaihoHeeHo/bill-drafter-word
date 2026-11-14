@@ -18,9 +18,9 @@ async function busy(btn, fn) {
 function needWord() { if (!inWord) throw new Error('Open this pane from Word (Home > Bill Drafter) to change the document.'); }
 const word = fn => { needWord(); return Word.run(fn); };
 const getLaw = id => BD.bank.get(id);
-async function lawNamesFor(model) {
+async function lawNamesFor(model, infos) {
   const out = {};
-  for (const s of model.sections) if (s.law && !out[s.law]) { const law = await getLaw(s.law); out[s.law] = law ? BD.lawName(law.info) : 'the ' + s.law + ' law'; }
+  for (const s of model.sections) if (s.law && !out[s.law]) { const law = await getLaw(s.law); out[s.law] = law ? BD.lawName(law.info) : 'the ' + s.law + ' law'; if (infos && law) infos[s.law] = law.info; }
   return out;
 }
 
@@ -177,7 +177,7 @@ function chooseSec(s) {
   showActions();
 }
 function showActions() {
-  const s = pick.sec, subs = s.missing ? [] : BD.subdivisions(BD.lawParagraphs(s.text));
+  const s = pick.sec, subs = s.missing ? [] : BD.subdivisions(BD.lawParagraphs(s.text), BD.usesSubsections(pick.law && pick.law.info.lawId));
   $('action').disabled = false;
   const sub = $('sub'); sub.innerHTML = '';
   for (const x of subs) sub.append(el('option', { value: x.unit, textContent: x.unit }));
@@ -196,14 +196,14 @@ async function insertAmendment() {
   let o;
   if (how === 'amend') o = { act: 'amend', loc: s.loc, quoted: BD.lawParagraphs(s.text).map(t => [{ t, k: '' }]) };
   else if (how === 'amendSub') {
-    const unit = $('sub').value, sub = BD.subdivisions(BD.lawParagraphs(s.text)).find(x => x.unit === unit);
+    const unit = $('sub').value, sub = BD.subdivisions(BD.lawParagraphs(s.text), BD.usesSubsections(law.info.lawId)).find(x => x.unit === unit);
     o = { act: 'amend', loc: s.loc, unit, quoted: sub.paras.map(t => [{ t, k: '' }]) };
   } else if (how === 'add') {
     const loc = BD.locKey($('add-num').value); if (!loc) throw new Error('Type the new section\'s number.');
     o = { act: 'add', loc, quoted: [[{ t: '§ ' + BD.secId(loc) + '. ____. ____', k: 'ins' }]] };
   } else if (how === 'addSub') {
     const unit = $('add-sub').value.trim(); if (!unit) throw new Error('Type the new subdivision\'s number.');
-    o = { act: 'add', loc: s.loc, unit, quoted: [[{ t: unit + '. ____', k: 'ins' }]] };
+    o = { act: 'add', loc: s.loc, unit, quoted: [[{ t: (BD.usesSubsections(law.info.lawId) ? '(' + unit.replace(/[()]/g, '') + ')' : unit + '.') + ' ____', k: 'ins' }]] };
   } else o = { act: 'repeal', loc: s.loc };
   o.law = law.info.lawId;
   o.clause = BD.amendingClause({ act: o.act, info: law.info, loc: o.loc, unit: o.unit, history: o.act === 'add' ? '' : history });
@@ -362,11 +362,12 @@ const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim
 let aknText = '';
 async function toAkn() {
   const model = await word(readModel);
-  const info = { ...paneInfo(), lawNames: await lawNamesFor(model) };
+  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws };
   aknText = BD.toAkn(model, info);
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   const errs = (await BD.check(model, getLaw)).filter(f => f.level === 'error').length;
-  notice(errs ? 'Converted, but the checks found ' + errs + ' problem' + (errs === 1 ? '' : 's') + ' to fix first (Checks tab).' : 'Converted.', false);
+  const draft = !info.billNumber ? ' No bill number yet, so the bill is addressed by its LBD number, a draft form the profile (0.3) does not yet define.' : '';
+  notice((errs ? 'Converted, but the checks found ' + errs + ' problem' + (errs === 1 ? '' : 's') + ' to fix first (Checks tab).' : 'Converted.') + draft, false);
 }
 function saveAkn() {
   const name = ($('lbd').value.trim() || 'bill') + '.akn.xml';

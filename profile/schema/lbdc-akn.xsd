@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AKN-NY profile, version 0.3 (draft): LBDC metadata extension.
+
+  Akoma Ntoso keeps jurisdiction-specific metadata in <proprietary>. Under this
+  profile every document carries exactly one <lbdc:documentInfo> there:
+
+    <proprietary source="#lbdc">
+      <lbdc:documentInfo> ... </lbdc:documentInfo>
+    </proprietary>
+
+  The Akoma Ntoso schema accepts any content in <proprietary>, so this schema
+  is what actually checks it (validate.py applies it to documentInfo).
+
+  The namespace is provisional. If LBDC adopts the profile it should move to
+  an HTTP namespace under an LBDC-controlled domain.
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:lbdc="urn:x-lbdc:akn:1.0"
+            targetNamespace="urn:x-lbdc:akn:1.0"
+            elementFormDefault="qualified">
+
+  <xsd:element name="documentInfo">
+    <xsd:annotation>
+      <xsd:documentation>LBDC metadata for one document. Which children are
+        required depends on the document type; the profile rules
+        (ny-akn-profile.sch) check that.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="lbdc:profile"/>
+        <xsd:element ref="lbdc:house" minOccurs="0"/>
+        <xsd:element ref="lbdc:session" minOccurs="0"/>
+        <xsd:element ref="lbdc:printNumber" minOccurs="0"/>
+        <xsd:element ref="lbdc:lbdNumber" minOccurs="0"/>
+        <xsd:element ref="lbdc:uniBill" minOccurs="0"/>
+        <xsd:element ref="lbdc:sameAs" minOccurs="0" maxOccurs="unbounded"/>
+        <xsd:element ref="lbdc:requestedBy" minOccurs="0"/>
+        <xsd:element ref="lbdc:relatesTo" minOccurs="0"/>
+        <xsd:element ref="lbdc:subjectLine" minOccurs="0"/>
+        <xsd:element ref="lbdc:resolution" minOccurs="0"/>
+        <xsd:element ref="lbdc:adoptedBy" minOccurs="0" maxOccurs="2"/>
+        <xsd:element ref="lbdc:budget" minOccurs="0"/>
+        <xsd:element ref="lbdc:chapter" minOccurs="0"/>
+        <xsd:element ref="lbdc:law" minOccurs="0"/>
+        <xsd:element ref="lbdc:passage" minOccurs="0"/>
+        <xsd:element ref="lbdc:convertedFrom" minOccurs="0"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="profile">
+    <xsd:annotation>
+      <xsd:documentation>Declares conformance to this profile version.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="name" type="xsd:string" fixed="AKN-NY"/>
+      <xsd:attribute name="version" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[0-9]+\.[0-9]+"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="house">
+    <xsd:annotation>
+      <xsd:documentation>House of introduction. "both" is used for uni-bills
+        (budget bills printed with a Senate and an Assembly number).</xsd:documentation>
+    </xsd:annotation>
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:token">
+        <xsd:enumeration value="senate"/>
+        <xsd:enumeration value="assembly"/>
+        <xsd:enumeration value="both"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+
+  <xsd:element name="session">
+    <xsd:annotation>
+      <xsd:documentation>Two-year legislative session, e.g. 2025-2026.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:token">
+        <xsd:pattern value="[0-9]{4}-[0-9]{4}"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+
+  <xsd:element name="printNumber" type="lbdc:printNumberType">
+    <xsd:annotation>
+      <xsd:documentation>Print number in Open Legislation form: house prefix,
+        number, amendment letter if any (S1234, S1234A, A3000D, J123).</xsd:documentation>
+    </xsd:annotation>
+  </xsd:element>
+
+  <xsd:simpleType name="printNumberType">
+    <xsd:restriction base="xsd:token">
+      <xsd:pattern value="[SAJKBCELR][0-9]+[A-Z]?"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+
+  <xsd:element name="lbdNumber">
+    <xsd:annotation>
+      <xsd:documentation>LBD number: five-digit route number, two-digit version
+        number, last digit of the year the document was created (12345-06-2).
+        Bill prints show it as LBD12345-06-2. Each print carries the number of
+        the LBD or amending detail sheet it was printed from.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:token">
+        <xsd:pattern value="(LBD)?[0-9]{5}-[0-9]{2}-[0-9]"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+
+  <xsd:element name="uniBill">
+    <xsd:annotation>
+      <xsd:documentation>A budget bill printed once with both house numbers.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="senate" type="lbdc:printNumberType" use="required"/>
+      <xsd:attribute name="assembly" type="lbdc:printNumberType" use="required"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="sameAs">
+    <xsd:annotation>
+      <xsd:documentation>An identical bill in the other house, same session.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="printNumber" type="lbdc:printNumberType" use="required"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="requestedBy" type="xsd:string">
+    <xsd:annotation>
+      <xsd:documentation>"at request of ..." (the Governor, an agency).</xsd:documentation>
+    </xsd:annotation>
+  </xsd:element>
+
+  <xsd:element name="relatesTo" type="xsd:string">
+    <xsd:annotation>
+      <xsd:documentation>The short description on the LBD cover: "(Relates to the
+        regulation of taking crabs)". Not part of the bill's text.</xsd:documentation>
+    </xsd:annotation>
+  </xsd:element>
+
+  <xsd:element name="subjectLine" type="xsd:string">
+    <xsd:annotation>
+      <xsd:documentation>The law and subject line on the LBD cover:
+        "En Con L. crab regulation".</xsd:documentation>
+    </xsd:annotation>
+  </xsd:element>
+
+  <xsd:element name="resolution">
+    <xsd:annotation>
+      <xsd:documentation>What a concurrent resolution does (Bill Drafting Manual,
+        Constitutional Amendments and Resolutions).</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="kind" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="stateConstitutionFirstPassage"/>
+            <xsd:enumeration value="stateConstitutionSecondPassage"/>
+            <xsd:enumeration value="federalRatification"/>
+            <xsd:enumeration value="federalMemorialization"/>
+            <xsd:enumeration value="federalConvention"/>
+            <xsd:enumeration value="other"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="adoptedBy">
+    <xsd:annotation>
+      <xsd:documentation>A house that adopted a resolution. A Legislative
+        Resolution may be adopted by one house or both; each is recorded
+        separately.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="house" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="senate"/>
+            <xsd:enumeration value="assembly"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="date" type="xsd:date" use="required"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="budget">
+    <xsd:annotation>
+      <xsd:documentation>Budget bills. kind="articleSeven" with type ppgg, elfa,
+        hmh, ted, revenue or other; kind="appropriation" with type
+        stateOperations, aidToLocalities, capitalProjects,
+        legislatureJudiciary, debtService or supplemental.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="kind" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="articleSeven"/>
+            <xsd:enumeration value="appropriation"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="type" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="ppgg"/>
+            <xsd:enumeration value="elfa"/>
+            <xsd:enumeration value="hmh"/>
+            <xsd:enumeration value="ted"/>
+            <xsd:enumeration value="revenue"/>
+            <xsd:enumeration value="other"/>
+            <xsd:enumeration value="stateOperations"/>
+            <xsd:enumeration value="aidToLocalities"/>
+            <xsd:enumeration value="capitalProjects"/>
+            <xsd:enumeration value="legislatureJudiciary"/>
+            <xsd:enumeration value="debtService"/>
+            <xsd:enumeration value="supplemental"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="fiscalYear" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:pattern value="[0-9]{4}-[0-9]{4}"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="governorsProgram" type="xsd:boolean"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="chapter">
+    <xsd:annotation>
+      <xsd:documentation>Session law chapter: chapter N of the laws of YYYY.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="year" type="xsd:gYear" use="required"/>
+      <xsd:attribute name="number" type="xsd:positiveInteger" use="required"/>
+      <xsd:attribute name="billPrintNumber" type="lbdc:printNumberType"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="law">
+    <xsd:annotation>
+      <xsd:documentation>A consolidated or unconsolidated law as identified in
+        Open Legislation ("the Bank"): lawId (TAX, EDN, CNS ...), its chapter of
+        the consolidated laws, and the session law that enacted it.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="lawId" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:pattern value="[A-Z]{3}"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="consolidatedChapter" type="xsd:token"/>
+      <xsd:attribute name="enactedBy" type="xsd:string"/>
+      <xsd:attribute name="activeDate" type="xsd:date"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="passage">
+    <xsd:annotation>
+      <xsd:documentation>How a chapter became law (Legislative Law § 44).</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="vote" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="majority"/>
+            <xsd:enumeration value="majorityThreeFifthsPresent"/>
+            <xsd:enumeration value="twoThirds"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="becameLaw" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="withApproval"/>
+            <xsd:enumeration value="withoutApproval"/>
+            <xsd:enumeration value="notwithstandingObjections"/>
+            <xsd:enumeration value="partlyByLegislature"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+      <xsd:attribute name="messageOfNecessity" type="xsd:boolean" default="false"/>
+      <xsd:attribute name="date" type="xsd:date" use="required"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="convertedFrom">
+    <xsd:annotation>
+      <xsd:documentation>Source file when the XML was converted, not authored,
+        with the tool that converted it and the file's SHA-256 hash.</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:attribute name="file" type="xsd:string" use="required"/>
+      <xsd:attribute name="tool" type="xsd:string"/>
+      <xsd:attribute name="sha256">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:pattern value="[0-9a-f]{64}"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

@@ -1,6 +1,6 @@
 # Bill drafting pipeline: Word → Akoma Ntoso → clean copy
 
-*13 November 2026 · Bill Drafter (demo) for Word, repo `RaihoHeeHo/bill-drafter-word`*
+*13 November 2026, updated 14 November 2026 for the AKN-NY profile 0.3 · Bill Drafter (demo) for Word, repo `RaihoHeeHo/bill-drafter-word`*
 
 ## In one picture
 
@@ -29,9 +29,9 @@ Three things leave the pane: the Word document itself (an ordinary .docx), the A
 |---|---|---|
 | `manifest.xml` | Office add-in manifest (XML, task pane, WordApi 1.3). It tells Word where the pane lives and adds a **Bill Drafter** button on the Home tab. | Read by Word when the add-in is added |
 | Task pane (`taskpane.html`, `src/*.js`) | HTML and JavaScript using Office.js | Word's built-in browser (WebView2 on Windows), loaded from `https://raihoheeho.github.io/bill-drafter-word/` |
-| Shared libraries (`src/lib/*.js`) | Drafting rules, Bank reader, docx reader and writer, checks, Akoma Ntoso writer. They make no Office calls. | In the pane, and in Node for the command-line converter and tests |
-| Typst compiler (`vendor/typst`, 28 MB WebAssembly) | The Typst typesetter built for browsers (typst.ts 0.7.0, Apache-2.0) | In the pane. It loads the first time **Make clean copy** is used, then stays in the browser cache. |
-| `clean-copy/bill.typ` + FreeMono | LBDC's clean-copy template from the demo, with two small additions | Compiled in the pane, or by the Typst command line |
+| Shared libraries (`src/lib/*.js`) | Drafting rules, Bank reader, docx reader and writer, checks, the table of laws, the Akoma Ntoso writer (AKN-NY profile 0.3). They make no Office calls. | In the pane, and in Node for the command-line converter and tests |
+| Typst compiler (`vendor/typst`, 30 MB WebAssembly) | The Typst typesetter built for browsers (typst.ts 0.8.0-rc4, which is Typst 0.15.1, the same version as LBDC's desktop demo; Apache-2.0) | In the pane. It loads the first time **Make clean copy** is used, then stays in the browser cache. |
+| `clean-copy/bill.typ`, `hyphenation.json` + FreeMono | LBDC's clean-copy template from the desktop demo (profile 0.3, line for line with the public PDFs), unchanged | Compiled in the pane, or by the Typst command line |
 
 There is no server-side code. GitHub Pages only serves static files. There is no .exe and no installer.
 
@@ -104,33 +104,35 @@ Each finding has a **Go to** button, and where possible a one-click fix (Renumbe
 
 ## 6. Word → Akoma Ntoso
 
-`ooxml.js` reads WordprocessingML into a model, either from `body.getOoxml()` in the pane or from `word/document.xml` in a saved .docx. `akn.js` writes Akoma Ntoso 3.0 from that model. The pane's **Export** and the command line (`node tools/docx2akn.cjs bill.docx`) run the same code and give identical output.
+`ooxml.js` reads WordprocessingML into a model, either from `body.getOoxml()` in the pane or from `word/document.xml` in a saved .docx. `akn.js` writes Akoma Ntoso 3.0 from that model in the shape of LBDC's **AKN-NY profile, version 0.3**. The pane's **Export** and the command line (`node tools/docx2akn.cjs bill.docx`) run the same code and give identical output.
 
-| Word | Akoma Ntoso |
+| Word | Akoma Ntoso (AKN-NY 0.3) |
 |---|---|
-| Bill information | `preface`: `docAuthority` STATE OF NEW YORK, `docNumber`, `session` ("2025-2026 Regular Sessions"), `docStage` ("IN SENATE"), `docDate`, the "Introduced by" paragraph (`docProponent`, `docCommittee`). Also `meta/proprietary`: `lbdc:house`, `lbdc:lbdNumber`, plus the FRBR identification. |
+| Bill information | Work `/akn/us-ny/bill/2025/s1234`, Expression `eng@` (or `eng@a` for the A print). `preface` as classed paragraphs: `authority` STATE OF NEW YORK, `number` ("1234", or "1234--A"), `session`, `stage` ("IN SENATE"), `date` (introduction), `introduction` (`docProponent`, `docCommittee`). `proprietary/lbdc:documentInfo`: profile version, house, session, print number, LBD number. |
 | `akn:longTitle` | `preface/longTitle`, with the subject as `span refersTo="#subject"` |
 | `akn:enactingFormula` | `preamble/formula[@name="enactingFormula"]` |
-| `akn:section` | `body/section eId="sec_N" refersTo="#amendment\|#repeal\|#shortTitle\|#severability\|#effectiveDate…"` with `num` and `heading` |
-| Amending clause | Text of the section's `p`, with the law's name as a `ref` to the law's URI (e.g. `/akn/us-ny/act/consolidated/gcn/!main#sec_296__subsec_1`). The `mod` follows it in the same `p`, as in LBDC's demo XML. |
-| `akn:quoted` | `mod/quotedStructure`, nested section › subsection › paragraph › subparagraph … by numbering (§ 296. › 1. › (a) › (1) › (i) › (A) › a.). These are the demo converter's rules, including "(i) after (h) is a letter". A short sentence after the number is the `heading`, and text before sub-units goes in `intro`. |
-| Bill Insert / Bill Delete | `ins` / `del` (brackets dropped; the template adds them back) |
-| Each amending section | `meta/analysis/activeModifications/textualMod`: substitution, insertion or repeal, pointing from the `mod` to the law |
+| `akn:section` | `body/section eId="sec_N"`; standard sections carry `refersTo` (`#shortTitle`, `#legislativeFindings`, `#severability`, `#effectiveDate`), and the effective date a `class` saying what kind (`immediate`, `daysAfter`, `sunset` …) |
+| Amending clause | The whole lead-in inside `p/mod`: the citation as a `ref` to the provision, addressed by Bank law ID alone (`/akn/us-ny/act/consolidated/exc/~sec_296__subdvs_1`); each act in the history as `ref class="amendmentHistory amended"` pointing to the chapter (`/akn/us-ny/act/2023/55`); the rest of the clause; then the `quotedStructure`. A repeal is the lead-in alone, ending "is REPEALED." |
+| `akn:quoted` | `mod/quotedStructure eId="…__qstr"`, nested by numbering and named as New York names its units: section › subdivision › paragraph › subparagraph › clause, or section › subsection › paragraph … for the Tax and Insurance Laws. eIds end in the printed number; a renumbered unit takes its new number, a unit struck out whole ends in `-old`. Text before sub-units goes in `intro`. |
+| Bill Insert / Bill Delete | `ins` / `del` (brackets dropped; the template adds them back). One pair of brackets running from a unit's number into its text, or into the next unit, becomes `del` pieces marked `spanStart` / `spanMiddle` / `spanEnd`. |
+| Each amending section | `meta/analysis/activeModifications/textualMod`: substitution, insertion or repeal, from the `mod` to the provision |
 
-The output validates against the OASIS Akoma Ntoso 3.0 schema. The demo's `docx2akn.py --check` agrees with it word for word, brackets and underlining included, once its Word reader is patched to see content controls. The patch is in `clean-copy/`, and the demo's own tests still pass with it.
+The table of laws (`src/lib/laws.js`, from the profile's `laws.json`) says whether a law is consolidated or not and whether its sections divide into subsections. The citations in the amending clause follow it too ("Subsection (c) of section 606 of the tax law").
+
+The output passes all three layers of the profile's validator: the OASIS Akoma Ntoso 3.0 schema, LBDC's extension schema, and the profile's Schematron rules. The validator ships in `profile/`, and `npm test` runs it on the add-in's output.
+
+**Before a bill has a number.** At the drafter's desk a bill usually has only an LBD number. The add-in then addresses it by the LBD route number (`/akn/us-ny/bill/2025/lbd12345`) and leaves out the print number. Version 0.3 of the profile defines only printed bills, so such a draft fails the identification rules (and only those); the pane says so when it converts.
 
 ## 7. Akoma Ntoso → clean copy
 
 **Make clean copy (PDF)** does the following:
 
 1. Converts the document to Akoma Ntoso, as in section 6.
-2. Loads the Typst compiler (WebAssembly) and the FreeMono fonts from the add-in's site.
+2. Loads the Typst compiler (WebAssembly), the FreeMono fonts and `hyphenation.json` from the add-in's site.
 3. Places the XML in Typst's in-memory file system.
 4. Compiles `clean-copy/bill.typ` with `xml=` pointing at it.
 
-`bill.typ` lays out the cover page, the hanging-indent title and enacting clause, and the body with page-numbered lines (56 lines, 72 characters, 6 lines per inch). New matter is underscored, old matter is in brackets, there is an "S./A. number" running header, and page 1 has the EXPLANATION footer and the LBD number. The example bill takes about 0.7 seconds once the compiler is loaded. **Open** and **Save .pdf** hand the PDF to the drafter.
-
-The template is LBDC's, with two additions: it prints `intro` (the words before (a), (b)…) and bill-section headings ("Section 1. Short title."). The demo's own sample prints exactly as before. The same template works from the command line (`typst compile --font-path fonts --input xml=bill.akn.xml bill.typ out.pdf`) or with the demo's `clean_copy.py`.
+`bill.typ` is the desktop demo's profile-0.3 template, unchanged: it prints line for line as the public PDFs do. That means bold front matter and enacting clause, 72-character lines, 56 lines a page, new matter underscored, old matter in brackets, the "S./A. number" running header, the EXPLANATION and LBD number on page 1, and words divided only where real prints divide them. The pane's Typst is 0.15.1, the same as the desktop app's, so the two produce the same PDF: the example bill matches word for word, at the same positions. The example takes about 0.6 seconds once the compiler is loaded.
 
 ## 8. What was tested, and what wasn't
 
@@ -143,7 +145,7 @@ The template is LBDC's, with two additions: it prints `intro` (the words before 
   * subdivision splitting
   * the docx reader and writer
   * Akoma Ntoso nesting
-* **Whole flow in Chromium,** against a stand-in for Word's API, using real Bank files:
+* **Whole flow in Chromium,** against a stand-in for Word's API, using a small test Bank (`tests/bank-fixture`, built from the example's law text):
   * load the Bank
   * new bill
   * amend a section and a subdivision
@@ -155,8 +157,9 @@ The template is LBDC's, with two additions: it prints `intro` (the words before 
   * checks
   * Akoma Ntoso
   * clean-copy PDF in the pane
+* **Against the profile:** the add-in's output (the example bill, a Tax Law amendment with renumbered, struck and inserted units, and an A print) passes the AKN-NY 0.3 validator, as part of `npm test`.
 * **External checks:**
-  * the Akoma Ntoso passes the OASIS schema
+  * the pane's clean copy and the desktop Typst's are identical for the example bill
   * the example .docx opens and renders in LibreOffice
   * the demo's round-trip check agrees with the output
 * **Not yet tested: real Word.** The stand-in behaves the way Word's API is documented to behave, but Word's own quirks (for example, how `insertOoxml` treats content controls next to each other) will only show up in the first real sideload.
@@ -198,6 +201,7 @@ The new section appears in place, for example "§ 2. Section 12 of the general c
 
 * **First real-Word test.** This is the open item. Sideload it and try the flow above. Anything odd will most likely be in how Word inserts sections next to each other.
 * **Amendment history** isn't in the Bank files. If the desktop app's history lists (`data/history`) were copied into the Bank folder, the "as amended by" text could be filled in automatically.
-* **Nesting** follows numbering only, so unusual numbering (tables, schedules, appropriations) comes out as plain paragraphs.
-* **Unconsolidated laws** get a best-guess citation and URI. The checks flag these for review.
-* **Clean-copy layout** is LBDC's demo template. Settling its spec (line length, lines per page, reprint headers) is template work, independent of the add-in.
+* **Nesting** follows numbering only, so tables, schedules and appropriations come out as plain paragraphs, not the profile's tables and appropriation structures.
+* **Drafts without a bill number** aren't in the profile yet (section 6). The profile needs a draft form before the add-in's drafts can validate.
+* **Laws not in the table** (`src/lib/laws.js`) are addressed from the Bank's law type. The checks flag unconsolidated laws for review.
+* **Amendment history** is typed by the drafter. In deployment it comes from LBDC's own records, not the Bank.

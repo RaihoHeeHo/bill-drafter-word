@@ -82,9 +82,11 @@
   // Section ids are kept as the Bank has them ("37-A"); in text they are lower case ("37-a").
   const secId = loc => String(loc || '').replace(/^§\s*/, '').toLowerCase();
 
-  // The citation of what a bill section acts on: "section 12" / "subdivision 3 of section 12".
-  function unitCite(loc, unit) {
-    return (unit ? 'subdivision ' + unit + ' of ' : '') + 'section ' + secId(loc);
+  // The citation of what a bill section acts on: "section 12" / "subdivision 3 of section 12", or for a law whose
+  // sections divide into subsections (the Tax Law, the Insurance Law) "subsection (c) of section 606".
+  const subName = (unit, sub) => sub ? 'subsection (' + String(unit).replace(/[()]/g, '') + ')' : 'subdivision ' + unit;
+  function unitCite(loc, unit, sub) {
+    return (unit ? subName(unit, sub) + ' of ' : '') + 'section ' + secId(loc);
   }
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -95,12 +97,13 @@
   function amendingClause(o) {
     const law = o.lawName || lawName(o.info);
     const hist = String(o.history || '').trim().replace(/^,\s*/, '').replace(/,\s*$/, '');
+    const sub = o.subsections != null ? o.subsections : !!(BD.usesSubsections && o.info && BD.usesSubsections(o.info.lawId));
     if (o.act === 'add') {
-      const what = o.unit ? 'a new subdivision ' + o.unit + ' to section ' + secId(o.loc) : 'a new section ' + secId(o.loc);
+      const what = o.unit ? 'a new ' + subName(o.unit, sub) + ' to section ' + secId(o.loc) : 'a new section ' + secId(o.loc);
       return cap(law) + ' is amended by adding ' + what + ' to read as follows:';
     }
-    if (o.act === 'repeal') return cap(unitCite(o.loc, o.unit)) + ' of ' + law + (hist ? ', ' + hist + ',' : '') + ' is REPEALED.';
-    return cap(unitCite(o.loc, o.unit)) + ' of ' + law + (hist ? ', ' + hist + ',' : '') + ' is amended to read as follows:';
+    if (o.act === 'repeal') return cap(unitCite(o.loc, o.unit, sub)) + ' of ' + law + (hist ? ', ' + hist + ',' : '') + ' is REPEALED.';
+    return cap(unitCite(o.loc, o.unit, sub)) + ' of ' + law + (hist ? ', ' + hist + ',' : '') + ' is amended to read as follows:';
   }
 
   /* ---------- the bill's sections: numbers and the long title ---------- */
@@ -127,8 +130,10 @@
     for (const s of sections) {
       if (!s.law || !s.lawName) continue;
       if (s.act === 'amend' || s.act === 'add') { if (!amend.includes(s.lawName)) amend.push(s.lawName); }
-      else if (s.act === 'repeal') repeal.push(unitCite(s.loc, s.unit) + ' of ' + s.lawName);
+      else if (s.act === 'repeal') repeal.push(unitCite(s.loc, s.unit, !!(BD.usesSubsections && BD.usesSubsections(s.law))) + ' of ' + s.lawName);
     }
+    // A bill that expires says so in its title (Manual; the profile warns when it doesn't).
+    const sunset = sections.some(s => s.act === 'effective' && /expire and be deemed repealed/.test(s.text || ''));
     const list = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
     const subj = String(subject || '').trim() || '____';
     let t = 'AN ACT ';
@@ -136,6 +141,7 @@
     else if (repeal.length) t += 'to repeal ' + list(repeal) + ', in relation to ' + subj;
     else t += 'in relation to ' + subj;
     if (amend.length && repeal.length) t += '; and to repeal ' + list(repeal) + ' relating thereto';
+    if (sunset) t += '; and providing for the repeal of such provisions upon expiration thereof';
     return { text: t, before: t.slice(0, t.indexOf(subj)), subject: subj, after: t.slice(t.indexOf(subj) + subj.length) };
   }
 
@@ -153,15 +159,17 @@
   }
   // The subdivisions of a section: "1." starts subdivision 1 (also in the middle of the first paragraph,
   // "§ 2-d. Unauthorized release… 1. Definitions."), lettered paragraphs "a." / "(a)" stay with it.
-  function subdivisions(paras) {
+  // With sub (a law of subsections), "(a)" starts subsection a and "(1)" paragraphs stay with it.
+  function subdivisions(paras, sub) {
     const out = [], ps = paras.slice();
+    const first = sub ? /^(§\s*[\w-]+\.\s+[^.]+\.)\s+(\(a\)\s.*)$/ : /^(§\s*[\w-]+\.\s+[^.]+\.)\s+(1\.\s.*)$/;
     if (ps.length) {
-      const m = /^(§\s*[\w-]+\.\s+[^.]+\.)\s+(1\.\s.*)$/.exec(ps[0]);
+      const m = first.exec(ps[0]);
       if (m) { ps.splice(0, 1, m[1], m[2]); }
     }
     let cur = null;
     for (const p of ps) {
-      const m = /^(\d+[-a-z]*)\.\s/.exec(p);
+      const m = sub ? /^\(([a-z]{1,2}(?:-\d+)?)\)\s/.exec(p) : /^(\d+[-a-z]*)\.\s/.exec(p);
       if (m) { cur = { unit: m[1], paras: [p] }; out.push(cur); }
       else if (cur) cur.paras.push(p);
     }

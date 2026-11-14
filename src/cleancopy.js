@@ -1,7 +1,9 @@
 /* Bill Drafter for Word (demo) - clean copy PDF inside the pane: the Akoma Ntoso XML is typeset with LBDC's
-   clean-copy template (clean-copy/bill.typ) by the Typst compiler built for the browser (vendor/typst).
+   clean-copy template (clean-copy/bill.typ, AKN-NY profile 0.3; it matches the public PDFs line for line, with word
+   divisions from clean-copy/hyphenation.json) by the Typst compiler built for the browser (vendor/typst, Typst 0.15.1,
+   the same version as the desktop app, so the pane's PDF is the desktop app's PDF).
    Everything loads from this site and runs on this computer; the bill is never sent anywhere.
-   The compiler (about 28 MB) is fetched the first time it is used and then cached by the browser. */
+   The compiler (about 30 MB) is fetched the first time it is used and then cached by the browser. */
 (function (root) {
   'use strict';
   const BD = root.BD = root.BD || {};
@@ -21,6 +23,8 @@
       for (const f of ['FreeMono.ttf', 'FreeMonoBold.ttf']) await b.add_raw_font(await bytes('clean-copy/fonts/' + f));
       const compiler = await b.build();
       compiler.add_source('/bill.typ', await text('clean-copy/bill.typ'));
+      // Where real prints divide words at a line end; the template divides only there.
+      compiler.map_shadow('/hyphenation.json', await bytes('clean-copy/hyphenation.json'));
       return compiler;
     })();
     ready.catch(() => { ready = null; });
