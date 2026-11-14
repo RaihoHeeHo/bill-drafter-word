@@ -25,6 +25,8 @@
       compiler.add_source('/bill.typ', await text('clean-copy/bill.typ'));
       // Where real prints divide words at a line end; the template divides only there.
       compiler.map_shadow('/hyphenation.json', await bytes('clean-copy/hyphenation.json'));
+      // ... and where budget prints divide them (appropriation schedules are set by the budget system's rules)
+      compiler.map_shadow('/hyphenation-approp.json', await bytes('clean-copy/hyphenation-approp.json'));
       return compiler;
     })();
     ready.catch(() => { ready = null; });

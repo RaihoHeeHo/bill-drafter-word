@@ -77,6 +77,8 @@
 // Words are divided at line ends only where the real prints divide them. The
 // list was learned from every line-end hyphen in about 3,800 pages of prints.
 #let hyph = json("hyphenation.json")
+// budget bills divide words only where the budget print does (learned from S.3000-D), else as other bills
+#let hyph-approp = json("hyphenation-approp.json")
 #let soften(s) = s.replace(regex("[A-Za-z]+"), m => {
   let at = hyph.at(lower(m.text), default: none)
   if at == none { m.text } else {
@@ -163,8 +165,7 @@
   acc
 }
 
-#let words(cell) = {
-  let ps = pieces(kid(cell, "p"), "", ())
+#let finish-words(ps) = {
   let out = ()
   let space-before = true
   for p in ps {
@@ -193,6 +194,8 @@
   }
   res
 }
+#let words(cell) = finish-words(pieces(kid(cell, "p"), "", ()))
+#let nodes-words(nodes) = finish-words(nodes.fold((), (acc, c) => pieces(c, "", acc)))
 
 #let word-len(w) = w.map(p => p.text.clusters().len() + if p.kind == "del" { int(p.first) + int(p.last) } else { 0 }).sum(default: 0)
 
@@ -314,6 +317,440 @@
 }
 
 // ---------------------------------------------------------------------------
+// Appropriation bills (S.3000-D and its kind). A schedule is laid out line by
+// line, as the print does it: purpose language justified to 44 characters
+// (continuation lines indented two), items with dot leaders to an amount
+// ending at column 58, program lines to 72, reappropriations across the full
+// 72. A blank line separates blocks (the summary, SCHEDULE, a program line, an
+// account heading, a group of purposes, a group of items, a reappropriation
+// source) and is dropped at the top of a page. Each agency, and its
+// reappropriations, starts a new page under a running header naming it.
+// Keep-together, as printed: a program line with its rule; the last three
+// items of a group with the rules and totals under them; no paragraph leaves
+// one line alone at the bottom or top of a page.
+// ---------------------------------------------------------------------------
+#let approp = attr(bill, "name") == "appropriationBill"
+#let nb(k) = "\u{a0}" * k
+#let a-blank = v(2 * spec.pitch - spec.size, weak: true)
+#let a-line(col, it) = flush-line(h(col * char) + it)
+#let keep(..lines) = block(breakable: false, spacing: spec.pitch - spec.size, lines.pos().join())
+
+// Split a word at a division point (from hyphenation.json) or after a hyphen it already has, so that the first
+// part with its hyphen is at most `room` characters. Returns (first, rest) or none. As measured on S.3000-D (96%
+// of 2,284 line ends agree): the print divides a word only where four or more letters come before the hyphen.
+#let split-word(w, room, slack: 99) = {
+  if w.len() != 1 or slack < 3 { return none }
+  let p = w.first()
+  let t = p.text
+  let cuts = ()
+  // the division points of each part of a compound ("cyber-re-lated"), counted from the start of the word
+  let off = 0
+  for part in t.split("-") {
+    let m = part.match(regex("^([A-Za-z]+)"))
+    if m != none {
+      let w0 = lower(m.captures.at(0))
+      for k in hyph-approp.at(w0, default: hyph.at(w0, default: ())) { if off + k >= 4 { cuts.push((off + k, true)) } }
+    }
+    off += part.clusters().len() + 1
+  }
+  for (i, c) in t.clusters().enumerate() { if c == "-" and i > 0 and i < t.len() - 1 { cuts.push((i + 1, false)) } }
+  let best = none
+  for (k, add) in cuts {
+    let len = k + int(add) + if p.kind == "del" and p.first { 1 } else { 0 }
+    // a hyphen the word already has ("2025-2026", "Utica-Rome") is a break only for a full line (2 or fewer
+    // characters short) and after three or more characters (never "4-C"): 6 times in S.3000-D
+    let before = t.clusters().slice(0, k - 1).join()
+    let after = t.clusters().slice(k).join()
+    let ok = add or (room - len <= 2 and after.len() >= 3 and (before.len() >= 4 or before.match(regex("^\d{3,}$")) != none))
+    if ok and len <= room and (best == none or k > best.at(0)) { best = (k, add) }
+  }
+  if best == none { return none }
+  let (k, add) = best
+  let cs = t.clusters()
+  let a = p
+  a.text = cs.slice(0, k).join() + if add { "-" } else { "" }
+  a.last = false
+  let b = p
+  b.text = cs.slice(k).join()
+  b.first = false
+  b.glue = false
+  ((a,), (b,))
+}
+// Greedy first-fit, as the typewriter did: `first` characters on the first line, `rest` on the others.
+#let wrap2(ws, first, rest) = {
+  let lines = ()
+  let cur = ()
+  let n = 0
+  let width = first
+  let queue = ws
+  let i = 0
+  while i < queue.len() {
+    let w = queue.at(i)
+    if w.first().run == -2 { i += 1; continue }
+    let l = word-len(w)
+    let need = l + if cur.len() > 0 { 1 } else { 0 }
+    if n + need <= width { cur.push(w); n += need; i += 1; continue }
+    let room = width - n - if cur.len() > 0 { 1 } else { 0 }
+    let sp = split-word(w, room, slack: width - n)
+    if sp != none and cur.len() > 0 or sp != none and room > 0 {
+      cur.push(sp.at(0))
+      lines.push(cur)
+      cur = ()
+      n = 0
+      width = rest
+      queue = queue.slice(0, i) + (sp.at(1),) + queue.slice(i + 1)
+      continue
+    }
+    if cur.len() == 0 { cur.push(w); i += 1 }
+    lines.push(cur)
+    cur = ()
+    n = 0
+    width = rest
+  }
+  if cur.len() > 0 { lines.push(cur) }
+  lines
+}
+#let line-len(ws) = ws.map(word-len).sum(default: 0) + calc.max(0, ws.len() - 1)
+// A justified line: the extra spaces go evenly, the odd ones from the left on even lines and from the right on
+// odd ones (the spacing is not part of the bill; only the words on each line are).
+#let draw-just(ws, width, k) = {
+  let gaps = ws.len() - 1
+  if gaps <= 0 { return draw-line(ws) }
+  let extra = width - line-len(ws)
+  let base = calc.floor(extra / gaps)
+  let odd = extra - base * gaps
+  let out = []
+  for (i, w) in ws.enumerate() {
+    if i > 0 {
+      let g = i - 1
+      let more = if calc.rem(k, 2) == 0 { g < odd } else { g >= gaps - odd }
+      let sp = nb(1 + base + int(more))
+      let a = ws.at(i - 1).last()
+      let b = w.first()
+      out += if a.kind == "ins" and b.kind == "ins" and a.run == b.run { under(sp) } else { sp }
+    }
+    out += w.map(draw-piece).sum(default: [])
+  }
+  out
+}
+#let leaders(n) = "." * calc.max(n, 1)
+// A paragraph laid out by `wrap2`, justified; the last line may end in dot leaders and an amount.
+//   first/cont: columns of the first and following lines; right: the right edge of the words;
+//   tail: (amount string, end column) for a leader line, or none.
+#let a-par(ws, first: 0, cont: 2, right: 44, tail: none, just: true) = {
+  let lines = wrap2(ws, right - first, right - cont)
+  if tail != none and lines.len() > 0 {
+    // the last line must leave room for " . " and the amount before the end column
+    let (amt, endc) = tail
+    let lastcol = if lines.len() == 1 { first } else { cont }
+    let room = endc - lastcol - amt.len() - 3
+    let last = lines.last()
+    if line-len(last) > room {
+      let keepw = ()
+      let n = 0
+      for w in last { let need = word-len(w) + if keepw.len() > 0 { 1 } else { 0 }; if n + need <= room and keepw.len() < last.len() - 0 { keepw.push(w); n += need } else { break } }
+      let moved = last.slice(keepw.len())
+      lines = lines.slice(0, -1) + if keepw.len() > 0 { (keepw, moved) } else { (moved,) }
+    }
+  }
+  let out = ()
+  for (i, l) in lines.enumerate() {
+    let col = if i == 0 { first } else { cont }
+    let lastl = i == lines.len() - 1
+    if lastl and tail != none {
+      let (amt, endc) = tail
+      let used = col + line-len(l)
+      let dots = endc - used - 2 - amt.len()
+      out.push(a-line(col, draw-line(l) + nb(1) + leaders(dots) + nb(1) + amt))
+    } else if not lastl and just {
+      out.push(a-line(col, draw-just(l, right - col, i)))
+    } else {
+      out.push(a-line(col, draw-line(l)))
+    }
+  }
+  out
+}
+// Paragraph lines grouped so none is left alone at a page's foot or head.
+#let no-widows(lines) = {
+  let n = lines.len()
+  if n <= 3 { return (keep(..lines),) }
+  (keep(..lines.slice(0, 2)),) + lines.slice(2, n - 2) + (keep(..lines.slice(n - 2)),)
+}
+#let amount-of(p) = { let q = els(p).filter(c => c.tag == "quantity"); if q.len() > 0 { text-of(q.last()) } else { none } }
+#let words-before-amount(p) = {
+  let cs = p.children
+  let k = cs.len() - 1
+  while k >= 0 and (type(cs.at(k)) == str and cs.at(k).trim() == "") { k -= 1 }
+  if k >= 0 and is-el(cs.at(k)) and cs.at(k).tag == "quantity" { cs = cs.slice(0, k) }
+  nodes-words(cs)
+}
+#let rule-line(col, ch: "-", n: 14) = a-line(col, ch * n)
+#let center-text(t) = a-line(calc.ceil((spec.chars - t.clusters().len()) / 2), t)
+
+// The summary table: "For payment according to the following schedule:"
+#let render-summary(n) = {
+  let out = ()
+  let intro = kid(n, "intro")
+  // "For payment according to the following schedule:"; a longer intro runs to column 58, justified, continued at 2
+  if intro != none { out.push(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 2, right: 58)) }
+  let t = find(n, "table")
+  let rows = kids(t, "tr")
+  out.push((a-line(40, "APPROPRIATIONS" + nb(2) + "REAPPROPRIATIONS"),))
+  let body = ()
+  for r in rows.filter(r => attr(r, "class") != "headerRow") {
+    let cs = els(r)
+    let name = text-of(cs.at(0))
+    let total = attr(r, "class") == "totalRow"
+    let col = if total { 4 } else { 2 }
+    let a = text-of(cs.at(1))
+    let b = text-of(cs.at(2))
+    if total {
+      body.push(a-line(38, "-" * 16 + nb(2) + "-" * 16))
+    }
+    let dots = 38 - col - name.len() - 1
+    body.push(a-line(col, name + nb(1) + leaders(dots) + nb(54 - 38 - a.len()) + a + nb(72 - 54 - b.len()) + b))
+    if total { body.push(a-line(38, "=" * 16 + nb(2) + "=" * 16)) }
+  }
+  out.push(body)
+  out
+}
+
+// An account heading: each part (fund type, fund, account and number) on its own line at column 2.
+#let render-account-heading(h, right: 58) = {
+  let parts = els(h).filter(c => c.tag == "inline")
+  let out = ()
+  for (i, p) in parts.enumerate() {
+    let last = i == parts.len() - 1
+    // the account's number is part of the account line
+    if attr(p, "name") == "accountCode" { continue }
+    let nodes = (p,)
+    let nxt = parts.at(i + 1, default: none)
+    if nxt != none and attr(nxt, "name") == "accountCode" {
+      let between = h.children.slice(h.children.position(c => c == p) + 1, h.children.position(c => c == nxt))
+      nodes = (p,) + between + (nxt,)
+    }
+    out += a-par(nodes-words(nodes), first: 2, cont: 4, right: right)
+  }
+  out
+}
+
+// Items, subtotals and totals of one group; "ruleAfter" / "doubleRuleAfter" draw the rule under an entry.
+#let render-entry(c) = {
+  let name = attr(c, "name")
+  let p = find(c, "p")
+  let amt = amount-of(p)
+  let cls = attr(c, "class")
+  let lines = if name == "appropriation" {
+    a-par(words-before-amount(p), first: 0, cont: 2, right: 44, tail: (amt, 58))
+  } else if name == "subtotal" or cls.contains("subtotalIndent") {
+    a-par(words-before-amount(p), first: 4, cont: 6, right: 58, tail: (amt, 58), just: false)
+  } else {
+    a-par(words-before-amount(p), first: 2, cont: 4, right: 58, tail: (amt, 58), just: false)
+  }
+  if cls.contains("doubleRuleAfter") { lines.push(rule-line(44, ch: "=")) }
+  else if cls.contains("ruleAfter") { lines.push(rule-line(44)) }
+  lines
+}
+
+// A schedule's blocks for one account (or object group): purposes, then items, alternating.
+#let account-blocks(kids-list) = {
+  let blocks = ()
+  let cur = ()
+  let mode = none
+  for c in kids-list {
+    let name = attr(c, "name")
+    if name == "objectGroup" { if cur.len() > 0 { blocks.push((mode, cur)); cur = () }; blocks += account-blocks(els(c).filter(x => x.tag == "hcontainer")); mode = none; continue }
+    let m = if name == "purpose" { "purpose" } else { "items" }
+    if m != mode and cur.len() > 0 { blocks.push((mode, cur)); cur = () }
+    mode = m
+    cur.push(c)
+  }
+  if cur.len() > 0 { blocks.push((mode, cur)) }
+  blocks
+}
+#let render-block(mode, cs) = {
+  if mode == "purpose" {
+    let out = ()
+    for c in cs { for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children))) } }
+    out
+  } else {
+    // items. As measured on S.3000-D: the last two items stay together with the rule under them, and each
+    // subtotal or total stays with its rule (a page may end on the items' rule and begin with a subtotal); the
+    // first two items of a group stay together, so a group never leaves a single item at the foot of a page.
+    let entries = cs.map(render-entry)
+    let tailstart = entries.len()
+    while tailstart > 0 and attr(cs.at(tailstart - 1), "name") != "appropriation" { tailstart -= 1 }
+    let H = 2
+    let lastitems = calc.max(0, tailstart - 2)
+    if lastitems < H { lastitems = 0 }
+    let head = entries.slice(0, lastitems)
+    let out = ()
+    if head.len() >= H {
+      out.push(keep(..head.slice(0, H).flatten()))
+      for e in head.slice(H) { out += no-widows(e) }
+    }
+    // the last two lines of items stay with the rule under them (two items, or the end of a paragraph item)
+    let tail = entries.slice(lastitems, tailstart)
+    let flat = tail.flatten()
+    if flat.len() <= 3 or tail.all(e => e.len() == 1 or e.len() == 2 and e.last() == tail.last().last()) {
+      out.push(keep(..flat))
+    } else {
+      let n = flat.len() - 3
+      let seen = 0
+      for e in tail {
+        let pre = e.slice(0, calc.min(e.len(), calc.max(0, n - seen)))
+        if pre.len() > 0 { out += no-widows(pre) }
+        seen += e.len()
+      }
+      out.push(keep(..flat.slice(n)))
+    }
+    for e in entries.slice(tailstart) { out.push(keep(..e)) }
+    out
+  }
+}
+
+#let render-schedule(n) = {
+  let blocks = ()
+  let summary = kids(n, "hcontainer").find(c => attr(c, "name") == "agencySummary")
+  if summary != none {
+    blocks += render-summary(summary)
+    // a summary without its "For payment according to ..." line has no SCHEDULE heading either
+    if kid(summary, "intro") != none { blocks.push((center-text("SCHEDULE"),)) }
+  }
+  for prog in kids(n, "hcontainer").filter(c => attr(c, "name") == "program") {
+    let h = kid(prog, "heading")
+    if h != none {
+      let amt = amount-of(h)
+      if amt != none {
+        let lines = a-par(words-before-amount(h), first: 0, cont: 2, right: 58, tail: (amt, 72))
+        lines.push(rule-line(58))
+        blocks.push((keep(..lines),))
+      } else {
+        blocks.push(a-par(nodes-words(h.children), first: 0, cont: 2, right: 72, just: false))
+      }
+    }
+    // "noBlankBefore" (a print quirk the converter keeps): the block follows the one before with no blank line
+    let tight = c => c != none and attr(c, "class").split(" ").contains("noBlankBefore")
+    let add = (blocks, b, glue) => { if glue and blocks.len() > 0 { blocks.last() += b; blocks } else { blocks.push(b); blocks } }
+    for acct in kids(prog, "hcontainer").filter(c => attr(c, "name") == "account") {
+      let ah = kid(acct, "heading")
+      if ah != none { blocks = add(blocks, render-account-heading(ah), tight(acct)) }
+      for (mode, cs) in account-blocks(kids(acct, "hcontainer")) { blocks = add(blocks, render-block(mode, cs), tight(cs.first())) }
+    }
+  }
+  blocks
+}
+
+// Reappropriations: an item is "text ... original .... (re. $amount)" across the full line.
+#let render-reitem(c) = {
+  let p = find(c, "p")
+  let qs = els(p).filter(x => x.tag == "quantity")
+  let orig = text-of(qs.find(q => attr(q, "class") == "originalAmount"))
+  let re = text-of(qs.find(q => attr(q, "class") == "reappropriatedAmount"))
+  let cs = p.children
+  let k = cs.position(x => is-el(x) and x.tag == "quantity" and attr(x, "class") == "originalAmount")
+  let head = cs.slice(0, k)
+  // drop the " ... " (or plain space) before the original amount from the words; words after the leader (an
+  // amended amount, "[3,900,000]") follow it: "Personal service (50000) ... [3,900,000] 3,867,000 ...."
+  let all = nodes-words(head)
+  let li = all.position(w => w.map(q => q.text).join() == "...")
+  let ws = if li == none { all } else { all.slice(0, li) }
+  let after = if li == none { () } else { all.slice(li + 1) }
+  let ctoks = attr(c, "class").split(" ")
+  let noLeader = "noLeader" in ctoks
+  let aft = after.map(w => draw-line((w,)) + nb(1)).join()
+  let aftlen = after.map(w => line-len((w,)) + 1).sum(default: 0)
+  let mid = (if noLeader { nb(1) } else { nb(1) + "..." + nb(1) }) + if aft == none { "" } else { aft }
+  let midlen = (if noLeader { 1 } else { 5 }) + aftlen
+  let tail = "(re. $" + re + ")"
+  let lines = wrap2(ws, 70, 68)
+  let last = lines.last()
+  let lastcol = if lines.len() == 1 { 2 } else { 4 }
+  let out = ()
+  for (i, l) in lines.slice(0, -1).enumerate() { out.push(a-line(if i == 0 { 2 } else { 4 }, draw-just(l, 72 - if i == 0 { 2 } else { 4 }, i))) }
+  let used = lastcol + line-len(last) + midlen + orig.len() + 1 + 1 + 1 + tail.len()
+  if used <= 72 and not "amountsBelow" in ctoks {
+    let dots = 72 - (lastcol + line-len(last) + midlen + orig.len() + 2 + tail.len())
+    out.push(a-line(lastcol, draw-line(last) + mid + orig + nb(1) + leaders(dots) + nb(1) + tail))
+  } else {
+    // the amounts go on the next line, under a line of leaders; where fewer than three leaders would fit, the
+    // words line is justified to the margin and the amounts line begins with the leader ("... 59,000,000 ....")
+    let room = 72 - lastcol - line-len(last) - 1
+    let lead = if room >= 3 { "" } else { "..." + nb(1) }
+    if room >= 3 { out.push(a-line(lastcol, draw-line(last) + nb(1) + leaders(room))) }
+    else { out.push(a-line(lastcol, draw-just(last, 72 - lastcol, lines.len() - 1))) }
+    out.push(a-line(4, lead + (if aft == none { "" } else { aft }) + orig + nb(1) + leaders(72 - 4 - (if room >= 3 { 0 } else { 4 }) - aftlen - orig.len() - 2 - tail.len()) + nb(1) + tail))
+  }
+  out
+}
+#let render-reentries(cs) = {
+  let out = ()
+  for c in cs {
+    let name = attr(c, "name")
+    if name == "purpose" {
+      for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children), first: 2, cont: 4, right: 72)) }
+    } else if name == "reappropriation" {
+      out += no-widows(render-reitem(c))
+    }
+  }
+  out
+}
+#let render-reapprops(n) = {
+  let blocks = ()
+  for prog in kids(n, "hcontainer").filter(c => attr(c, "name") == "program") {
+    let h = kid(prog, "heading")
+    if h != none { blocks.push(a-par(nodes-words(h.children), first: 0, cont: 2, right: 72, just: false)) }
+    for acct in kids(prog, "hcontainer").filter(c => attr(c, "name") == "account") {
+      let ah = kid(acct, "heading")
+      if ah != none { blocks.push(render-account-heading(ah, right: 72)) }
+      for src in kids(acct, "hcontainer").filter(c => attr(c, "name") == "reappropriationSource") {
+        let lines = ()
+        let intro = kid(src, "intro")
+        if intro != none { lines += no-widows(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72)) }
+        let content = kid(src, "content")
+        if content != none {
+          // an amended reappropriation: the lead-in, then the quoted text with its new and old matter
+          let mod = find(content, "mod")
+          let lead = mod.children.filter(c => not (is-el(c) and c.tag == "quotedStructure"))
+          lines += no-widows(a-par(nodes-words(lead), first: 0, cont: 4, right: 72))
+          lines += render-reentries(kids(find(mod, "quotedStructure"), "hcontainer"))
+        }
+        lines += render-reentries(kids(src, "hcontainer"))
+        blocks.push(lines)
+      }
+    }
+  }
+  blocks
+}
+
+// An agency's schedule (or its reappropriations) on its own pages, under its running header.
+#let render-agency(n) = {
+  let misc = kid(n, "num")
+  // the budget line has three spaces before the fiscal year ("STATE OPERATIONS   2025-26")
+  let sub = squeeze(text-of(kid(n, "subheading"))).replace(regex(" (\d{4}-\d{2})$"), m => "   " + m.captures.at(0))
+  let heads = (if misc != none { (text-of(misc),) } else { () }) + (text-of(kid(n, "heading")), sub)
+  // class tokens: "reappropriations"; "tight" sets the department and agency lines on consecutive lines
+  let toks = attr(n, "class").split(" ")
+  let tight = "tight" in toks and heads.len() == 3
+  let slots = if tight { (0, 1, 3) } else { range(heads.len()).map(i => 2 * i) }
+  let ntop = slots.last() + 2
+  let blocks = if "reappropriations" in toks { render-reapprops(n) } else { render-schedule(n) }
+  let fg = {
+    for (i, t) in heads.enumerate() {
+      let col = calc.ceil((spec.chars - t.clusters().len()) / 2)
+      place(top + left, dx: spec.left + col * char, dy: spec.first-line - 0.8 * spec.size + slots.at(i) * spec.pitch, text(t.replace(" ", "\u{a0}")))
+    }
+  }
+  let tm = spec.first-line - 0.8 * spec.size + ntop * spec.pitch
+  page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, {
+    for (i, b) in blocks.enumerate() {
+      if i > 0 { a-blank }
+      b.join()
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Units of text: bill sections, and the quoted law inside them
 // ---------------------------------------------------------------------------
 #let structural = ("section", "subsection", "subdivision", "paragraph", "subparagraph", "clause",
@@ -325,7 +762,9 @@
 // "§ 327-a. Modification of restrictive covenants. 1. As used in this section"
 #let structure(n, lead: []) = {
   let name = attr(n, "name")
-  if n.tag == "hcontainer" and name == "table" {
+  if n.tag == "hcontainer" and name == "agency" {
+    render-agency(n)
+  } else if n.tag == "hcontainer" and name == "table" {
     render-named-table(n)
   } else if n.tag == "hcontainer" and name == "tableGroup" {
     blank-line
@@ -418,7 +857,12 @@
   margin: (left: spec.left, right: 8.5in - spec.left - measure, top: top-margin, bottom: 11in - top-margin - body-height),
   header-ascent: top-margin - (spec.header + 0.2 * spec.size),
   header: context {
-    if here().page() > 1 {
+    if here().page() > 1 and approp {
+      // appropriation bills: the page number centred, the LBD number (without "LBD") ending at column 72
+      let pg = str(here().page())
+      let lbd = lbd-no.replace("LBD", "")
+      par(justify: false, h((36 - calc.floor(pg.len() / 2)) * char) + pg + h((62 - (36 - calc.floor(pg.len() / 2)) - pg.len()) * char) + lbd)
+    } else if here().page() > 1 {
       // bill number at the left, page number at the 37th character, as printed
       if joint {
         par(justify: false, box(width: 36 * char, numbers.at(0)) + box(width: 26 * char, str(here().page())) + numbers.at(1))

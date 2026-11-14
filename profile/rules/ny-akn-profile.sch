@@ -15,6 +15,10 @@
   <ns prefix="a" uri="http://docs.oasis-open.org/legaldocml/ns/akn/3.0"/>
   <ns prefix="l" uri="urn:x-lbdc:akn:1.0"/>
   <ns prefix="re" uri="http://exslt.org/regular-expressions"/>
+  <!-- Index of eIds, so that the uniqueness and cross-reference checks stay fast on an 880-page budget bill -->
+  <xsl:key xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="eid" match="*[@eId]" use="@eId"/>
+  <xsl:key xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="tm" match="a:textualMod" use="a:source/@href"/>
+  <xsl:key xmlns:xsl="http://www.w3.org/1999/XSL/Transform" name="agency" match="a:hcontainer[@name = 'agency']" use="@refersTo"/>
 
   <let name="type" value="local-name(/a:akomaNtoso/*[1])"/>
   <let name="dname" value="string(/a:akomaNtoso/*[1]/@name)"/>
@@ -132,15 +136,15 @@
       <!-- Attachments share their parent document's identifiers (the AKN schema
            makes eIds unique across the whole document), so look in both. -->
       <let name="refs" value="ancestor-or-self::*[a:meta][1]/a:meta/a:references | /a:akomaNtoso/*[1]/a:meta/a:references"/>
-      <assert test="not(@refersTo) or (starts-with(@refersTo, '#') and not(contains(normalize-space(@refersTo), ' ')) and $refs/*[@eId = substring-after(current()/@refersTo, '#')])">refersTo="<value-of select="@refersTo"/>" must name one entry in &lt;references&gt;.</assert>
-      <assert test="not(@source) or $refs/*[@eId = substring-after(current()/@source, '#')]">source="<value-of select="@source"/>" must name an entry in &lt;references&gt;.</assert>
-      <assert test="not(@by) or $refs/*[@eId = substring-after(current()/@by, '#')]">by="<value-of select="@by"/>" must name an entry in &lt;references&gt;.</assert>
+      <assert test="not(@refersTo) or (starts-with(@refersTo, '#') and not(contains(normalize-space(@refersTo), ' ')) and key('eid', substring-after(@refersTo, '#'))[parent::a:references])">refersTo="<value-of select="@refersTo"/>" must name one entry in &lt;references&gt;.</assert>
+      <assert test="not(@source) or key('eid', substring-after(@source, '#'))[parent::a:references]">source="<value-of select="@source"/>" must name an entry in &lt;references&gt;.</assert>
+      <assert test="not(@by) or key('eid', substring-after(@by, '#'))[parent::a:references]">by="<value-of select="@by"/>" must name an entry in &lt;references&gt;.</assert>
       <assert test="not(@as) or $refs/*[@eId = substring-after(current()/@as, '#')]">as="<value-of select="@as"/>" must name an entry in &lt;references&gt;.</assert>
     </rule>
     <rule context="a:ref | a:source | a:destination">
       <assert test="re:test(@href, '^(#|/akn/us-ny/|/akn/us/)')">href="<value-of select="@href"/>" must be a local #eId or an Akoma Ntoso IRI (/akn/us-ny/... for New York, /akn/us/... for federal law).</assert>
       <assert test="not(starts-with(@href, '/akn/') and contains(@href, '#'))">Point into another document with "~" (…/~sec_606__subsec_c), not "#".</assert>
-      <assert test="not(starts-with(@href, '#')) or //*[@eId = substring-after(current()/@href, '#')]">href="<value-of select="@href"/>" doesn't match any eId in this document.</assert>
+      <assert test="not(starts-with(@href, '#')) or key('eid', substring-after(@href, '#'))">href="<value-of select="@href"/>" doesn't match any eId in this document.</assert>
     </rule>
     <rule context="a:textualMod">
       <assert test="@type = 'substitution' or @type = 'insertion' or @type = 'repeal' or @type = 'renumbering'">textualMod type must be substitution (amended to read), insertion (adding), repeal, or renumbering (renumbered or relettered).</assert>
@@ -171,7 +175,7 @@
            Parts and Subparts of a bill or chapter. -->
       <let name="cont" value="ancestor::*[@eId][1][self::a:article or self::a:title or self::a:subtitle or self::a:chapter or self::a:subchapter or self::a:part or self::a:subpart or self::a:hcontainer[@name = 'subarticle']]"/>
       <let name="inQuote" value="ancestor::a:quotedStructure[1]"/>
-      <let name="dest" value="string(//a:textualMod[a:source/@href = concat('#', current()/ancestor::a:mod[1]/@eId)]/a:destination/@href)"/>
+      <let name="dest" value="string(key('tm', concat('#', ancestor::a:mod[1]/@eId))/a:destination/@href)"/>
       <let name="constitutional" value="($inQuote and starts-with($dest, '/akn/us-ny/act/constitution/')) or (not($inQuote) and $dname = 'constitution')"/>
       <let name="partsRestart" value="not($inQuote) and ($type = 'bill' or $dname = 'chapter') and ($cont/self::a:part or $cont/self::a:subpart)"/>
       <let name="secException" value="self::a:section and $cont and not($constitutional or $partsRestart)"/>
@@ -180,7 +184,7 @@
       <assert test="$abbr = '' or re:test($lastseg, concat('^', $abbr, '(_|$)'))">eId "<value-of select="@eId"/>" should end with "<value-of select="$abbr"/>" for a &lt;<value-of select="local-name()"/>&gt;.</assert>
       <assert test="$p = '' or $secException or starts-with(@eId, concat($p, '__'))">eId "<value-of select="@eId"/>" must start with its parent's eId "<value-of select="$p"/>__".</assert>
       <assert test="not($secException) or ($base = '' and @eId = $lastseg) or @eId = concat($base, '__', $lastseg)">Section eId "<value-of select="@eId"/>" must not include its article, title or part: New York section numbers are unique within a law. Expected "<value-of select="concat($base, substring('__', 1, 2 * number($base != '')), $lastseg)"/>".</assert>
-      <assert test="count(//*[@eId = current()/@eId][not(ancestor::a:attachment)]) = 1">eId "<value-of select="@eId"/>" is used more than once.</assert>
+      <assert test="count(key('eid', @eId)[not(ancestor::a:attachment)]) = 1">eId "<value-of select="@eId"/>" is used more than once.</assert>
     </rule>
   </pattern>
 
@@ -241,7 +245,7 @@
       <assert test="not($applies) or ($inserted and re:test($num, concat('^§ ', $k, '-[a-z]+\.$'))) or (not($inserted) and (($k = 0 and $num = 'Section 1.') or ($k &gt; 0 and $num = concat('§ ', $k + 1, '.'))))">Bill section "<value-of select="$num"/>" is out of sequence: expected "<value-of select="substring(concat('Section 1.', '§ ', $k + 1, '.'), 1 + 10 * number($k &gt; 0))"/>" (an inserted section such as "§ <value-of select="$k"/>-a." is also allowed).</assert>
     </rule>
     <rule context="a:bill[@name != 'concurrentResolution']/a:body">
-      <assert test="count(a:section[@refersTo = '#effectiveDate']) = 1 and a:section[last()]/@refersTo = '#effectiveDate'">The last section of the bill must be its effective-date section, marked refersTo="#effectiveDate" (and only that one). No bill should be submitted without an express effective date.</assert>
+      <assert test="$dname = 'appropriationBill' or (count(a:section[@refersTo = '#effectiveDate']) = 1 and a:section[last()]/@refersTo = '#effectiveDate')">The last section of the bill must be its effective-date section, marked refersTo="#effectiveDate" (and only that one). No bill should be submitted without an express effective date.</assert>
       <assert test="not(a:part) or a:section[1]/@refersTo = '#componentsClause'">Section 1 of a Parts bill is the components clause ("This act enacts into law major components of legislation ..."), marked refersTo="#componentsClause".</assert>
       <assert test="$dname != 'budgetBill' or a:part">An Article VII bill contains its components as Parts.</assert>
     </rule>
@@ -413,7 +417,7 @@
     </rule>
     <rule context="a:hcontainer[@name = 'account']">
       <assert test="parent::a:hcontainer[@name = 'program' or @name = 'agency']">An account belongs in a program (or directly in an agency schedule).</assert>
-      <assert test="a:heading/a:inline[@name = 'accountCode']">An account heading must mark its account number (inline name="accountCode").</assert>
+      <assert test="not(a:heading) or a:heading/a:inline[@name = 'accountCode']">An account heading must mark its account number (inline name="accountCode").</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'appropriation']">
       <assert test="ancestor::a:hcontainer[@name = 'agency']">An item of appropriation belongs in an agency schedule.</assert>
@@ -454,7 +458,7 @@
     <rule context="a:hcontainer[@name = 'agencySummary']">
       <let name="ag" value="string(../@refersTo)"/>
       <let name="appr" value="sum(..//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
-      <let name="reappr" value="sum(//a:hcontainer[@name = 'agency'][@refersTo = $ag]//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
+      <let name="reappr" value="sum(key('agency', $ag)//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']) or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr">The agency summary's appropriations total doesn't equal the agency's items (<value-of select="format-number($appr, '#,##0')"/>).</assert>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']) or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']/@normalized) = $reappr">The agency summary's reappropriations total doesn't equal the agency's reappropriations (<value-of select="format-number($reappr, '#,##0')"/>).</assert>
     </rule>

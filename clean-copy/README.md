@@ -26,7 +26,8 @@ LBDC's demo app (`clean_copy.py`) works too: drop the add-in's `.akn.xml` into i
 profile's XML and prints it line for line as the public PDFs do: 10.5-point FreeMono, 72 characters a line, 56 lines a
 page, bold front matter, the enacting clause underscored (not new matter), new matter underscored, old matter in brackets (a pair split across units
 with `spanStart` / `spanMiddle` / `spanEnd` prints as one pair), the running header, and the EXPLANATION and LBD
-number on page 1. Words are divided at a line end only at the points in `hyphenation.json`, learned from real prints.
+number on page 1. Words are divided at a line end only at the points in `hyphenation.json`, learned from real prints
+(`hyphenation-approp.json` for appropriation schedules, which budget prints divide their own way).
 The pane loads both files and compiles with Typst 0.15.1 for the browser, the same Typst as the desktop app.
 
 ## The add-in's XML is profile XML
