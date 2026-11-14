@@ -417,7 +417,7 @@
     </rule>
     <rule context="a:hcontainer[@name = 'account']">
       <assert test="parent::a:hcontainer[@name = 'program' or @name = 'agency']">An account belongs in a program (or directly in an agency schedule).</assert>
-      <assert test="not(a:heading) or a:heading/a:inline[@name = 'accountCode']">An account heading must mark its account number (inline name="accountCode").</assert>
+      <assert test="not(a:heading) or a:heading/a:inline[@name = 'accountCode'] or normalize-space(a:heading) = 'All Funds'">An account heading must mark its account number (inline name="accountCode").</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'appropriation']">
       <assert test="ancestor::a:hcontainer[@name = 'agency']">An item of appropriation belongs in an agency schedule.</assert>
@@ -429,6 +429,7 @@
     <rule context="a:hcontainer[@name = 'reappropriation']">
       <assert test="ancestor::a:hcontainer[@name = 'reappropriationSource']">A reappropriation belongs under its source ("By chapter 50, section 1, of the laws of ...").</assert>
       <assert test="count(.//a:quantity[@class = 'originalAmount']) = 1 and count(.//a:quantity[@class = 'reappropriatedAmount']) = 1">A reappropriation has the original amount and the reappropriated amount ("(re. $...)").</assert>
+      <assert role="warning" test="not(.//a:quantity[@class = 'reappropriatedAmount'] and .//a:quantity[@class = 'originalAmount']) or number(.//a:quantity[@class = 'reappropriatedAmount']/@normalized) &lt;= number(.//a:quantity[@class = 'originalAmount']/@normalized) or ancestor::a:hcontainer[@name = 'reappropriationSource']//a:ref[contains(concat(' ', @class, ' '), ' supplemented ')]">The reappropriated amount is more than the original appropriation (and the source line names no supplement by transfer).</assert>
     </rule>
     <rule context="*[@refersTo = '#legislativeAddition']">
       <assert test="self::a:hcontainer[@name = 'appropriation' or @name = 'program' or @name = 'agency']">Only items, programs or agency schedules can be marked as legislative additions.</assert>
@@ -444,11 +445,15 @@
     </rule>
     <rule context="a:hcontainer[@name = 'subtotal']">
       <let name="sum" value="sum(../a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
-      <assert test="number(.//a:quantity[@class = 'subtotal']/@normalized) = $sum">The subtotal <value-of select="normalize-space(.//a:quantity[@class = 'subtotal'])"/> doesn't equal the items above it (<value-of select="format-number($sum, '#,##0')"/>).</assert>
+      <!-- A subtotal is the items above it, or the items less the offsets above it ("Less the amount appropriated
+           to ..." in General State Charges, where the offsets keep a sum from being counted twice). -->
+      <let name="off" value="sum(preceding-sibling::a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
+      <assert test="number(.//a:quantity[@class = 'subtotal']/@normalized) = $sum or number(.//a:quantity[@class = 'subtotal']/@normalized) = $sum - $off">The subtotal <value-of select="normalize-space(.//a:quantity[@class = 'subtotal'])"/> doesn't equal the items above it (<value-of select="format-number($sum, '#,##0')"/>).</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'program'][a:heading/a:quantity[@class = 'programTotal']]">
       <let name="sum" value="sum(.//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
-      <assert test="number(a:heading/a:quantity[@class = 'programTotal']/@normalized) = $sum">The program total <value-of select="normalize-space(a:heading/a:quantity)"/> doesn't equal its items (<value-of select="format-number($sum, '#,##0')"/>).</assert>
+      <let name="off" value="sum(.//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
+      <assert test="number(a:heading/a:quantity[@class = 'programTotal']/@normalized) = $sum or number(a:heading/a:quantity[@class = 'programTotal']/@normalized) = $sum - $off">The program total <value-of select="normalize-space(a:heading/a:quantity)"/> doesn't equal its items (<value-of select="format-number($sum, '#,##0')"/>).</assert>
     </rule>
     <rule context="a:tr[@class = 'totalRow']/*[a:p/a:quantity]">
       <let name="k" value="count(preceding-sibling::*) + 1"/>
@@ -458,8 +463,9 @@
     <rule context="a:hcontainer[@name = 'agencySummary']">
       <let name="ag" value="string(../@refersTo)"/>
       <let name="appr" value="sum(..//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
+      <let name="off" value="sum(..//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
       <let name="reappr" value="sum(key('agency', $ag)//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
-      <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']) or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr">The agency summary's appropriations total doesn't equal the agency's items (<value-of select="format-number($appr, '#,##0')"/>).</assert>
+      <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']) or (number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr - $off)">The agency summary's appropriations total doesn't equal the agency's items (<value-of select="format-number($appr, '#,##0')"/>).</assert>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']) or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']/@normalized) = $reappr">The agency summary's reappropriations total doesn't equal the agency's reappropriations (<value-of select="format-number($reappr, '#,##0')"/>).</assert>
     </rule>
   </pattern>

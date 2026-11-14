@@ -2,7 +2,7 @@
 // Reads a bill or a concurrent resolution numbered as a bill and lays it out as
 // a clean copy: front matter, numbered lines, new matter underscored, old matter
 // in brackets, quoted law with its units, and tables.
-// Not yet handled: resolutions in the resolution series and appropriation schedules.
+// Not yet handled: resolutions in the resolution series.
 //
 // Build:
 //   typst compile --font-path fonts --input xml=sample-bill.xml bill.typ clean-copy.pdf
@@ -539,13 +539,38 @@
   let name = attr(c, "name")
   let p = find(c, "p")
   let amt = amount-of(p)
+  // an offset prints in parentheses: "Less the amount appropriated ... (1,991,489,000)"
+  let q = els(p).filter(x => x.tag == "quantity")
+  if q.len() > 0 and attr(q.last(), "class") == "offset" { amt = "(" + amt + ")" }
   let cls = attr(c, "class")
   let lines = if name == "appropriation" {
     a-par(words-before-amount(p), first: 0, cont: 2, right: 44, tail: (amt, 58))
-  } else if name == "subtotal" or cls.contains("subtotalIndent") {
+  } else if name == "subtotal" {
     a-par(words-before-amount(p), first: 4, cont: 6, right: 58, tail: (amt, 58), just: false)
+  } else if (text-of(p).starts-with("Total") and not text-of(p).starts-with("Total amount available")) or text-of(p).starts-with("Less") {
+    // a total over several groups ("Total general fund support", "Total gross operating - ...") at column 0
+    a-par(words-before-amount(p), first: 0, cont: 2, right: 44, tail: (amt, 58), just: false)
   } else {
-    a-par(words-before-amount(p), first: 2, cont: 4, right: 58, tail: (amt, 58), just: false)
+    a-par(words-before-amount(p), first: 2, cont: 4, right: 44, tail: (amt, 58), just: false)
+  }
+  // a project schedule under the item: its projects (allocations of the item) and the schedule's total
+  let ps = find(c, "table")
+  if name == "appropriation" and ps != none and attr(ps, "class") == "projectSchedule" {
+    lines.push(a-blank)
+    lines.push(a-line(14, "Project" + nb(1) + "Schedule"))
+    lines.push(a-line(0, "PROJECT" + nb(31) + "AMOUNT"))
+    lines.push(rule-line(0, n: 44))
+    for r in kids(ps, "tr").filter(r => attr(r, "class") != "headerRow") {
+      let cs = els(r)
+      let a = text-of(cs.at(1))
+      if attr(r, "class") == "totalRow" {
+        lines.push(rule-line(30))
+        lines += a-par(nodes-words(kid(cs.at(0), "p").children), first: 0, cont: 2, right: 44, tail: (a, 44), just: false)
+        lines.push(rule-line(30))
+      } else {
+        lines += a-par(nodes-words(kid(cs.at(0), "p").children), first: 0, cont: 2, right: 30, tail: (a, 44))
+      }
+    }
   }
   if cls.contains("doubleRuleAfter") { lines.push(rule-line(44, ch: "=")) }
   else if cls.contains("ruleAfter") { lines.push(rule-line(44)) }
@@ -559,7 +584,13 @@
   let mode = none
   for c in kids-list {
     let name = attr(c, "name")
-    if name == "objectGroup" { if cur.len() > 0 { blocks.push((mode, cur)); cur = () }; blocks += account-blocks(els(c).filter(x => x.tag == "hcontainer")); mode = none; continue }
+    if name == "objectGroup" {
+      if cur.len() > 0 { blocks.push((mode, cur)); cur = () }
+      // a group's own heading ("STUDENT GRANTS AND LOANS"), at column 0
+      let gh = kid(c, "heading")
+      if gh != none { blocks.push(("heading", (gh,))) }
+      blocks += account-blocks(els(c).filter(x => x.tag == "hcontainer")); mode = none; continue
+    }
     let m = if name == "purpose" { "purpose" } else { "items" }
     if m != mode and cur.len() > 0 { blocks.push((mode, cur)); cur = () }
     mode = m
@@ -569,7 +600,9 @@
   blocks
 }
 #let render-block(mode, cs) = {
-  if mode == "purpose" {
+  if mode == "heading" {
+    (keep(..a-par(nodes-words(cs.first().children), first: 0, cont: 2, right: 72, just: false)),)
+  } else if mode == "purpose" {
     let out = ()
     for c in cs { for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children))) } }
     out
@@ -625,17 +658,17 @@
         let lines = a-par(words-before-amount(h), first: 0, cont: 2, right: 58, tail: (amt, 72))
         lines.push(rule-line(58))
         blocks.push((keep(..lines),))
+      } else if attr(prog, "class") == "fundGroup" {
+        // a centred heading over the programs that follow ("SPECIAL REVENUE FUNDS - FEDERAL")
+        blocks.push((center-text(text-of(h)),))
       } else {
         blocks.push(a-par(nodes-words(h.children), first: 0, cont: 2, right: 72, just: false))
       }
     }
-    // "noBlankBefore" (a print quirk the converter keeps): the block follows the one before with no blank line
-    let tight = c => c != none and attr(c, "class").split(" ").contains("noBlankBefore")
-    let add = (blocks, b, glue) => { if glue and blocks.len() > 0 { blocks.last() += b; blocks } else { blocks.push(b); blocks } }
     for acct in kids(prog, "hcontainer").filter(c => attr(c, "name") == "account") {
       let ah = kid(acct, "heading")
-      if ah != none { blocks = add(blocks, render-account-heading(ah), tight(acct)) }
-      for (mode, cs) in account-blocks(kids(acct, "hcontainer")) { blocks = add(blocks, render-block(mode, cs), tight(cs.first())) }
+      if ah != none { blocks.push(render-account-heading(ah)) }
+      for (mode, cs) in account-blocks(kids(acct, "hcontainer")) { blocks.push(render-block(mode, cs)) }
     }
   }
   blocks
@@ -669,7 +702,7 @@
   let out = ()
   for (i, l) in lines.slice(0, -1).enumerate() { out.push(a-line(if i == 0 { 2 } else { 4 }, draw-just(l, 72 - if i == 0 { 2 } else { 4 }, i))) }
   let used = lastcol + line-len(last) + midlen + orig.len() + 1 + 1 + 1 + tail.len()
-  if used <= 72 and not "amountsBelow" in ctoks {
+  if used <= 72 {
     let dots = 72 - (lastcol + line-len(last) + midlen + orig.len() + 2 + tail.len())
     out.push(a-line(lastcol, draw-line(last) + mid + orig + nb(1) + leaders(dots) + nb(1) + tail))
   } else {
@@ -697,6 +730,12 @@
 }
 #let render-reapprops(n) = {
   let blocks = ()
+  // an agency with reappropriations only opens them with its summary
+  let summary = kids(n, "hcontainer").find(c => attr(c, "name") == "agencySummary")
+  if summary != none {
+    blocks += render-summary(summary)
+    if kid(summary, "intro") != none { blocks.push((center-text("SCHEDULE"),)) }
+  }
   for prog in kids(n, "hcontainer").filter(c => attr(c, "name") == "program") {
     let h = kid(prog, "heading")
     if h != none { blocks.push(a-par(nodes-words(h.children), first: 0, cont: 2, right: 72, just: false)) }
@@ -729,9 +768,11 @@
   // the budget line has three spaces before the fiscal year ("STATE OPERATIONS   2025-26")
   let sub = squeeze(text-of(kid(n, "subheading"))).replace(regex(" (\d{4}-\d{2})$"), m => "   " + m.captures.at(0))
   let heads = (if misc != none { (text-of(misc),) } else { () }) + (text-of(kid(n, "heading")), sub)
-  // class tokens: "reappropriations"; "tight" sets the department and agency lines on consecutive lines
+  // A department over its agency ("DEPARTMENT OF FAMILY ASSISTANCE" / "OFFICE OF CHILDREN AND FAMILY SERVICES")
+  // is set on consecutive lines, as for most of S.3000-D; the "MISCELLANEOUS -- ALL STATE DEPARTMENTS AND
+  // AGENCIES" heading stands a line above its agency.
   let toks = attr(n, "class").split(" ")
-  let tight = "tight" in toks and heads.len() == 3
+  let tight = heads.len() == 3 and not heads.first().starts-with("MISCELLANEOUS")
   let slots = if tight { (0, 1, 3) } else { range(heads.len()).map(i => 2 * i) }
   let ntop = slots.last() + 2
   let blocks = if "reappropriations" in toks { render-reapprops(n) } else { render-schedule(n) }
@@ -743,6 +784,8 @@
   }
   let tm = spec.first-line - 0.8 * spec.size + ntop * spec.pitch
   page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, {
+    // where the agency begins, for the table of contents
+    [#metadata(attr(n, "eId")) <agency-start>]
     for (i, b) in blocks.enumerate() {
       if i > 0 { a-blank }
       b.join()
@@ -962,3 +1005,38 @@
 
 // Body: numbered lines
 #for s in els(kid(bill, "body")).filter(c => c.tag in structural) { structure(s) }
+
+// The table of contents of an appropriation bill: the agencies by their index names ("AGING, OFFICE FOR THE"),
+// each with the page its schedule begins on, worked out here, so it is right however the pages fall.
+#let render-toc(toc) = {
+  let fg = {
+    place(top + left, dx: spec.left + 28 * char, dy: spec.first-line - 0.8 * spec.size, text("TABLE\u{a0}OF\u{a0}CONTENTS"))
+    place(top + left, dx: spec.left + 68 * char, dy: spec.first-line - 0.8 * spec.size + spec.pitch, text("Page"))
+  }
+  let tm = spec.first-line - 0.8 * spec.size + 3 * spec.pitch
+  page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, context {
+    let pages = (:)
+    for m in query(<agency-start>) { if m.value not in pages { pages.insert(m.value, str(m.location().page())) } }
+    let blocks = ()
+    for it in kids(toc, "tocItem") {
+      let col = (int(attr(it, "level")) - 1) * 2
+      let href = attr(it, "href").slice(1)
+      let pg = if href == "sec_1" { "1" } else { pages.at(href, default: "") }
+      let ws = nodes-words(it.children)
+      if attr(it, "class") == "noPage" or pg == "" {
+        blocks.push(a-par(ws, first: col, cont: col + 2, right: 72, just: false))
+      } else {
+        blocks.push(a-par(ws, first: col, cont: col + 2, right: 58, tail: (pg, 72), just: false))
+      }
+    }
+    for (i, b) in blocks.enumerate() {
+      if i > 0 { a-blank }
+      keep(..b)
+    }
+  })
+}
+#if approp {
+  let c = kid(bill, "conclusions")
+  let toc = if c != none { kid(c, "toc") } else { none }
+  if toc != none { render-toc(toc) }
+}
