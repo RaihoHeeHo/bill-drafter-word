@@ -201,7 +201,7 @@ function chooseSec(law, s, unit) {
   $('sec-results').innerHTML = '';
   $('picked').hidden = false;
   $('picked-title').textContent = law.info.lawId + ' § ' + BD.secId(s.loc) + (s.title ? '. ' + s.title : '') + (s.missing ? ' (new)' : '');
-  $('sec-preview').textContent = BD.lawParagraphs(s.text).join('\n');
+  $('sec-preview').textContent = BD.lawParagraphs(s.text).map(p => BD.isTable(p) ? '[table, ' + p.rows.length + ' rows]\n' + p.rows.map(r => r.cells.map(c => String(c).replace(/\n/g, ' ')).join('  |  ')).join('\n') : p).join('\n');
   $('sec-preview-box').hidden = !!s.missing; $('sec-preview-box').open = false;
   showActions();
 }
@@ -242,14 +242,16 @@ function actionChanged() {
     repeal: 'Insert: repeal ' + id + ' § ' + sec,
   }[how] || 'Insert section';
 }
+// The Bank's text as the document holds it: a paragraph as one run; a table as it is (its cells are text).
+const asRuns = p => BD.isTable(p) ? p : [{ t: p, k: '' }];
 async function insertAmendment() {
   const law = pick.law, s = pick.sec; if (!law || !s) throw new Error('Find the section first: type the law and the section, e.g. "GCN 12", and pick it from the list.');
   const how = document.querySelector('input[name=act]:checked').value, history = historyText();
   let o;
-  if (how === 'amend') o = { act: 'amend', loc: s.loc, quoted: BD.lawParagraphs(s.text).map(t => [{ t, k: '' }]) };
+  if (how === 'amend') o = { act: 'amend', loc: s.loc, quoted: BD.lawParagraphs(s.text).map(asRuns) };
   else if (how === 'amendSub') {
     const unit = $('sub').value, sub = BD.subdivisions(BD.lawParagraphs(s.text), BD.usesSubsections(law.info.lawId)).find(x => x.unit === unit);
-    o = { act: 'amend', loc: s.loc, unit, quoted: sub.paras.map(t => [{ t, k: '' }]) };
+    o = { act: 'amend', loc: s.loc, unit, quoted: sub.paras.map(asRuns) };
   } else if (how === 'add') {
     const loc = BD.locKey($('add-num').value); if (!loc) throw new Error('Type the new section\'s number.');
     o = { act: 'add', loc, quoted: [[{ t: '§ ' + BD.secId(loc) + '. ____. ____', k: 'ins' }]] };
@@ -374,6 +376,7 @@ async function refresh() {
     const li = el('li', {}, el('span', { className: 'n', textContent: s.num || '?' }), el('span', { className: 'k', textContent: what }));
     li.onclick = () => goTo(i); ol.append(li);
   });
+  listTables(model);
   return model;
 }
 // The getting-started card shows until the Bank is loaded and a bill is started.
@@ -404,6 +407,124 @@ async function runChecks() {
     if (f.fix && FIX[f.fix]) { const b = el('button', { textContent: FIX[f.fix][0] }); b.onclick = () => busy(b, async () => { await FIX[f.fix][1](f); if (f.fix !== 'history') await runChecks(); }); li.append(b); }
     ul.append(li);
   }
+}
+
+/* ---------- tables ----------
+   The pane's table editor works on the table as the law will read (the "now" reading): rows taken out are not
+   shown, new words are plain. Saving writes it into the quoted text as a Word table and runs Mark changes, which
+   compares it with the Bank and puts back the brackets and underlines. */
+const ed = { sec: null, item: null, table: null, act: '' };
+const KINDS = [['', 'Row'], ['head', 'Headings'], ['group', 'Group'], ['note', 'Note']];
+const secLabel = s => (s.num || '').replace(/\.$/, '') + ' ' + (KIND[s.act] || '') + (s.law ? ' ' + s.law + ' § ' + BD.secId(s.loc) + (s.unit ? (BD.usesSubsections(s.law) ? '(' + s.unit + ')' : ' subd. ' + s.unit) : '') : '');
+function listTables(model) {
+  const ul = $('table-list'), sel = $('table-target'); ul.innerHTML = ''; sel.innerHTML = '';
+  let any = false;
+  model.sections.forEach((s, si) => {
+    if (!s.quoted) return;
+    sel.append(el('option', { value: String(si), textContent: 'Add to ' + secLabel(s) }));
+    s.quoted.paras.forEach((p, pi) => {
+      if (!BD.isTable(p)) return;
+      any = true;
+      const r = BD.tableReadings(p).now, n = BD.tableCols(r);
+      const b = el('button', { textContent: 'Edit' }); b.onclick = () => busy(b, async () => openEditor(await word(readModel), si, pi));
+      ul.append(el('li', {}, el('span', { className: 'what' }, secLabel(s) + (p.caption ? ', ' + p.caption.replace(/\.$/, '') : ''), el('small', { textContent: n + ' column' + (n === 1 ? '' : 's') + ', ' + r.rows.length + ' row' + (r.rows.length === 1 ? '' : 's') })), b));
+    });
+  });
+  $('table-new-row').hidden = !sel.options.length;
+  if (!sel.options.length) ul.append(el('li', { className: 'hint', textContent: 'Tables live in the law\'s text: amend or add a section first.' }));
+  else if (!any) ul.append(el('li', { className: 'hint', textContent: 'No tables in the bill yet.' }));
+}
+function openEditor(model, si, pi) {
+  const s = model.sections[si];
+  ed.sec = si; ed.item = pi; ed.act = s.act;
+  if (pi != null) {
+    const now = BD.tableReadings(s.quoted.paras[pi]).now;
+    ed.table = { caption: now.caption || '', rows: now.rows.map(r => ({ kind: r.kind, cells: r.cells.slice() })) };
+  } else ed.table = { caption: '', rows: BD.emptyTable(3, 3).rows };
+  $('te-title').textContent = (pi != null ? 'Edit table: ' : 'New table: ') + secLabel(s);
+  $('te-hint').textContent = s.act === 'add' ? 'Everything in an added provision is new matter: the whole table will be underlined.' : pi != null ? 'This is the table as the law will read. Rows you delete stay in the bill in brackets; new rows and words are underlined.' : 'A new table in the law is new matter: it will be underlined.';
+  $('te-caption').value = ed.table.caption;
+  const place = $('te-place'); place.innerHTML = '';
+  $('te-place-row').hidden = pi != null;
+  if (pi == null) {
+    place.append(el('option', { value: String(s.quoted.paras.length - 1), textContent: 'At the end of the text' }));
+    s.quoted.paras.forEach((p, i) => { if (!BD.isTable(p)) place.append(el('option', { value: String(i), textContent: 'After "' + BD.textOf(p).slice(0, 48) + '…"' })); });
+  }
+  $('te-paste').hidden = true;
+  drawGrid();
+  $('table-editor').hidden = false; $('tables-card').hidden = true;
+  $('table-editor').scrollIntoView({ block: 'start' });
+}
+function closeEditor() { $('table-editor').hidden = true; $('tables-card').hidden = false; ed.table = null; }
+const ncols = () => Math.max(1, ...ed.table.rows.map(r => r.cells.length));
+function grow(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+function drawGrid() {
+  const g = $('te-grid'), n = ncols(); g.innerHTML = '';
+  for (const r of ed.table.rows) while (r.cells.length < n) r.cells.push('');
+  // column tools
+  const top = el('tr', {}, el('th', { textContent: '' }));
+  for (let c = 0; c < n; c++) {
+    const x = el('button', { className: 'mini', textContent: '×', title: 'Delete column ' + (c + 1), disabled: n < 2 });
+    x.onclick = () => { for (const r of ed.table.rows) r.cells.splice(c, 1); drawGrid(); };
+    top.append(el('th', {}, 'Column ' + (c + 1) + ' ', x));
+  }
+  g.append(top);
+  ed.table.rows.forEach((r, i) => {
+    const tr = el('tr', { className: r.kind });
+    const kind = el('select', { title: 'What this row is' });
+    for (const [v, t] of KINDS) kind.append(el('option', { value: v, textContent: t, selected: r.kind === v }));
+    kind.onchange = () => {
+      r.kind = kind.value;
+      if (r.kind === 'group' || r.kind === 'note') { r.cells = [r.cells.filter(Boolean).join(' ') || (r.kind === 'group' ? 'Group A:' : '{1} ')].concat(new Array(n - 1).fill('')); }
+      drawGrid();
+    };
+    const btn = (t, title, fn) => { const b = el('button', { className: 'mini', textContent: t, title }); b.onclick = fn; return b; };
+    const blank = () => ({ kind: '', cells: new Array(n).fill('') });
+    tr.append(el('td', { className: 'tools' }, kind,
+      btn('+↑', 'Add a row above', () => { ed.table.rows.splice(i, 0, blank()); drawGrid(); }),
+      btn('+↓', 'Add a row below', () => { ed.table.rows.splice(i + 1, 0, blank()); drawGrid(); }),
+      btn('×', 'Delete this row', () => { ed.table.rows.splice(i, 1); if (!ed.table.rows.length) ed.table.rows.push(blank()); drawGrid(); })));
+    const span = r.kind === 'group' || r.kind === 'note';
+    for (let c = 0; c < (span ? 1 : n); c++) {
+      const ta = el('textarea', { value: r.cells[c] || '', rows: 1, 'aria-label': 'Row ' + (i + 1) + ', column ' + (c + 1) });
+      ta.setAttribute('aria-label', span ? 'Row ' + (i + 1) : 'Row ' + (i + 1) + ', column ' + (c + 1));
+      ta.oninput = () => { r.cells[c] = ta.value; grow(ta); };
+      const td = el('td', {}, ta); if (span) td.colSpan = n;
+      tr.append(td);
+      setTimeout(() => grow(ta));
+    }
+    g.append(tr);
+  });
+}
+async function saveTable() {
+  const t = ed.table, n = ncols();
+  const rows = t.rows.map(r => ({ kind: r.kind, cells: r.cells.slice(0, n).map(c => String(c || '').replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim()) }))
+    .filter(r => r.cells.some(Boolean));
+  if (!rows.some(r => r.kind === '' || r.kind === 'group')) throw new Error('The table has no rows yet: type at least one row.');
+  const caption = $('te-caption').value.trim().replace(/^table\b/i, m => m.toUpperCase());
+  const table = caption ? { table: true, caption, rows } : { table: true, rows };
+  const si = ed.sec, item = ed.item, after = +$('te-place').value;
+  await word(async ctx => quietly(ctx, async () => {
+    const secs = await sectionControls(ctx), c = secs[si];
+    if (!c) throw new Error('That section is no longer in the bill.');
+    const ox = c.getOoxml(); await ctx.sync();
+    const s = BD.readBill(ox.value).sections[0];
+    const paras = s.quoted.paras.slice();
+    if (item != null) paras[item] = table; else paras.splice(after + 1, 0, table);
+    const tag = BD.parseTag(c.tag);
+    await replaceControl(ctx, c, BD.sectionXml({ act: tag.act, law: tag.law, loc: tag.loc, unit: tag.unit, num: s.num, heading: s.heading, clause: s.clause, content: s.paras[0] || [], more: s.paras.slice(1), quoted: paras }));
+  }));
+  closeEditor();
+  await markChanges();
+  await refresh();
+  notice((item != null ? 'Table saved' : 'Table added') + ' and marked against the Bank.');
+}
+function pasteRows() {
+  const t = BD.tableFromText($('te-paste-text').value, $('te-paste-head').checked);
+  if (!t) throw new Error('Paste or type the rows first.');
+  ed.table.rows = t.rows.map(r => ({ kind: r.kind, cells: r.cells.map(String) }));
+  $('te-paste').hidden = true; $('te-paste-text').value = '';
+  drawGrid();
 }
 
 /* ---------- export ---------- */
@@ -529,6 +650,14 @@ function wire() {
   on('add-sev', () => addStandard('severability')); on('add-new', () => addStandard('new')); on('add-eff', setEffective);
   $('st-name').onkeydown = e => { if (e.key === 'Enter') $('add-short').click(); };
   on('refresh', refresh); on('run-checks', runChecks);
+  // Tables
+  on('table-new', async () => { const model = await word(readModel); openEditor(model, +$('table-target').value, null); });
+  on('te-add-row', async () => { ed.table.rows.push({ kind: '', cells: new Array(ncols()).fill('') }); drawGrid(); });
+  on('te-add-col', async () => { for (const r of ed.table.rows) r.cells.push(''); drawGrid(); });
+  on('te-paste-toggle', async () => { $('te-paste').hidden = !$('te-paste').hidden; if (!$('te-paste').hidden) $('te-paste-text').focus(); });
+  on('te-paste-go', async () => pasteRows());
+  on('te-save', saveTable);
+  $('te-cancel').onclick = closeEditor; $('te-close').onclick = closeEditor;
   on('to-akn', async () => { await toAkn(); $('akn-card').open = true; });
   on('akn-copy', async () => { $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
   on('akn-save', async () => saveAkn());

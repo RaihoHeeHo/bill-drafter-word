@@ -115,6 +115,7 @@ Each finding has a **Go to** button, and where possible a one-click fix (Renumbe
 | Amending clause | The whole lead-in inside `p/mod`: the citation as a `ref` to the provision, addressed by Bank law ID alone (`/akn/us-ny/act/consolidated/exc/~sec_296__subdvs_1`); each act in the history as `ref class="amendmentHistory amended"` pointing to the chapter (`/akn/us-ny/act/2023/55`); the rest of the clause; then the `quotedStructure`. A repeal is the lead-in alone, ending "is REPEALED." |
 | `akn:quoted` | `mod/quotedStructure eId="…__qstr"`, nested by numbering and named as New York names its units: section › subdivision › paragraph › subparagraph › clause, or section › subsection › paragraph … for the Tax and Insurance Laws. eIds end in the printed number; a renumbered unit takes its new number, a unit struck out whole ends in `-old`. Text before sub-units goes in `intro`. |
 | Bill Insert / Bill Delete | `ins` / `del` (brackets dropped; the template adds them back). One pair of brackets running from a unit's number into its text, or into the next unit, becomes `del` pieces marked `spanStart` / `spanMiddle` / `spanEnd`. |
+| A Word table in the law's text | `table` in the unit's text; a table with a caption or groups is the profile's named table (`hcontainer name="table"`, `tableGroup`, `tableNote`), with headings as `th` and line breaks in cells as `eol`. See FORMAT.md, *Tables*. |
 | Each amending section | `meta/analysis/activeModifications/textualMod`: substitution, insertion or repeal, from the `mod` to the provision |
 
 The table of laws (`src/lib/laws.js`, from the profile's `laws.json`) says whether a law is consolidated or not and whether its sections divide into subsections. The citations in the amending clause follow it too ("Subsection (c) of section 606 of the tax law").
@@ -132,7 +133,7 @@ The output passes all three layers of the profile's validator: the OASIS Akoma N
 3. Places the XML in Typst's in-memory file system.
 4. Compiles `clean-copy/bill.typ` with `xml=` pointing at it.
 
-`bill.typ` is the desktop demo's profile-0.3 template, unchanged: it prints line for line as the public PDFs do. That means bold front matter and enacting clause, 72-character lines, 56 lines a page, new matter underscored, old matter in brackets, the "S./A. number" running header, the EXPLANATION and LBD number on page 1, and words divided only where real prints divide them. The pane's Typst is 0.15.1, the same as the desktop app's, so the two produce the same PDF: the example bill matches word for word, at the same positions. The example takes about 0.6 seconds once the compiler is loaded.
+`bill.typ` is the desktop demo's profile-0.3 template, unchanged: it prints line for line as the public PDFs do. That means bold front matter, the enacting clause underscored (its printed form, not new matter), 72-character lines, 56 lines a page, new matter underscored, old matter in brackets, the "S./A. number" running header, the EXPLANATION and LBD number on page 1, and words divided only where real prints divide them. The pane's Typst is 0.15.1, the same as the desktop app's, so the two produce the same PDF: the example bill matches word for word, at the same positions. The example takes about 0.6 seconds once the compiler is loaded.
 
 ## 8. What was tested, and what wasn't
 
@@ -188,6 +189,17 @@ The new section appears in place, the sections after it renumber, and the title 
 
 **Standard sections.** Under **Add a section > Standard section**, each standard section is listed with where it goes: **Short title** (type the name, then Add), **Legislative findings**, **Severability clause** and **Blank section**. Below them is the **Effective date**: pick when (immediately, the 30th, 60th or 90th … day, January 1 next, a date), open **Add-ons** for rules and regulations, sunsets, retroactivity, applicability and provisos, and the sentence is shown as it will read before **Use this effective date**. Each section lands in its proper place, and the numbers update by themselves.
 
+**Tables.** A table in a section the bill amends comes in from the Bank as a real Word table: column headings as a header row, "Group A:" and "{3}" notes as rows across the table, "TABLE ONE." as its caption. The drafter can change it right in the document with Word's own table tools, or in the pane's **Tables** card. That card lists every table in the bill with an **Edit** button, and offers **New table** for any amended or added section.
+
+The editor shows the table as the law will read:
+- one box per cell, with Enter for a line break inside a cell;
+- a kind for each row: Row, Headings, Group or Note;
+- buttons to add a row above or below, delete a row, and add or delete a column;
+- a caption box;
+- **Paste rows from text…**, which takes rows copied from Excel or Word (tab-separated) or typed with two spaces between cells.
+
+**Save to the bill** writes the table into the document and runs Mark changes: a changed amount comes out `[$100,000] $400,000`, a deleted row stays in brackets, and new rows are underlined. A new table can be placed at the end of the text or after any paragraph.
+
 **History for a section already in the bill.** Use **Add history** on a Check finding, or the link under *Last amended by*. Either way the cursor goes to the section and a small card asks for the history, with **Put it in that section**.
 
 **Check.** Opening the tab (or **Check the bill** in the bottom bar) runs the checks. A summary line comes first ("1 warning, 1 note", or "No problems found. The bill is ready for its clean copy."). Below it, errors (red), warnings (amber) and notes (blue) are listed in that order, in plain language, for example "The amending clause should cite the provision's last amendment" or "Gendered: 'he or she'; use 'they' where possible". Each has **Go to** and, where possible, a fix button. A red count on the tab shows how many errors remain.
@@ -206,6 +218,7 @@ The new section appears in place, the sections after it renumber, and the title 
 
 * **First real-Word test.** This is the open item. Sideload it and try the flow above. Anything odd will most likely be in how Word inserts sections next to each other.
 * **Amendment history** isn't in the Bank files. If the desktop app's history lists (`data/history`) were copied into the Bank folder, the "as amended by" text could be filled in automatically.
-* **Nesting** follows numbering only, so tables, schedules and appropriations come out as plain paragraphs, not the profile's tables and appropriation structures.
+* **Nesting** follows numbering only, so schedules and appropriations come out as plain paragraphs, not the profile's appropriation structures. Tables are handled (section 6).
+* **Table detection** in the Bank's text has been built from the profile's examples, not yet tried over every Bank table. The table editor fixes any table it misreads.
 * **Laws not in the table** (`src/lib/laws.js`) are addressed from the Bank's law type. The checks flag unconsolidated laws for review.
 * **Amendment history** is typed by the drafter. In deployment it comes from LBDC's own records, not the Bank.

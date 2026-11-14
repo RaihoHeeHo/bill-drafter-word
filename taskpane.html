@@ -104,6 +104,30 @@
     </div>
   </div>
 
+  <div class="card" id="tables-card">
+    <h2>Tables</h2>
+    <p class="hint">A table in the law's text is a real Word table. Change it in the document, or here: edit it as the law will read, and Mark changes brackets what you took out and underlines what you added.</p>
+    <ul id="table-list" class="tlist"></ul>
+    <div class="row" id="table-new-row"><select id="table-target" aria-label="Section to add a table to"></select><button id="table-new">New table</button></div>
+  </div>
+
+  <div class="card editor" id="table-editor" hidden>
+    <div class="head-row"><h2 id="te-title">Table</h2><button id="te-close" class="x" aria-label="Close the table editor">×</button></div>
+    <p class="hint" id="te-hint"></p>
+    <label for="te-caption">Caption <span class="opt">(optional, e.g. TABLE ONE.)</span></label>
+    <input id="te-caption" autocomplete="off">
+    <div id="te-place-row"><label for="te-place">Place it</label><select id="te-place"></select></div>
+    <div class="te-wrap"><table id="te-grid" class="te"></table></div>
+    <p class="hint">Each row's kind: <b>Row</b>, <b>Headings</b> (the column headings), <b>Group</b> ("Group A:", across the table) or <b>Note</b> ("{3} …", under the table). Enter in a cell starts a new line in it.</p>
+    <div class="row"><button id="te-add-row">+ Row</button><button id="te-add-col">+ Column</button><button id="te-paste-toggle" class="link">Paste rows from text…</button></div>
+    <div id="te-paste" hidden>
+      <textarea id="te-paste-text" rows="5" placeholder="One row per line. Separate the cells with a tab (as copied from Excel or Word) or with two or more spaces."></textarea>
+      <label class="check"><input type="checkbox" id="te-paste-head" checked> The first line is the column headings</label>
+      <button id="te-paste-go">Use these rows</button>
+    </div>
+    <div class="row"><button id="te-save" class="primary">Save to the bill</button><button id="te-cancel">Cancel</button></div>
+  </div>
+
   <div class="card" id="history-card" hidden>
     <div class="head-row"><h2>Add history to a section in the bill</h2><button id="history-close" class="x" aria-label="Close">×</button></div>
     <p class="hint">Click in the section in the document (its amending clause or the law's text), type its last amendment, and put it in.</p>
@@ -186,6 +210,7 @@
 
 <script src="src/lib/drafting.js"></script>
 <script src="src/lib/laws.js"></script>
+<script src="src/lib/tables.js"></script>
 <script src="src/lib/bank.js"></script>
 <script src="src/lib/ooxml.js"></script>
 <script src="src/lib/checks.js"></script>

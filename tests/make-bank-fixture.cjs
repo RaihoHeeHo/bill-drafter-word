@@ -3,7 +3,7 @@
 // holds just the sections the flow touches, and EDN 2-d is abbreviated.
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD;
 const zip = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill.docx'));
 // minimal zip reader for word/document.xml
@@ -27,4 +27,24 @@ const out = path.join(__dirname, 'bank-fixture'); fs.mkdirSync(out, { recursive:
 fs.writeFileSync(path.join(out, 'GCN.json'), JSON.stringify(law('GCN', 'General Construction', [['11', 'Test section', '  § 11. Test section. Text for tests.'], ['12', 'Affidavit', text(old(gcn12))], ['13', 'Test section', '  § 13. Test section. Text for tests.']])));
 fs.writeFileSync(path.join(out, 'EXC.json'), JSON.stringify(law('EXC', 'Executive', [['296', 'Unlawful discriminatory practices', '  § 296. Unlawful discriminatory practices.\n' + text(old(exc296)) + '\n  2. Text for tests.']])));
 fs.writeFileSync(path.join(out, 'EDN.json'), JSON.stringify(law('EDN', 'Education', [['2-D', 'Unauthorized release of personally identifiable information', '  § 2-d. Unauthorized release of personally identifiable information. 1. Definitions. Text abbreviated for tests.']])));
+// Insurance Law § 4103(a): a named table in the Bank's fixed-width layout (abbreviated, in the shape of the real one).
+const isc = ['  § 4103. Financial requirements. (a) Capital and surplus.',
+  '  (1) The minimum capital and surplus required are set forth in the following table:',
+  '                               TABLE ONE.',
+  '  Kind of insurance specified',
+  '  in the following numbered          Paid-in        Paid-in',
+  '  paragraphs of subsection           Capital        Surplus',
+  '  (a) of § 1113:',
+  '                               Group A:',
+  '  7                                  $300,000       $150,000',
+  '  8, 9, 10, 11, or 14 - for',
+  '  each such kind                     $100,000        $50,000',
+  '  13 or 15 -',
+  '  for each such kind                 $500,000       $250,000',
+  '  22                               $2,000,000     $1,000,000',
+  '{3} If licensed to write paragraph 4, no additional paid-in capital',
+  'and surplus is required.',
+  '  (2) Text for tests.',
+  '  (b) Text for tests.'].join('\n');
+fs.writeFileSync(path.join(out, 'ISC.json'), JSON.stringify(law('ISC', 'Insurance', [['4103', 'Financial requirements', isc]])));
 console.log('wrote', fs.readdirSync(out).join(', '));

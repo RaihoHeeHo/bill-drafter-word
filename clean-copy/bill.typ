@@ -150,10 +150,12 @@
   let mark = acc.len()
   for c in n.children { acc = pieces(c, k, acc) }
   if n.tag == "del" or n.tag == "ins" {
-    // every piece added inside this element belongs to one run
+    // every piece added inside this element belongs to one run; a piece of a pair of brackets split across
+    // cells (a row taken out: spanStart … spanEnd) prints only its own bracket
+    let span = attr(n, "class")
     let out = ()
     for (i, p) in acc.enumerate() {
-      if i >= mark and p.run >= 0 { p.run = mark; p.kind = k }
+      if i >= mark and p.run >= 0 { p.run = mark; p.kind = k; p.span = span }
       out.push(p)
     }
     acc = out
@@ -181,8 +183,9 @@
     for p in w {
       let prev = if i > 0 { flat.at(i - 1) } else { none }
       let next = if i + 1 < n { flat.at(i + 1) } else { none }
-      p.first = prev == none or prev.run != p.run or prev.kind != p.kind
-      p.last = next == none or next.run != p.run or next.kind != p.kind
+      let span = p.at("span", default: "")
+      p.first = (prev == none or prev.run != p.run or prev.kind != p.kind) and span != "spanMiddle" and span != "spanEnd"
+      p.last = (next == none or next.run != p.run or next.kind != p.kind) and span != "spanStart" and span != "spanMiddle"
       nw.push(p)
       i += 1
     }
@@ -228,14 +231,15 @@
 
 #let is-amount(ws) = ws.len() == 0 or ws.all(w => w.first().run == -2 or w.map(p => p.text).join("").match(regex("^[$0-9,.%]+$")) != none)
 
-#let render-table(t) = {
-  let rows = kids(t, "tr").map(r => els(r).map(words))
-  if rows.len() == 0 { return }
-  let ncol = calc.max(..rows.map(r => r.len()))
-  let numeric = range(ncol).map(c => c > 0 and rows.all(r => c >= r.len() or is-amount(r.at(c))))
-  // widths in characters
+#let rows-of(t) = kids(t, "tr").map(r => els(r).map(words))
+
+// Column widths for a set of rows. Amount columns are found from the data rows only (headings such as
+// "Paid-in Capital" sit over amounts but are not amounts).
+#let table-layout(rows, data) = {
+  let ncol = calc.max(1, ..rows.map(r => r.len()))
+  let numeric = range(ncol).map(c => c > 0 and data.len() > 0 and data.all(r => c >= r.len() or is-amount(r.at(c))))
   let gap = 3
-  let longest(c) = calc.max(1, ..rows.map(r => if c < r.len() { calc.max(0, ..r.at(c).map(word-len)) } else { 0 }))
+  let longest(c) = calc.max(1, ..data.map(r => if c < r.len() { calc.max(0, ..r.at(c).map(word-len)) } else { 0 }))
   let natural(c) = calc.max(1, ..rows.map(r => if c < r.len() { calc.max(0, ..wrap(r.at(c), 1000).map(l => l.map(word-len).sum(default: 0) + calc.max(0, l.len() - 1))) } else { 0 }))
   let widths = range(ncol).map(c => if numeric.at(c) { calc.max(longest(c) + gap, 15) } else { 0 })
   let text-cols = range(ncol).filter(c => not numeric.at(c))
@@ -248,9 +252,16 @@
     room -= w
   }
   let label-mode = ncol > 1 and not numeric.at(0) and range(1, ncol).all(c => numeric.at(c))
+  (ncol: ncol, numeric: numeric, widths: widths, label-mode: label-mode)
+}
+
+#let render-rows(rows, L, headings: false) = {
+  let (ncol, numeric, widths, label-mode) = L
   for r in rows {
     let cells = range(ncol).map(c => if c < r.len() { wrap(r.at(c), widths.at(c) - if numeric.at(c) { 0 } else { 1 }) } else { () })
-    let lead = if label-mode { calc.max(cells.at(0).len(), 1) - 1 } else { 0 }
+    // column headings end on the label's last line; amounts sit on it
+    let others = if ncol > 1 { calc.max(1, ..range(1, ncol).map(c => cells.at(c).len())) } else { 1 }
+    let lead = if label-mode and headings { calc.max(0, cells.at(0).len() - others) } else if label-mode { calc.max(cells.at(0).len(), 1) - 1 } else { 0 }
     let total = if label-mode { lead + calc.max(1, ..range(1, ncol).map(c => cells.at(c).len())) } else { calc.max(1, ..cells.map(c => c.len())) }
     for k in range(total) {
       flush-line({
@@ -261,6 +272,44 @@
         }
       })
     }
+  }
+}
+
+#let render-table(t) = {
+  let rows = rows-of(t)
+  if rows.len() == 0 { return }
+  render-rows(rows, table-layout(rows, rows.filter(r => true)))
+}
+
+// A named table (Insurance Law "TABLE ONE."): its column headings, groups and rows are laid out as one table,
+// so the headings stand over their columns; the notes follow it.
+#let render-named-table(n) = {
+  let heading = kid(n, "heading")
+  if heading != none {
+    blank-line
+    centered-line(inline(heading), n: plain-len(heading))
+    blank-line
+  }
+  let intro = kid(n, "intro")
+  let head = if intro != none { kids(intro, "table").map(rows-of).fold((), (a, b) => a + b) } else { () }
+  let groups = kids(n, "hcontainer").filter(g => attr(g, "name") == "tableGroup")
+  let content = kid(n, "content")
+  let plain-rows = if content != none { kids(content, "table").map(rows-of).fold((), (a, b) => a + b) } else { () }
+  let group-rows = groups.map(g => { let c = kid(g, "content"); if c == none { () } else { kids(c, "table").map(rows-of).fold((), (a, b) => a + b) } })
+  let data = plain-rows + group-rows.fold((), (a, b) => a + b)
+  let L = table-layout(head + data, data)
+  render-rows(head, L, headings: true)
+  render-rows(plain-rows, L)
+  for (g, rows) in groups.zip(group-rows) {
+    blank-line
+    centered-line(inline(kid(g, "heading")), n: plain-len(kid(g, "heading")))
+    blank-line
+    render-rows(rows, L)
+  }
+  let notes = kids(n, "hcontainer").filter(x => attr(x, "name") == "tableNote")
+  if notes.len() > 0 { blank-line }
+  for x in notes {
+    body-par(inline(kid(x, "num")) + [ ] + inline(kid(kid(x, "content"), "p")))
   }
 }
 
@@ -276,7 +325,9 @@
 // "§ 327-a. Modification of restrictive covenants. 1. As used in this section"
 #let structure(n, lead: []) = {
   let name = attr(n, "name")
-  if n.tag == "hcontainer" and name == "tableGroup" {
+  if n.tag == "hcontainer" and name == "table" {
+    render-named-table(n)
+  } else if n.tag == "hcontainer" and name == "tableGroup" {
     blank-line
     centered-line(inline(kid(n, "heading")), n: plain-len(kid(n, "heading")))
     blank-line
@@ -457,8 +508,10 @@
   let preamble = kid(bill, "preamble")
   if preamble != none {
     let formula = find(preamble, "formula")
+    // The enacting clause is underscored in print. It is not new matter: the underscore is its form, so the
+    // XML holds it as plain text and nothing reads it as an amendment.
     par(justify: true, linebreaks: "simple", first-line-indent: (amount: spec.indent * char, all: true),
-      text(weight: "bold", inline(kid(formula, "p"))))
+      under(inline(kid(formula, "p"))))
     blank-line
   }
 }

@@ -38,6 +38,18 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
     __typeInLaw('employ or to bar or to discharge', 'employ or to discharge'),
   ]));
   await step('mark changes', () => p.click('#mark'));
+  // A table: amend Insurance Law § 4103(a), then edit its table in the pane's editor.
+  await step('amend ISC 4103(a)', () => amend('ISC', '4103(a)', 'amendSub'));
+  console.log('tables:', await p.$$eval('#table-list li', l => l.map(x => x.textContent)));
+  await step('open table editor', async () => { await p.click('#table-list li button'); await p.waitForTimeout(200); });
+  await p.screenshot({ path: OUT + '/2b-table-editor.png', fullPage: false });
+  const cell = (r, c) => '#te-grid textarea[aria-label="Row ' + r + ', column ' + c + '"]';
+  await p.fill(cell(4, 2), '$400,000');                                   // change an amount
+  await p.click('#te-grid tr:nth-child(7) td.tools button:nth-of-type(3)'); // delete the row "22" (row 6)
+  await p.click('#te-grid tr:nth-child(6) td.tools button:nth-of-type(2)'); // add a row below "13 or 15"
+  await p.fill(cell(6, 1), '23'); await p.fill(cell(6, 2), '$750,000'); await p.fill(cell(6, 3), '$375,000');
+  await p.screenshot({ path: OUT + '/2c-table-edited.png', fullPage: false });
+  await step('save table', async () => { await p.click('#te-save'); await p.waitForTimeout(400); });
   await p.click('#seg-std');
   await step('short title', async () => { await p.fill('#st-name', 'affidavit modernization act'); await p.click('#add-short'); });
   await step('severability', () => p.click('#add-sev'));

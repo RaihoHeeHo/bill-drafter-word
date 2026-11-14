@@ -68,6 +68,26 @@ Inside `quotedStructure`, each numbered paragraph is a unit, nested by the order
 
 eIds follow the profile: the `mod`'s eId, then `__qstr`, then each level (`sec_3__mod_1__qstr__sec_296__subdvs_1__para_a`). The last part is the printed number without punctuation, with its case kept (`subpara_A`). A renumbered unit (`[3.] 4.`) takes its new number; a unit struck out whole ends in `-old` (`para_4-old`); a second unit with the same number gets the Bank's marker (`para_34*2`), which is never printed.
 
+## Tables
+
+A table in the law's text is a real **Word table** inside the `akn:quoted` control, so it can be changed with Word's own table tools or with the pane's table editor.
+
+| In Word | Means | Akoma Ntoso |
+|---|---|---|
+| A Word table | a table in the unit's text | `table eId="…__table_1"` in the unit's `content` (or `intro`) |
+| A header row (Word's *Repeat as header row*) | the column headings | `th` cells |
+| A row of one cell spanning the table, "Group A:" | a group of rows | `hcontainer name="tableGroup"` |
+| A row of one cell spanning the table, "{3} …" | a note under the table | `hcontainer name="tableNote"`, `num` {3} |
+| A paragraph "TABLE ONE." right above the table (style Bill Table Caption) | the table's name | `hcontainer name="table"` with that `heading` |
+| A new paragraph inside a cell | a line break typed in the cell (layout only) | `<eol/>` |
+| Bill Insert / Bill Delete inside cells | new and old matter, word by word | `ins` / `del`; a row taken out is one pair of brackets split with `spanStart` … `spanEnd` |
+
+A table with a caption or groups is written as the profile's *named table*. That means `hcontainer name="table"` with the column headings in its `intro`, then its groups and notes (see the profile's `consolidated-isc-4103-excerpt.xml`). Any other table is a plain `table`.
+
+**From the Bank.** The Bank keeps tables as fixed-width text. A block of two or more lines with gaps of three or more spaces is read as a table. Its columns are the stretches of characters some row uses. A line with words only in the first column is part of a wrapped cell; in print a row's amounts sit on its last line, so those words join the row below. The lines above the first row with an amount are the column headings. "Group A:" lines and "{3}" notes are their own rows, and "TABLE ONE." is the caption. **Insert section** puts such a table in the document as a Word table.
+
+**Marking.** Mark changes compares each table with the Bank's: rows are lined up by their words, in order. A changed cell is marked word by word (a sum stays one word: `[$100,000] $400,000`). A new row is underlined, and a row taken out stays in brackets. A table that is new to the law is underlined whole.
+
 ## Document properties
 
 The Clean copy tab saves the bill information as custom document properties as it is typed, and both converters read them:
@@ -106,5 +126,6 @@ Both use the same code (`src/lib/ooxml.js` reads the .docx, `src/lib/akn.js` wri
 ## Known limits of the mapping
 
 * A law missing from `src/lib/laws.js` is addressed from the Bank's own law type; check those `ref`s.
-* Tables inside amended text are kept as plain text (the profile's `hcontainer name="table"` isn't produced yet).
+* Table detection in the Bank's text (below) is built from the profile's examples and the real prints, not yet from a run over every Bank table; where it misreads a table, fix it in the pane's table editor or in Word.
+* A row taken out of a table is printed in one pair of brackets, from its first cell to its last. Confirm that this is how LBDC brackets a struck row.
 * The amendment history is whatever the drafter types; in deployment it comes from LBDC's own records, not the Bank.

@@ -147,29 +147,38 @@
 
   /* ---------- law text ---------- */
   // The Bank's text: 70-column lines; a line that starts with spaces starts a paragraph.
+  // A table (fixed-width columns in the Bank) comes back as one table item in its place (tables.js).
   function lawParagraphs(text) {
     const t = String(text || '').replace(/\\n/g, '\n').replace(/\r/g, '');
+    const lines = t.split('\n'), tables = BD.findTables ? BD.findTables(lines) : [];
     const out = [];
-    for (const line of t.split('\n')) {
+    let afterTable = false;
+    for (let i = 0; i < lines.length; i++) {
+      const tb = tables.find(x => x.start === i);
+      if (tb) { out.push(tb.table); i = tb.end - 1; afterTable = true; continue; }
+      const line = lines[i];
       if (!line.trim()) continue;
-      if (/^\s{2,}/.test(line) || !out.length) out.push(line.trim());
-      else out[out.length - 1] += (/-$/.test(out[out.length - 1]) && /^[a-z]/.test(line) ? '' : ' ') + line.trim();
+      const last = out[out.length - 1];
+      if (/^\s{2,}/.test(line) || !out.length || afterTable || typeof last !== 'string') out.push(line.trim());
+      else out[out.length - 1] += (/-$/.test(last) && /^[a-z]/.test(line) ? '' : ' ') + line.trim();
+      afterTable = false;
     }
-    return out.map(p => p.replace(/\s+/g, ' '));
+    return out.map(p => typeof p === 'string' ? p.replace(/\s+/g, ' ') : p);
   }
+  const isTbl = p => !!(BD.isTable && BD.isTable(p));
   // The subdivisions of a section: "1." starts subdivision 1 (also in the middle of the first paragraph,
   // "§ 2-d. Unauthorized release… 1. Definitions."), lettered paragraphs "a." / "(a)" stay with it.
   // With sub (a law of subsections), "(a)" starts subsection a and "(1)" paragraphs stay with it.
   function subdivisions(paras, sub) {
     const out = [], ps = paras.slice();
     const first = sub ? /^(§\s*[\w-]+\.\s+[^.]+\.)\s+(\(a\)\s.*)$/ : /^(§\s*[\w-]+\.\s+[^.]+\.)\s+(1\.\s.*)$/;
-    if (ps.length) {
+    if (ps.length && !isTbl(ps[0])) {
       const m = first.exec(ps[0]);
       if (m) { ps.splice(0, 1, m[1], m[2]); }
     }
     let cur = null;
     for (const p of ps) {
-      const m = sub ? /^\(([a-z]{1,2}(?:-\d+)?)\)\s/.exec(p) : /^(\d+[-a-z]*)\.\s/.exec(p);
+      const m = isTbl(p) ? null : sub ? /^\(([a-z]{1,2}(?:-\d+)?)\)\s/.exec(p) : /^(\d+[-a-z]*)\.\s/.exec(p);
       if (m) { cur = { unit: m[1], paras: [p] }; out.push(cur); }
       else if (cur) cur.paras.push(p);
     }
@@ -182,8 +191,10 @@
     const out = [];
     paras.forEach((p, i) => {
       if (i) out.push({ w: '¶', s: '' });
+      if (isTbl(p)) p = BD.tableText(p).replace(/\n/g, ' ');
       // A word, or one mark of punctuation (so "state," and "state." differ only in the mark).
-      const re = /([^\s,.;:!?()"\u201c\u201d]+|[,.;:!?()"\u201c\u201d])(\s*)/g; let m;
+      // Sums and rates stay one word ("$1,250,000", "4.5%"), so a changed amount is bracketed whole.
+      const re = /(\$?\d+(?:,\d{3})+(?:\.\d+)?%?(?=[\s,.;:!?)"\u201d]|$)|\$?\d+\.\d+%?(?=[\s,;:!?)"\u201d]|\.?$|\.\s)|[^\s,.;:!?()"\u201c\u201d]+|[,.;:!?()"\u201c\u201d])(\s*)/g; let m;
       while ((m = re.exec(p))) out.push({ w: m[1], s: m[2] ? ' ' : '' });
     });
     return out;
@@ -254,6 +265,10 @@
   // Paragraphs of runs [{t, k: ''|'ins'|'del'}] showing the change from `law` to `now` (both arrays of paragraphs).
   // Deleted matter is put in brackets; a paragraph that is all new or all old stays its own paragraph.
   function markChanges(law, now) {
+    if (law.some(isTbl) || now.some(isTbl)) return BD.markWithTables(law, now, markText);
+    return markText(law, now);
+  }
+  function markText(law, now) {
     const A = tokens(law), B = tokens(now), ops = diffWords(A, B);
     // Paragraphs of [{tok, k}]; a paragraph break that was taken out keeps the old layout.
     const paras = [[]];
@@ -289,6 +304,7 @@
     const strip = t => t.replace(/^\[/, '').replace(/\]$/, '');
     const old = [], now = [];
     for (const p of paras) {
+      if (isTbl(p)) { const r = BD.tableReadings(p); if (r.old.rows.length) old.push(r.old); if (r.now.rows.length) now.push(r.now); continue; }
       let o = '', n = '';
       for (const r of p) {
         if (r.k === 'del') o += r.t.replace(/[\[\]]/g, '');

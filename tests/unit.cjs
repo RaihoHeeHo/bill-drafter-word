@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -140,6 +140,45 @@ t('effective-date kinds and a sunset in the title', () => {
   const t2 = BD.longTitle([{ act: 'amend', law: 'GCN', lawName: 'the general construction law' }, { act: 'effective', text: BD.effectiveText('immediately.', ['sunsetYears']) }], 'things').text;
   assert.ok(t2.endsWith('; and providing for the repeal of such provisions upon expiration thereof'), t2);
 });
+/* ---------- tables ---------- */
+const ISC_TEXT = JSON.parse(fs.readFileSync(path.join(__dirname, 'bank-fixture', 'ISC.json'), 'utf8')).result.documents.documents.items[0].documents.items[0].text;
+t('tables in the Bank: columns, headings, wrapped cells, group, note, caption', () => {
+  const ps = BD.lawParagraphs(ISC_TEXT), tb = ps.find(BD.isTable);
+  assert.ok(tb, 'a table was found');
+  assert.strictEqual(tb.caption, 'TABLE ONE.');
+  assert.deepStrictEqual(tb.rows.map(r => r.kind), ['head', 'group', '', '', '', '', 'note']);
+  assert.deepStrictEqual(tb.rows[0].cells, ['Kind of insurance specified\nin the following numbered\nparagraphs of subsection\n(a) of § 1113:', 'Paid-in\nCapital', 'Paid-in\nSurplus']);
+  assert.deepStrictEqual(tb.rows[3].cells, ['8, 9, 10, 11, or 14 - for\neach such kind', '$100,000', '$50,000']);
+  assert.strictEqual(tb.rows[6].cells[0], '{3} If licensed to write paragraph 4, no additional paid-in capital and surplus is required.');
+  assert.deepStrictEqual(BD.subdivisions(ps, true).map(x => x.unit), ['a', 'b']);
+  const rate = BD.lawParagraphs('  (a) Rates:\n  If the taxable income is:      The tax is:\n  Not over $8,500                4% of the taxable income\n  Over $8,500                    $340 plus 4.5% of excess over $8,500\n  (b) Next.').find(BD.isTable);
+  assert.deepStrictEqual(rate.rows.map(r => r.kind + ':' + r.cells.join('|')), ['head:If the taxable income is:|The tax is:', ':Not over $8,500|4% of the taxable income', ':Over $8,500|$340 plus 4.5% of excess over $8,500']);
+});
+t('tables marked against the Bank: changed amount, struck row, new row; both readings round-trip', () => {
+  const law = BD.lawParagraphs(ISC_TEXT), now = JSON.parse(JSON.stringify(law)), tb = now.find(BD.isTable);
+  tb.rows[3].cells[1] = '$400,000'; tb.rows.splice(5, 1, { kind: '', cells: ['23', '$750,000', '$375,000'] });
+  const m = BD.markChanges(law, now), mt = m.find(BD.isTable), flat = c => c.map(r => r.k ? r.k + ':' + r.t : r.t).join('');
+  assert.strictEqual(flat(mt.rows[3].cells[1]), 'del:[$100,000] ins:$400,000');
+  assert.deepStrictEqual(mt.rows[5].cells.map(flat), ['del:[22', 'del:$2,000,000', 'del:$1,000,000]']);
+  assert.deepStrictEqual(mt.rows[6].cells.map(flat), ['ins:23', 'ins:$750,000', 'ins:$375,000']);
+  const r = BD.readings(m);
+  assert.ok(BD.sameText(r.old, law) && BD.sameText(r.now, now));
+  // a new table among the paragraphs is all new matter
+  const added = BD.markChanges(['Text.'], ['Text.', BD.tableFromText('A  B\n1  2', true)]);
+  assert.ok(added[1].rows.every(r => r.cells.every(c => c.every(x => x.k === 'ins'))));
+  assert.deepStrictEqual(BD.tokens(['$1,250,000 and 4.5%.']).map(x => x.w), ['$1,250,000', 'and', '4.5%', '.']);
+});
+t('tables in Word: written as Word tables and read back the same', () => {
+  const law = BD.lawParagraphs(ISC_TEXT), sub = BD.subdivisions(law, true)[0];
+  const body = BD.sectionXml({ act: 'amend', law: 'ISC', loc: '4103', unit: 'a', num: 'Section 1.', clause: 'Subsection (a) of section 4103 of the insurance law is amended to read as follows:', quoted: BD.markChanges(sub.paras, sub.paras) });
+  assert.ok(body.includes('<w:tbl>') && body.includes('<w:tblHeader/>') && body.includes('<w:gridSpan w:val="3"/>'));
+  const q = BD.readBill(BD.pkg(body), DOMParser).sections[0].quoted.paras, tb = q.find(BD.isTable);
+  assert.strictEqual(tb.caption, 'TABLE ONE.');
+  assert.ok(BD.sameText(BD.readings(q).now, sub.paras));
+  const x = BD.toAkn({ title: null, enacting: null, sections: [{ act: 'amend', law: 'ISC', loc: '4103', unit: 'a', num: 'Section 1.', clause: 'Subsection (a) of section 4103 of the insurance law is amended to read as follows:', paras: [], quoted: { paras: q } }] }, info({ lawNames: { ISC: 'the insurance law' } }));
+  for (const want of ['<hcontainer name="table" eId="sec_1__mod_1__qstr__subsec_a__para_1__table_1"><heading>TABLE ONE.</heading>', '__tableGroup_A"><heading>Group A:</heading>', '__tableNote_3"><num>{3}</num>', '<th><p>Paid-in<eol/>Capital</p></th>'])
+    assert.ok(x.includes(want), want);
+});
 // The add-in's output against the profile itself (the official schema, LBDC's extension and the Schematron rules),
 // when Python and lxml are here.
 t('output is valid AKN-NY 0.3', () => {
@@ -150,6 +189,14 @@ t('output is valid AKN-NY 0.3', () => {
   write('tax.xml', BD.toAkn(taxBill(), info()));
   write('tax-a.xml', BD.toAkn(taxBill(), info({ billNumber: '1234-A', amended: '2025-03-04' })));
   write('draft.xml', BD.toAkn(taxBill(), info({ billNumber: '' })));
+  { // a bill amending a table
+    const law = BD.lawParagraphs(ISC_TEXT), sub = BD.subdivisions(law, true)[0], now = JSON.parse(JSON.stringify(sub.paras)), tb = now.find(BD.isTable);
+    tb.rows[3].cells[1] = '$400,000'; tb.rows.splice(5, 1, { kind: '', cells: ['23', '$750,000', '$375,000'] });
+    const m = { title: { text: 'AN ACT to amend the insurance law, in relation to capital', runs: [r('AN ACT to amend the insurance law, in relation to capital')] }, enacting: null, sections: [
+      { act: 'amend', law: 'ISC', loc: '4103', unit: 'a', num: 'Section 1.', clause: 'Subsection (a) of section 4103 of the insurance law, as amended by chapter 10 of the laws of 2020, is amended to read as follows:', paras: [], quoted: { paras: BD.markChanges(sub.paras, now) } },
+      { act: 'effective', paras: [[r('This act shall take effect immediately.')]] }] };
+    write('table.xml', BD.toAkn(m, info({ lawNames: { ISC: 'the insurance law' } })));
+  }
   const ex = path.join(__dirname, '..', 'examples', 'Example bill.docx');
   if (fs.existsSync(ex)) write('example.xml', cp.execFileSync('node', [path.join(__dirname, '..', 'tools', 'docx2akn.cjs'), ex]).toString());
   const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--quiet', ...files], { encoding: 'utf8' });

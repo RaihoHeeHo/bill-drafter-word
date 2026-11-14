@@ -16,6 +16,8 @@
     ['paragraph', 'BillEnactingClause', 'Bill Enacting Clause', '<w:pPr><w:spacing w:after="240"/><w:ind w:firstLine="720"/></w:pPr><w:rPr><w:i/></w:rPr>'],
     ['paragraph', 'BillSection', 'Bill Section', '<w:pPr><w:spacing w:before="120" w:after="120"/><w:ind w:firstLine="360"/></w:pPr>'],
     ['paragraph', 'BillAmendedText', 'Bill Amended Text', '<w:pPr><w:spacing w:after="80"/><w:ind w:left="360" w:firstLine="360"/></w:pPr>'],
+    ['paragraph', 'BillTableCell', 'Bill Table Cell', '<w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr>'],
+    ['paragraph', 'BillTableCaption', 'Bill Table Caption', '<w:pPr><w:jc w:val="center"/><w:spacing w:before="120" w:after="60"/></w:pPr>'],
     ['character', 'BillSectionNumber', 'Bill Section Number', '<w:rPr><w:b/></w:rPr>'],
     ['character', 'BillSectionHeading', 'Bill Section Heading', ''],
     ['character', 'BillInsert', 'Bill Insert', '<w:rPr><w:u w:val="single"/></w:rPr>'],
@@ -68,10 +70,46 @@
     first += runs(s.content || []);
     let inner = para('BillSection', first);
     for (const p of s.more || []) inner += para('BillSection', runs(p));
-    if (s.quoted) inner += sdt(tagOf('akn:quoted', { law: s.law, loc: s.loc, unit: s.unit }), 'Text of the law', s.quoted.map(p => para('BillAmendedText', runs(p))).join('') || para('BillAmendedText', ''));
+    if (s.quoted) inner += sdt(tagOf('akn:quoted', { law: s.law, loc: s.loc, unit: s.unit }), 'Text of the law', quotedInner(s.quoted) || para('BillAmendedText', ''));
     return sdt(tagOf('akn:section', props), alias.trim(), inner);
   }
-  const quotedInner = paras => paras.map(p => para('BillAmendedText', runs(p))).join('');
+  /* A table in the law's text is a Word table: heading rows repeat as Word header rows; a group row ("Group A:")
+     or a note row ("{3} …") is one cell spanning the table; a line break in a cell is a new paragraph in it. */
+  const cellRuns = c => Array.isArray(c) ? c : c ? [{ t: String(c), k: '' }] : [];
+  function cellParas(c) {
+    const ps = [[]];
+    for (const r of cellRuns(c)) {
+      const parts = r.t.split('\n');
+      parts.forEach((t, i) => { if (i) ps.push([]); if (t) ps[ps.length - 1].push({ t, k: r.k }); });
+    }
+    return ps.map(p => para('BillTableCell', runs(p))).join('');
+  }
+  const BORDER = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(b => '<w:' + b + ' w:val="single" w:sz="4" w:space="0" w:color="A0A4A8"/>').join('');
+  function tableXml(t) {
+    const n = Math.max(1, ...t.rows.map(r => r.cells.length));
+    let x = '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblInd w:w="360" w:type="dxa"/><w:tblBorders>' + BORDER + '</w:tblBorders><w:tblLayout w:type="autofit"/><w:tblCellMar><w:left w:w="80" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>' + '<w:gridCol/>'.repeat(n) + '</w:tblGrid>';
+    for (const r of t.rows) {
+      x += '<w:tr>' + (r.kind === 'head' ? '<w:trPr><w:tblHeader/></w:trPr>' : '');
+      if (r.kind === 'group' || r.kind === 'note') {
+        const all = r.cells.map(cellRuns).filter(c => c.length).flatMap((c, i) => i ? [{ t: ' ', k: '' }, ...c] : c);
+        x += '<w:tc><w:tcPr><w:gridSpan w:val="' + n + '"/></w:tcPr>' + cellParas(all) + '</w:tc>';
+      } else for (let k = 0; k < n; k++) x += '<w:tc>' + cellParas(r.cells[k]) + '</w:tc>';
+      x += '</w:tr>';
+    }
+    return x + '</w:tbl>';
+  }
+  // The law's text in the quoted block: paragraphs, and tables (each with its caption above it).
+  function quotedInner(paras) {
+    let x = '';
+    paras.forEach((p, i) => {
+      if (BD.isTable && BD.isTable(p)) {
+        if (p.caption) x += para('BillTableCaption', run(p.caption, ''));
+        x += tableXml(p);
+        if (i === paras.length - 1) x += para('BillAmendedText', ''); // Word wants a paragraph after a table
+      } else x += para('BillAmendedText', runs(p));
+    });
+    return x;
+  }
   function titleXml(t) {
     return sdt('akn:longTitle', 'Title', para('BillTitle', run(t.before, '') + sdt('akn:subject', 'Subject (in relation to …)', run(t.subject, '')) + run(t.after, '')));
   }
@@ -169,12 +207,35 @@
         // An inline control at block level can't happen; a block one holds paragraphs.
         out.push({ type: 'cc', tag: BD.parseTag(s.tag), alias: s.alias, blocks: blocksIn(s.content) });
       } else if (name === 'tbl') {
-        out.push({ type: 'p', style: 'table', runs: [{ t: c.textContent, k: '', cc: '' }] });
+        out.push({ type: 'tbl', runs: [], table: tableOf(c) });
       }
     }
     return out;
   }
   const textOf = rs => rs.map(r => r.t).join('');
+  // A Word table -> a table item (tables.js). Paragraphs in a cell are its lines.
+  function tableOf(tbl) {
+    const rows = [];
+    let n = 0;
+    for (const tr of kids(tbl).filter(x => ln(x) === 'tr')) {
+      const trPr = child(tr, 'trPr'), head = !!(trPr && child(trPr, 'tblHeader'));
+      const cells = [];
+      for (const tc of kids(tr).filter(x => ln(x) === 'tc')) {
+        const tcPr = child(tc, 'tcPr'), span = tcPr && child(tcPr, 'gridSpan') ? +attr(child(tcPr, 'gridSpan'), 'val') || 1 : 1;
+        const lines = kids(tc).filter(x => ln(x) === 'p').map(p => runsIn(p, {}, []).map(r => ({ t: r.t, k: r.k === 'ins' || r.k === 'del' ? r.k : '' })));
+        const runs = [];
+        lines.forEach((l, i) => { if (i) runs.push({ t: '\n', k: '' }); runs.push(...l); });
+        while (runs.length && runs[runs.length - 1].t === '\n') runs.pop();
+        cells.push(runs);
+        for (let k = 1; k < span; k++) cells.push([]);
+      }
+      n = Math.max(n, cells.length);
+      rows.push({ kind: head ? 'head' : '', cells });
+    }
+    for (const r of rows) { while (r.cells.length < n) r.cells.push([]); if (!r.kind && BD.rowKind) r.kind = BD.rowKind(r.cells); }
+    return { table: true, rows };
+  }
+  const itemText = x => x.type === 'tbl' ? BD.tableText(x.table) : textOf(x.runs);
 
   // The bill model from WordprocessingML (a string or a parsed Document).
   //   {title: {text, subject} | null, enacting: {text} | null, sections: [...], loose: [paragraph texts outside any control]}
@@ -212,14 +273,14 @@
   // Paragraphs of a block, going into unnamed controls but not into other bill parts.
   function ownParas(blocks) {
     const out = [];
-    for (const x of blocks) { if (x.type === 'p') out.push(x); else if (!PART.test(x.tag.name) && x.tag.name !== 'akn:quoted') out.push(...ownParas(x.blocks)); }
+    for (const x of blocks) { if (x.type === 'p' || x.type === 'tbl') out.push(x); else if (!PART.test(x.tag.name) && x.tag.name !== 'akn:quoted') out.push(...ownParas(x.blocks)); }
     return out;
   }
   // Brackets typed in plain text open and close old matter (as LBDC's work copies are read), so the meaning
   // holds even if Word dropped the Bill Delete style; an open bracket carries over to the next paragraph.
   function bracketize(paras) {
     let open = false;
-    return paras.map(rs => {
+    const one = rs => {
       const out = [];
       const add = (t, k, r) => { const l = out[out.length - 1]; if (l && l.k === k) l.t += t; else out.push({ ...r, t, k }); };
       for (const r of rs) {
@@ -231,18 +292,30 @@
         }
       }
       return out;
-    });
+    };
+    // In a table, a pair of brackets can run from a row's first cell to its last.
+    return paras.map(p => BD.isTable && BD.isTable(p) ? { ...p, rows: p.rows.map(r => ({ ...r, cells: r.cells.map(c => one(c)) })) } : one(p));
+  }
+  // "TABLE ONE." right above a table is its caption.
+  function withCaptions(items) {
+    const out = [];
+    for (const it of items) {
+      const prev = out[out.length - 1];
+      if (BD.isTable && BD.isTable(it) && Array.isArray(prev) && BD.TABLE_CAPTION.test(textOf(prev).trim())) { out.pop(); out.push({ ...it, caption: textOf(prev).trim() }); }
+      else out.push(it);
+    }
+    return out;
   }
   function sectionOf(b) {
     const s = { act: b.tag.act || 'new', law: b.tag.law || '', loc: b.tag.loc || '', unit: b.tag.unit || '', alias: b.alias, num: '', heading: '', clause: null, paras: [], quoted: null };
     let first = true;
     for (const x of b.blocks) {
       if (x.type === 'cc' && x.tag.name === 'akn:quoted') {
-        s.quoted = { law: x.tag.law || s.law, loc: x.tag.loc || s.loc, unit: x.tag.unit || s.unit, paras: bracketize(ownParas(x.blocks).map(y => y.runs).filter(rs => textOf(rs).trim())) };
+        s.quoted = { law: x.tag.law || s.law, loc: x.tag.loc || s.loc, unit: x.tag.unit || s.unit, paras: withCaptions(bracketize(ownParas(x.blocks).filter(y => itemText(y).trim()).map(y => y.type === 'tbl' ? y.table : y.runs))) };
         continue;
       }
       if (x.type === 'cc' && PART.test(x.tag.name)) continue; // read on its own by readBill
-      const ps = x.type === 'p' ? [x] : ownParas(x.blocks);
+      const ps = (x.type === 'p' ? [x] : ownParas(x.blocks)).filter(y => y.type !== 'tbl');
       for (const p of ps) {
         if (first) {
           first = false;
@@ -279,6 +352,6 @@
     visit(blocksIn(body));
     return bracketize(out);
   }
-  Object.assign(BD, { parasOf, W_NS: W, STYLES, stylesXml, run, runs, para, sdt, tagOf, parseTag, sectionXml, quotedInner, titleXml, enactingXml, pkg, readBill, textOf, esc });
+  Object.assign(BD, { tableXml, parasOf, W_NS: W, STYLES, stylesXml, run, runs, para, sdt, tagOf, parseTag, sectionXml, quotedInner, titleXml, enactingXml, pkg, readBill, textOf, esc });
   if (typeof module !== 'undefined') module.exports = BD;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

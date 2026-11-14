@@ -57,7 +57,7 @@
     }
     return out.replace(/^\s+|\s+$/g, '').replace(/ {2,}/g, ' ');
   }
-  const plain = rs => rs.map(r => r.t).join('');
+  const plain = rs => BD.isTable(rs) ? '' : rs.map(r => r.t).join('');
 
   /* ---------- the amended text as nested units ----------
      Numbered paragraphs nest by the order in which the kinds of number first appear: § 296.  1.  (a)  (1)  (i)  (A)
@@ -91,6 +91,7 @@
   /* The number at the start of a paragraph. A struck number keeps its bracket ("[3.]"); a renumbered one is the old
      number struck and the new one underlined ("[3.] 4."): both are the unit's number. */
   function numAt(rs) {
+    if (BD.isTable(rs)) return null;
     const t = plain(rs);
     let m = /^\[([^\]]{1,12})\]\s+/.exec(t);
     if (m && rs[0].k === 'del' && NUM.test(m[1] + ' ')) {
@@ -108,6 +109,7 @@
   function splitInline(paras) {
     const out = [];
     for (const rs of paras) {
+      if (BD.isTable(rs)) { out.push(rs); continue; }
       let cur = rs;
       for (let guard = 0; guard < 3; guard++) {
         const n = numAt(cur); if (!n) break;
@@ -124,7 +126,7 @@
     return out;
   }
   // Is every word of this unit's paragraph struck out?
-  const allStruck = rs => rs.every(r => !r.t.trim() || r.k === 'del');
+  const allStruck = rs => !BD.isTable(rs) && rs.every(r => !r.t.trim() || r.k === 'del');
   function units(paras, rootEid, scheme) {
     const top = [], stack = [], used = new Set();
     let first = null;
@@ -162,15 +164,65 @@
     });
     return top;
   }
-  const ps = content => content.map(p => '<p>' + inline(p) + '</p>').join('');
+  /* ---------- tables ----------
+     A plain table is a <table> in the unit's text, numbered in the unit (…__table_1). A table with a caption
+     ("TABLE ONE."), group rows ("Group A:") or notes ("{3} …") is the profile's named table: hcontainer
+     name="table", its column headings in its intro, each group an hcontainer name="tableGroup", each note an
+     hcontainer name="tableNote". A line break in a cell is <eol/>. */
+  const cellXml = c => inline(Array.isArray(c) ? c : [{ t: String(c || ''), k: '' }]).replace(/\n/g, '<eol/>');
+  const rowXml = r => '<tr>' + r.cells.map(c => r.kind === 'head' ? '<th><p>' + cellXml(c) + '</p></th>' : '<td><p>' + cellXml(c) + '</p></td>').join('') + '</tr>';
+  const tableEl = (rows, eid) => '<table eId="' + x(eid) + '">' + rows.map(rowXml).join('') + '</table>';
+  const isNamed = t => BD.isTable(t) && !!(t.caption || t.rows.some(r => r.kind === 'group' || (r.kind === 'note' && t.rows.some(q => q.kind === 'group'))));
+  const joined = r => r.cells.filter(c => (Array.isArray(c) ? c : []).length).reduce((a, c, i) => a.concat(i ? [{ t: ' ', k: '' }] : [], c), []);
+  function namedTable(t, eid) {
+    let out = '<hcontainer name="table" eId="' + x(eid) + '">' + (t.caption ? '<heading>' + x(t.caption) + '</heading>' : '');
+    const head = t.rows.filter(r => r.kind === 'head');
+    if (head.length) out += '<intro eId="' + x(eid) + '__intro">' + tableEl(head, eid + '__intro__table_1') + '</intro>';
+    const body = t.rows.filter(r => r.kind !== 'head' && r.kind !== 'note'), notes = t.rows.filter(r => r.kind === 'note');
+    if (body.some(r => r.kind === 'group')) {
+      // Rows before the first group stay with the headings' table group-less: they open the first group.
+      let cur = null; const groups = [];
+      for (const r of body) {
+        if (r.kind === 'group') { const h = joined(r), letter = (/Group ([A-Z]+)/.exec(plain(h.filter(q => q.k !== 'del'))) || [, String.fromCharCode(65 + groups.length)])[1]; cur = { h, letter, rows: [] }; groups.push(cur); }
+        else { if (!cur) { cur = { h: null, letter: 'A', rows: [] }; groups.push(cur); } cur.rows.push(r); }
+      }
+      for (const g of groups) {
+        const gid = eid + '__tableGroup_' + g.letter;
+        out += '<hcontainer name="tableGroup" eId="' + x(gid) + '"><heading>' + (g.h ? inline(g.h) : 'Group ' + g.letter + ':') + '</heading><content>' + (g.rows.length ? tableEl(g.rows, gid + '__table_1') : '<p/>') + '</content></hcontainer>';
+      }
+      for (const n of notes) {
+        const rs = joined(n), t0 = plain(rs), m = /^\s*\[?(\{\d+\})\s*/.exec(t0);
+        const [numRuns, rest] = m ? splitRuns(rs, m[0].length) : [[{ t: '{?}', k: '' }], rs];
+        out += '<hcontainer name="tableNote" eId="' + x(eid) + '__tableNote_' + (m ? m[1].replace(/[{}]/g, '') : '0') + '"><num>' + inline(numRuns).replace(/\s+$/, '') + '</num><content><p>' + inline(rest) + '</p></content></hcontainer>';
+      }
+    } else out += '<content>' + tableEl(body.concat(notes), eid + '__table_1') + '</content>';
+    return out + '</hcontainer>';
+  }
+  // The items of a unit's text as XML: paragraphs, and plain tables numbered from `count`.
+  function ps(content, base, count) {
+    count = count || { n: 0 };
+    return content.map(p => BD.isTable(p) ? tableEl(p.rows, base + '__table_' + (++count.n)) : '<p>' + inline(p) + '</p>').join('');
+  }
   function unitXml(u) {
-    if (u.tag === 'hcontainer') return '<hcontainer name="text" eId="' + u.eId + '"><content>' + ps(u.content) + '</content></hcontainer>';
+    if (u.tag === 'hcontainer') {
+      if (u.content.length === 1 && isNamed(u.content[0])) return namedTable(u.content[0], u.eId.replace(/__text_(\d+)$/, '__table_$1'));
+      return '<hcontainer name="text" eId="' + u.eId + '"><content>' + ps(u.content, u.eId) + '</content></hcontainer>';
+    }
     let out = '<' + u.tag + ' eId="' + x(u.eId) + '"><num>' + inline(u.num) + '</num>' + (u.heading ? '<heading>' + inline(u.heading) + '</heading>' : '');
-    if (u.kids.length) {
-      // Text before the first child unit is the intro.
-      if (u.content.length) out += '<intro eId="' + x(u.eId) + '__intro">' + ps(u.content) + '</intro>';
+    const k = u.content.findIndex(isNamed), count = { n: 0 };
+    if (k >= 0) {
+      // A named table is a part of the unit in its own right: text before it is the intro, text after it the wrap-up.
+      const before = u.content.slice(0, k), named = [], after = [];
+      for (const it of u.content.slice(k)) (isNamed(it) ? named : after).push(it);
+      if (before.length) out += '<intro eId="' + x(u.eId) + '__intro">' + ps(before, u.eId + '__intro', count) + '</intro>';
+      named.forEach(t => { out += namedTable(t, u.eId + '__table_' + (++count.n)); });
       out += u.kids.map(unitXml).join('');
-    } else out += '<content>' + (ps(u.content) || '<p/>') + '</content>';
+      if (after.length) out += '<wrapUp eId="' + x(u.eId) + '__wrapup">' + ps(after, u.eId + '__wrapup', count) + '</wrapUp>';
+    } else if (u.kids.length) {
+      // Text before the first child unit is the intro.
+      if (u.content.length) out += '<intro eId="' + x(u.eId) + '__intro">' + ps(u.content, u.eId + '__intro', count) + '</intro>';
+      out += u.kids.map(unitXml).join('');
+    } else out += '<content>' + (ps(u.content, u.eId, count) || '<p/>') + '</content>';
     return out + '</' + u.tag + '>';
   }
   /* One printed pair of brackets can run on from a unit's number into its text, or from one unit into the next.
@@ -179,7 +231,7 @@
      into pieces marked spanStart, spanMiddle and spanEnd, so the template prints one "[" and one "]". */
   function groupDeletions(paras) {
     let g = 0, open = false;
-    return paras.map(rs => rs.map(r0 => {
+    const one = rs => rs.map(r0 => {
       const r = { ...r0 };
       if (r.k === 'del' && r.t.trim()) {
         const opens = /^\s*\[/.test(r.t), closes = /\]\s*$/.test(r.t);
@@ -187,7 +239,8 @@
         r.g = g; open = opens || /[[\]]/.test(r.t) ? !closes : true;
       } else if (r.t.trim()) open = false;
       return r;
-    }));
+    });
+    return paras.map(p => BD.isTable(p) ? { ...p, rows: p.rows.map(row => ({ ...row, cells: row.cells.map(c => one(Array.isArray(c) ? c : [{ t: String(c || ''), k: '' }])) })) } : one(p));
   }
   function spans(xml) {
     const count = {}, seen = {};

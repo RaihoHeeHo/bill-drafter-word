@@ -8,7 +8,7 @@
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const { DOMParser } = require('@xmldom/xmldom');
 const lib = path.join(__dirname, '..', 'src', 'lib');
-for (const f of ['drafting', 'laws', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(lib, f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(lib, f + '.js'));
 const BD = globalThis.BD;
 
 // A minimal zip reader (central directory, stored or deflated entries).
