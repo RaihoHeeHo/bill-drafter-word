@@ -66,7 +66,7 @@ Word's own Track Changes marks and plain underlining are read the same way. Bill
 
 ## 4. Writing the bill (task pane → Word)
 
-* **New bill** inserts the title, the enacting clause and an effective-date section.
+* **Start the bill** inserts the title, the enacting clause, a blank section 1 and an effective-date section.
 * **Insert section** (Amend a law) builds the section's OOXML: the number control, the amending clause control, and the quoted-text control holding the Bank text as plain runs. Word inserts it with `insertOoxml` in the right position:
   * a short title is always first
   * findings come second
@@ -104,7 +104,7 @@ Each finding has a **Go to** button, and where possible a one-click fix (Renumbe
 
 ## 6. Word → Akoma Ntoso
 
-`ooxml.js` reads WordprocessingML into a model, either from `body.getOoxml()` in the pane or from `word/document.xml` in a saved .docx. `akn.js` writes Akoma Ntoso 3.0 from that model in the shape of LBDC's **AKN-NY profile, version 0.3**. The pane's **Export** and the command line (`node tools/docx2akn.cjs bill.docx`) run the same code and give identical output.
+`ooxml.js` reads WordprocessingML into a model, either from `body.getOoxml()` in the pane or from `word/document.xml` in a saved .docx. `akn.js` writes Akoma Ntoso 3.0 from that model in the shape of LBDC's **AKN-NY profile, version 0.3**. The pane's **Clean copy** tab and the command line (`node tools/docx2akn.cjs bill.docx`) run the same code and give identical output.
 
 | Word | Akoma Ntoso (AKN-NY 0.3) |
 |---|---|
@@ -121,7 +121,7 @@ The table of laws (`src/lib/laws.js`, from the profile's `laws.json`) says wheth
 
 The output passes all three layers of the profile's validator: the OASIS Akoma Ntoso 3.0 schema, LBDC's extension schema, and the profile's Schematron rules. The validator ships in `profile/`, and `npm test` runs it on the add-in's output.
 
-**Before a bill has a number.** At the drafter's desk a bill usually has only an LBD number. The add-in then addresses it by the LBD route number (`/akn/us-ny/bill/2025/lbd12345`) and leaves out the print number. Version 0.3 of the profile defines only printed bills, so such a draft fails the identification rules (and only those); the pane says so when it converts.
+**Before a bill has a number.** At the drafter's desk a bill usually has only an LBD number. The add-in then writes the profile's draft form: the bill is addressed by its LBD route number (`/akn/us-ny/bill/2025/lbd12345`), the LBD version is the Expression (`eng@01`), and the print number, printed bill number and introduction date are left out. The clean copy leaves those lines blank, with everything else in place.
 
 ## 7. Akoma Ntoso → clean copy
 
@@ -157,7 +157,7 @@ The output passes all three layers of the profile's validator: the OASIS Akoma N
   * checks
   * Akoma Ntoso
   * clean-copy PDF in the pane
-* **Against the profile:** the add-in's output (the example bill, a Tax Law amendment with renumbered, struck and inserted units, and an A print) passes the AKN-NY 0.3 validator, as part of `npm test`.
+* **Against the profile:** the add-in's output (the example bill, a Tax Law amendment with renumbered, struck and inserted units, and an A print) passes the AKN-NY 0.3 validator, as part of `npm test`, both as a printed bill and as a draft.
 * **External checks:**
   * the pane's clean copy and the desktop Typst's are identical for the example bill
   * the example .docx opens and renders in LibreOffice
@@ -168,30 +168,35 @@ The output passes all three layers of the profile's validator: the OASIS Akoma N
 
 # Part 2: what the drafter sees
 
-**Once per computer.** Open Word, click **Home > Bill Drafter**, open the **Bank** tab, click **Choose a folder…**, and pick the law files folder. The pane shows "124 laws, 38,411 sections, laws as of …". Do this again whenever the Bank is updated.
+The pane has four tabs, in the order of the work: **Draft**, **Check**, **Clean copy**, **Bank**. Until the Bank is loaded and a bill is started, the Draft tab opens with a five-step *Getting started* list. Each step is crossed out as it is done.
 
-**Starting a bill.** On the **Draft** tab, type what the bill is "in relation to" and click **New bill**. Three things appear in the document: the title, the enacting clause, and "Section 1. This act shall take effect immediately."
+**Once per computer.** On the **Bank** tab, click **Choose a folder…** and pick the law files folder. The pane shows "124 laws, 38,411 sections, laws as of …". Do this again whenever the Bank is updated. While the Bank is empty, the Draft tab says so and links to the Bank tab.
 
-**Amending a law.**
-1. Filter for the law (e.g. "EDN" or "education") and type a section number or words from its heading. Matching sections are listed, and clicking one shows its text in a preview.
-2. Choose what the bill does: amend the section, amend one subdivision, add a new section (the next free number is already filled in), add a subdivision, or repeal.
-3. Optionally type the history ("as amended by chapter 55 of the laws of 2023").
-4. Click **Insert section**.
+**Starting a bill.** Type what the bill is "in relation to" and click **Start the bill** (Enter works too). The document gets the title, the enacting clause, a blank section 1 and the effective date. The **This bill** card then shows the subject line and an outline of the sections; clicking a section jumps to it. Changing the subject line rebuilds the title.
 
-The new section appears in place, for example "§ 2. Section 12 of the general construction law, as amended by …, is amended to read as follows:" followed by the law's text. The sections after it renumber, and the title updates to name the law.
+**Amending a law.** Under **Add a section > Amend a law** there is one box for the law and the section:
+1. Type the law and the section together: `GCN 12`, `executive 296`, `general construction affidavit`, or `tax 606(c)` for a unit of a section. The law can be its Bank ID or words of its name. Matching sections are listed; the arrow keys move through them, and Enter picks one. A number not yet in the law is offered as a new section.
+2. The pick is shown with its text one click away (**Show the law's text**). Choose what the bill does: amend the whole section, amend one subdivision (subsection for the Tax and Insurance Laws, with the unit already chosen when it was typed as `606(c)`), add a new section (the next free number is filled in), add a new subdivision, or repeal.
+3. For an amendment or a repeal, **Last amended by** (optional) takes the history. Left blank, Check reminds you.
+4. The button says exactly what will be inserted: "Insert: amend EXC § 296 subd. 1".
+
+The new section appears in place, the sections after it renumber, and the title updates to name the law. Typing a new search puts the last pick away, so the form always acts on what is on screen.
 
 **Editing.** The drafter edits the law's text in the document like any other text: typing, deleting, pasting, with Word's spelling check and Track Changes if wanted. Each part of the bill sits in a thin labeled box (Word's content-control outline, e.g. "§ 2 Amend GCN 12" and "Text of the law"). That outline is the only sign of the structure.
 
-**Mark changes.** One click and every amended text gets its marks: words taken out appear in [brackets] (shown in dark red on screen), and new words are underlined. Clicking it again after more edits re-marks from scratch, so the marks always match the Bank.
+**Mark changes.** It sits in a bar at the bottom of the Draft tab, always in reach, next to **Check the bill**. One click and every amended text gets its marks: words taken out appear in [brackets] (shown in dark red on screen), and new words are underlined. Clicking it again after more edits re-marks from scratch, so the marks always match the Bank.
 
-**Standard sections.** Buttons for **Short title** (type the name first), **Legislative findings**, **Severability** and **Blank section**, plus an effective-date picker (immediately, 30th/60th/90th… day, January 1 next, a date) with add-ons such as rules and regulations, sunsets, retroactivity, applicability and provisos. Each one lands in its proper place, and numbers update by themselves. A **Sections** list at the bottom of the pane shows the outline ("§ 3 Amend EXC § 296 subd. 1"), and clicking an entry jumps to that section.
+**Standard sections.** Under **Add a section > Standard section**, each standard section is listed with where it goes: **Short title** (type the name, then Add), **Legislative findings**, **Severability clause** and **Blank section**. Below them is the **Effective date**: pick when (immediately, the 30th, 60th or 90th … day, January 1 next, a date), open **Add-ons** for rules and regulations, sunsets, retroactivity, applicability and provisos, and the sentence is shown as it will read before **Use this effective date**. Each section lands in its proper place, and the numbers update by themselves.
 
-**Checks.** **Run checks** lists errors (red), warnings (amber) and notes (blue) in plain language, for example "The amending clause should cite the provision's last amendment" or "Gendered: 'he or she'; use 'they' where possible". Each has **Go to** and, where possible, a fix button. A red count on the Checks tab shows how many errors remain.
+**History for a section already in the bill.** Use **Add history** on a Check finding, or the link under *Last amended by*. Either way the cursor goes to the section and a small card asks for the history, with **Put it in that section**.
 
-**Export.**
-1. Fill in the bill information once (LBD number, house, bill number when known, sponsor, committee, date) and click **Save in the document**. It travels with the .docx.
-2. **Convert to Akoma Ntoso** shows the XML, with **Copy** and **Save .xml** buttons. It also warns if the checks still find errors.
-3. **Make clean copy (PDF)** produces the formatted bill: cover page, numbered lines, brackets and underscores. Use **Open** or **Save .pdf**. The first time, it takes a moment to load the typesetter. After that it takes about a second.
+**Check.** Opening the tab (or **Check the bill** in the bottom bar) runs the checks. A summary line comes first ("1 warning, 1 note", or "No problems found. The bill is ready for its clean copy."). Below it, errors (red), warnings (amber) and notes (blue) are listed in that order, in plain language, for example "The amending clause should cite the provision's last amendment" or "Gendered: 'he or she'; use 'they' where possible". Each has **Go to** and, where possible, a fix button. A red count on the tab shows how many errors remain.
+
+**Clean copy.**
+1. A line at the top says what will be printed: "Draft for the Senate, LBD 12345-01-6 (no bill number yet)" or "Senate bill S. 1234, introduced January 15, 2025". It also says what is missing (the LBD number, the sponsor).
+2. **Make the clean copy (PDF)** produces the formatted bill: cover page, numbered lines, brackets and underscores. Use **Open** or **Save .pdf**. The first time, it takes a moment to load the typesetter; after that, about a second.
+3. **Bill information** (LBD number, house, sponsor, committee) is saved in the document as it is typed; there is no Save button. The bill number and the date introduced sit under *When the bill is introduced*. Left blank, the bill is a draft and the clean copy leaves those lines empty.
+4. **Akoma Ntoso XML**, folded away at the bottom, shows the XML the clean copy is printed from, with **Copy** and **Save .xml**.
 
 **What the drafter never has to do:** type amending-clause wording, work out section numbers, rebuild the title, apply brackets or underlining by hand, retype anything for the XML or the clean copy, install software, or send the bill anywhere.
 
@@ -202,6 +207,5 @@ The new section appears in place, for example "§ 2. Section 12 of the general c
 * **First real-Word test.** This is the open item. Sideload it and try the flow above. Anything odd will most likely be in how Word inserts sections next to each other.
 * **Amendment history** isn't in the Bank files. If the desktop app's history lists (`data/history`) were copied into the Bank folder, the "as amended by" text could be filled in automatically.
 * **Nesting** follows numbering only, so tables, schedules and appropriations come out as plain paragraphs, not the profile's tables and appropriation structures.
-* **Drafts without a bill number** aren't in the profile yet (section 6). The profile needs a draft form before the add-in's drafts can validate.
 * **Laws not in the table** (`src/lib/laws.js`) are addressed from the Bank's law type. The checks flag unconsolidated laws for review.
 * **Amendment history** is typed by the drafter. In deployment it comes from LBDC's own records, not the Bank.

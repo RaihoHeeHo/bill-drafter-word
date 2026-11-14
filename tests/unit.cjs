@@ -130,7 +130,9 @@ t('front matter, prints and metadata', () => {
   for (const s of ['<FRBRuri value="/akn/us-ny/bill/2025/s1234/eng@a"/>', '<FRBRversionNumber value="A"/>', '<lbdc:printNumber>S1234A</lbdc:printNumber>', '<docNumber>1234--A</docNumber>', '<docDate date="2025-01-15">', 'Introduced by Sens. <docProponent'])
     assert.ok(x.includes(s), s);
   x = BD.toAkn(taxBill(), info({ billNumber: '' }));
-  assert.ok(x.includes('<FRBRuri value="/akn/us-ny/bill/2025/lbd01234"/>') && !x.includes('printNumber'), 'a draft is addressed by its LBD route number');
+  for (const s of ['<FRBRuri value="/akn/us-ny/bill/2025/lbd01234"/>', '<FRBRuri value="/akn/us-ny/bill/2025/lbd01234/eng@03"/>', '<FRBRversionNumber value="03"/>', '<p class="number"><docNumber></docNumber></p>'])
+    assert.ok(x.includes(s), 'draft: ' + s);
+  assert.ok(!x.includes('printNumber') && !x.includes('docDate'), 'a draft has no print number or introduction date');
 });
 t('effective-date kinds and a sunset in the title', () => {
   assert.strictEqual(BD.effectiveClass(BD.effectiveText('immediately.', ['sunsetYears'])), 'immediate sunset');
@@ -147,6 +149,7 @@ t('output is valid AKN-NY 0.3', () => {
   const write = (name, xml) => { const f = path.join(dir, name); fs.writeFileSync(f, xml); files.push(f); };
   write('tax.xml', BD.toAkn(taxBill(), info()));
   write('tax-a.xml', BD.toAkn(taxBill(), info({ billNumber: '1234-A', amended: '2025-03-04' })));
+  write('draft.xml', BD.toAkn(taxBill(), info({ billNumber: '' })));
   const ex = path.join(__dirname, '..', 'examples', 'Example bill.docx');
   if (fs.existsSync(ex)) write('example.xml', cp.execFileSync('node', [path.join(__dirname, '..', 'tools', 'docx2akn.cjs'), ex]).toString());
   const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--quiet', ...files], { encoding: 'utf8' });

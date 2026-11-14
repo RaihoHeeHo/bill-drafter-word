@@ -250,8 +250,9 @@
   /* info: {lbd, year, house: 'senate'|'assembly', billNumber ('1234', '1234-A' or '1234A' for the A print), sponsor
      ('SMITH' or 'SMITH, JONES'), committee, date (of introduction), amended (date of this print), lawNames: {GCN: 'the
      general construction law'}, laws: {GCN: Bank law info}}.
-     Without a bill number the document is a draft: the bill is addressed by its LBD route number
-     (/akn/us-ny/bill/2025/lbd12345), which version 0.3 of the profile does not yet provide for. */
+     Without a bill number the document is a draft (profile 0.3's draft form): the bill is addressed by its LBD route
+     number (/akn/us-ny/bill/2025/lbd12345), each LBD version is an Expression (eng@01), and the bill number and
+     introduction date are left blank until a house introduces it. */
   function toAkn(model, info) {
     info = info || {};
     const date = info.date || new Date().toISOString().slice(0, 10);
@@ -263,7 +264,8 @@
     const lbd = String(info.lbd || '').trim().replace(/^LBD/i, '');
     const route = (/^(\d{5})-/.exec(lbd) || [])[1] || slugName(lbd) || 'draft';
     const work = '/akn/us-ny/bill/' + start + '/' + (digits ? H.toLowerCase() + digits : 'lbd' + route);
-    const expr = work + '/eng@' + (digits ? letter.toLowerCase() : lbd.replace(/^\d{5}-(\d{2}).*$/, '$1'));
+    const lbdVer = (/^\d{5}-(\d{2})-\d$/.exec(lbd) || [])[1] || '01';
+    const expr = work + '/eng@' + (digits ? letter.toLowerCase() : lbdVer);
     const exprDate = letter ? (info.amended || new Date().toISOString().slice(0, 10)) : date;
     const mods = [], used = new Set(), names = info.lawNames || {}, laws = info.laws || {};
     let body = '';
@@ -319,7 +321,7 @@
       '<akomaNtoso xmlns="' + AKN + '" xmlns:lbdc="' + LBDC + '"><bill name="bill">' +
       '<meta><identification source="#lbdc">' +
       '<FRBRWork><FRBRthis value="' + work + '/!main"/><FRBRuri value="' + work + '"/><FRBRdate date="' + date + '" name="' + (digits ? 'introduced' : 'drafted') + '"/><FRBRauthor href="#' + house + '"/><FRBRcountry value="us-ny"/>' + (digits ? '<FRBRnumber value="' + H + digits + '"/>' : '') + '</FRBRWork>' +
-      '<FRBRExpression><FRBRthis value="' + expr + '/!main"/><FRBRuri value="' + expr + '"/><FRBRdate date="' + exprDate + '" name="' + (letter ? 'amended' : digits ? 'introduced' : 'drafted') + '"/><FRBRauthor href="#' + house + '"/>' + (letter ? '<FRBRversionNumber value="' + letter + '"/>' : '') + '<FRBRlanguage language="eng"/></FRBRExpression>' +
+      '<FRBRExpression><FRBRthis value="' + expr + '/!main"/><FRBRuri value="' + expr + '"/><FRBRdate date="' + exprDate + '" name="' + (letter ? 'amended' : digits ? 'introduced' : 'drafted') + '"/><FRBRauthor href="#' + (digits ? house : 'lbdc') + '"/>' + (letter ? '<FRBRversionNumber value="' + letter + '"/>' : digits ? '' : '<FRBRversionNumber value="' + lbdVer + '"/>') + '<FRBRlanguage language="eng"/></FRBRExpression>' +
       '<FRBRManifestation><FRBRthis value="' + expr + '/!main.xml"/><FRBRuri value="' + expr + '.akn"/><FRBRdate date="' + new Date().toISOString().slice(0, 10) + '" name="markup"/><FRBRauthor href="#lbdc"/></FRBRManifestation>' +
       '</identification>' +
       (mods.length ? '<analysis source="#lbdc"><activeModifications>' + mods.map((m, k) =>
@@ -331,7 +333,7 @@
       '<p class="number"><docNumber>' + (digits ? digits + (letter ? '--' + letter : '') : '') + '</docNumber></p>' +
       '<p class="session"><session value="' + session + '">' + session + ' Regular Sessions</session></p>' +
       '<p class="stage"><docStage>IN ' + house.toUpperCase() + '</docStage></p>' +
-      '<p class="date"><docDate date="' + date + '">' + longDate(date) + '</docDate></p>' + intro + title + '</preface>' +
+      (digits ? '<p class="date"><docDate date="' + date + '">' + longDate(date) + '</docDate></p>' : '') + intro + title + '</preface>' +
       '<preamble><formula name="enactingFormula"><p>' + x(model.enacting ? model.enacting.text : BD.ENACTING) + '</p></formula></preamble>' +
       '<body>' + (body || '<section eId="sec_1"><num>Section 1.</num><content><p/></content></section>') + '</body>' +
       '</bill></akomaNtoso>\n';

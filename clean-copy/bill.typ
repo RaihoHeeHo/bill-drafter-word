@@ -404,6 +404,9 @@
   set par(justify: false, first-line-indent: 0pt)
   let centered(t) = par(center-pad(t.clusters().len()) + t)
   let after-number = false
+  // A draft (profile 0.3: no bill number or introduction date yet) keeps their lines blank, so the rest of the
+  // cover sits where it will sit on the printed bill.
+  let has-date = els(preface).any(p => attr(p, "class") == "date" or els(p).any(c => c.tag == "docDate"))
   for p in els(preface) {
     let class = attr(p, "class")
     // older files have no class: tell the line from what it holds
@@ -431,6 +434,11 @@
     } else if class == "stage" {
       // large bold line: sits 30.38pt below the line above, 25.12pt above the date
       block(height: 42.9pt, width: 100%, place(top + left, dy: 11.91pt, big-line(text-of(p))))
+      if not has-date {
+        blank-line
+        centered(rule(11))
+        blank-line
+      }
     } else if class == "date" {
       centered(text-of(p))
       centered(rule(11))

@@ -22,6 +22,9 @@
   <let name="work" value="string($id/a:FRBRWork/a:FRBRuri/@value)"/>
   <let name="expr" value="string($id/a:FRBRExpression/a:FRBRuri/@value)"/>
   <let name="info" value="/a:akomaNtoso/*[1]/a:meta/a:proprietary[@source='#lbdc']/l:documentInfo"/>
+  <!-- A draft: a bill before it is introduced, addressed by its LBD route number (/akn/us-ny/bill/2025/lbd12345),
+       each LBD version an Expression (eng@01, eng@02 ...). It has no print number until a house gives it one. -->
+  <let name="draft" value="$type = 'bill' and re:test($work, '^/akn/us-ny/bill/[0-9]{4}/lbd[0-9]{5}$')"/>
   <let name="UP" value="'ABCDEFGHIJKLMNOPQRSTUVWXYZ'"/>
   <let name="BR" value="'&#123;&#125;'"/>
   <let name="LOW" value="'abcdefghijklmnopqrstuvwxyz'"/>
@@ -67,6 +70,7 @@
       <let name="ver" value="substring-after($expr, '/eng@')"/>
       <assert test="a:FRBRWork/a:FRBRcountry/@value = 'us-ny'">FRBRcountry must be us-ny.</assert>
       <assert test="($type = 'bill' and re:test($work, '^/akn/us-ny/bill/[0-9]{4}/[sa][0-9]+$'))
+                 or $draft
                  or ($type = 'act' and ($dname = 'chapter' or $dname = 'unconsolidatedLaw') and re:test($work, '^/akn/us-ny/act/[0-9]{4}/[0-9]+$'))
                  or ($type = 'act' and $dname = 'consolidatedLaw' and re:test($work, '^/akn/us-ny/act/consolidated/[a-z]{3}$'))
                  or ($type = 'act' and $dname = 'unconsolidatedLaw' and re:test($work, '^/akn/us-ny/act/unconsolidated/[a-z]{3}$'))
@@ -80,9 +84,11 @@
       <assert test="starts-with(a:FRBRExpression/a:FRBRthis/@value, $expr)">FRBRExpression/FRBRthis must start with the Expression IRI.</assert>
       <assert test="a:FRBRExpression/a:FRBRlanguage/@language = 'eng'">FRBRlanguage must be eng.</assert>
       <assert test="starts-with(a:FRBRManifestation/a:FRBRuri/@value, concat($expr, '.'))">The Manifestation IRI must be the Expression IRI followed by a format extension (.akn, .xml, .pdf).</assert>
-      <assert test="$type != 'bill' or ($ver = '' and not(a:FRBRExpression/a:FRBRversionNumber)) or (re:test($ver, '^[a-z]$') and translate(a:FRBRExpression/a:FRBRversionNumber/@value, $UP, $LOW) = $ver)">A bill print is identified by its amendment letter: eng@ for the original print, eng@a for the A print, and so on, matching FRBRversionNumber.</assert>
+      <assert test="not($draft) or (re:test($ver, '^[0-9]{2}$') and a:FRBRExpression/a:FRBRversionNumber/@value = $ver)">A draft's versions are its LBD versions: eng@01 for LBD 12345-01-6, eng@02 for 12345-02-6, matching FRBRversionNumber.</assert>
+      <assert test="not($draft) or not(a:FRBRWork/a:FRBRnumber)">A draft has no bill number yet, so no FRBRnumber; the house gives the number at introduction, and the printed bill is a new Work (/akn/us-ny/bill/2025/s1234).</assert>
+      <assert test="$type != 'bill' or $draft or ($ver = '' and not(a:FRBRExpression/a:FRBRversionNumber)) or (re:test($ver, '^[a-z]$') and translate(a:FRBRExpression/a:FRBRversionNumber/@value, $UP, $LOW) = $ver)">A bill print is identified by its amendment letter: eng@ for the original print, eng@a for the A print, and so on, matching FRBRversionNumber.</assert>
       <assert test="$type != 'act' or re:test($ver, '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')">An act's Expression is dated: eng@YYYY-MM-DD (the date it became law, or the point-in-time date of a consolidated law).</assert>
-      <assert test="not($type = 'bill' or $type = 'statement' or $dname = 'chapter') or translate(a:FRBRWork/a:FRBRnumber/@value, $UP, $LOW) = $last">FRBRnumber "<value-of select="a:FRBRWork/a:FRBRnumber/@value"/>" must match the last part of the Work IRI ("<value-of select="$last"/>").</assert>
+      <assert test="$draft or not($type = 'bill' or $type = 'statement' or $dname = 'chapter') or translate(a:FRBRWork/a:FRBRnumber/@value, $UP, $LOW) = $last">FRBRnumber "<value-of select="a:FRBRWork/a:FRBRnumber/@value"/>" must match the last part of the Work IRI ("<value-of select="$last"/>").</assert>
     </rule>
   </pattern>
 
@@ -98,11 +104,13 @@
       <let name="fver" value="string($id/a:FRBRExpression/a:FRBRversionNumber/@value)"/>
       <let name="year" value="substring-before(substring-after($work, '/bill/'), '/')"/>
       <assert test="l:profile/@version">lbdc:profile must state the profile version.</assert>
-      <assert test="not($type = 'bill' or $type = 'statement') or (l:house and l:session and l:printNumber)">Bills and resolutions need lbdc:house, lbdc:session and lbdc:printNumber.</assert>
+      <assert test="not($type = 'bill' or $type = 'statement') or (l:house and l:session and (l:printNumber or $draft))">Bills and resolutions need lbdc:house, lbdc:session and lbdc:printNumber.</assert>
+      <assert test="not($draft) or not(l:printNumber or l:uniBill)">A draft has no print number (and is not yet a uni-bill print); those come at introduction.</assert>
+      <assert test="not($draft) or (substring(l:lbdNumber, string-length(l:lbdNumber) - 9, 5) = substring-after(re:replace($work, '^.*/', '', ''), 'lbd') and substring(l:lbdNumber, string-length(l:lbdNumber) - 3, 2) = substring-after($expr, '/eng@'))">A draft is addressed by its LBD number: the route number (the first five digits) in the Work IRI, the version (the next two) in the Expression IRI. lbdc:lbdNumber "<value-of select="l:lbdNumber"/>" doesn't match <value-of select="$expr"/>.</assert>
       <assert test="$type != 'bill' or l:lbdNumber">Bills need their LBD number (lbdc:lbdNumber).</assert>
-      <assert test="not($type = 'bill' or $type = 'statement') or $pn = concat($fnum, $fver)">lbdc:printNumber "<value-of select="$pn"/>" must equal the Work number plus the amendment letter ("<value-of select="concat($fnum, $fver)"/>").</assert>
+      <assert test="$draft or not($type = 'bill' or $type = 'statement') or $pn = concat($fnum, $fver)">lbdc:printNumber "<value-of select="$pn"/>" must equal the Work number plus the amendment letter ("<value-of select="concat($fnum, $fver)"/>").</assert>
       <assert test="$type != 'bill' or substring(l:session, 1, 4) = $year">The session (<value-of select="l:session"/>) must start in the year of the Work IRI (<value-of select="$year"/>).</assert>
-      <assert test="not($type = 'bill' or $type = 'statement') or l:house = 'both' or (l:house = 'senate' and contains('SJBR', substring($pn, 1, 1))) or (l:house = 'assembly' and contains('AEKCL', substring($pn, 1, 1)))">lbdc:house doesn't match the print number prefix (S, J, B and R are Senate; A, E, K, C and L are Assembly).</assert>
+      <assert test="$draft or not($type = 'bill' or $type = 'statement') or l:house = 'both' or (l:house = 'senate' and contains('SJBR', substring($pn, 1, 1))) or (l:house = 'assembly' and contains('AEKCL', substring($pn, 1, 1)))">lbdc:house doesn't match the print number prefix (S, J, B and R are Senate; A, E, K, C and L are Assembly).</assert>
       <assert test="$type != 'amendment' or l:lbdNumber">A detail sheet or amendment needs its own LBD number (lbdc:lbdNumber).</assert>
       <assert test="($dname = 'concurrentResolution') = boolean(l:resolution)">lbdc:resolution (what the resolution does) is required for concurrent resolutions and not used otherwise.</assert>
       <assert test="not($type = 'bill' and l:resolution/@kind = 'other') and not($type = 'statement' and starts-with(l:resolution/@kind, 'stateConstitution'))">Concurrent resolutions amending the state constitution are numbered as bills (bill name="concurrentResolution"). Those in the resolution series (statement name="concurrentResolution") are kind "other" or one of the federal kinds.</assert>
@@ -207,9 +215,12 @@
       <assert test="not($uni) or (normalize-space(a:p/a:docNumber[1]) = concat('S. ', translate($info/l:uniBill/@senate, $UP, ''), $suffix) and normalize-space(a:p/a:docNumber[2]) = concat('A. ', translate($info/l:uniBill/@assembly, $UP, ''), $suffix))">A uni-bill print shows both numbers, Senate first: "S. …" then "A. …", as recorded in lbdc:uniBill.</assert>
       <assert test="not(a:p/a:session) or a:p/a:session/@value = $info/l:session">The session line, when printed, must name the bill's session (<value-of select="$info/l:session"/>).</assert>
       <assert test="($uni and normalize-space(a:p/a:docStage) = 'SENATE - ASSEMBLY') or (not($uni) and (normalize-space(a:p/a:docStage) = 'IN SENATE' or normalize-space(a:p/a:docStage) = 'IN ASSEMBLY'))">The house line must be "IN SENATE" or "IN ASSEMBLY" ("SENATE - ASSEMBLY" for a uni-bill).</assert>
-      <assert test="a:p/a:docDate[@date]">The introduction date (docDate with a date attribute) is missing.</assert>
+      <assert test="$draft or a:p/a:docDate[@date]">The introduction date (docDate with a date attribute) is missing.</assert>
+      <assert test="not($draft) or normalize-space(a:p/a:docNumber) = ''">A draft has no bill number yet; leave docNumber empty (the clean copy leaves the line blank).</assert>
+      <assert test="not($draft) or not(a:p/a:docDate)">A draft has no introduction date yet; leave docDate out until the bill is introduced.</assert>
       <assert test="not(a:p/a:docDate/@date) or a:p/a:docDate/@date = $id/a:FRBRWork/a:FRBRdate/@date">The printed date is the date of original introduction (<value-of select="$id/a:FRBRWork/a:FRBRdate/@date"/>), on every print; it is not the date the bill was amended.</assert>
-      <assert test="a:p[@class = 'introduction']//a:docProponent">The "Introduced by" line must mark the sponsor (docProponent).</assert>
+      <assert test="$draft or a:p[@class = 'introduction']//a:docProponent">The "Introduced by" line must mark the sponsor (docProponent).</assert>
+      <assert role="warning" test="not($draft) or a:p[@class = 'introduction']//a:docProponent or $info/l:requestedBy">This draft names no sponsor (docProponent) and no requester (lbdc:requestedBy).</assert>
       <assert test="$dname != 'concurrentResolution' or normalize-space(a:p/a:docType) = 'CONCURRENT RESOLUTION OF THE SENATE AND ASSEMBLY'">A concurrent resolution must carry the line "CONCURRENT RESOLUTION OF THE SENATE AND ASSEMBLY" (docType).</assert>
       <assert test="($dname = 'concurrentResolution' and not(starts-with(normalize-space(a:longTitle), 'AN ACT'))) or ($dname != 'concurrentResolution' and starts-with(normalize-space(a:longTitle), 'AN ACT'))">The title of a bill begins "AN ACT"; the title of a concurrent resolution does not.</assert>
     </rule>

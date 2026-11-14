@@ -7,8 +7,8 @@ let inWord = false;
 
 /* ---------- small helpers ---------- */
 function notice(text, isError) {
-  const n = $('notice'); n.textContent = text; n.className = 'notice' + (isError ? ' error' : ''); n.hidden = !text;
-  clearTimeout(notice.t); if (text && !isError) notice.t = setTimeout(() => { n.hidden = true; }, 6000);
+  const n = $('notice'); $('notice-text').textContent = text; n.className = 'notice' + (isError ? ' error' : ''); n.hidden = !text;
+  clearTimeout(notice.t); if (text && !isError) notice.t = setTimeout(() => { n.hidden = true; }, 8000);
 }
 async function busy(btn, fn) {
   if (btn) btn.disabled = true;
@@ -109,7 +109,7 @@ async function renumber(quiet) {
     await ctx.sync();
   }));
   await refresh();
-  if (!quiet) notice('Sections renumbered.');
+  if (!quiet) { await updateTitle(null); notice('Sections renumbered and the title rebuilt.'); }
 }
 async function updateTitle(subjectFromPane) {
   await word(async ctx => quietly(ctx, async () => {
@@ -133,65 +133,117 @@ async function newBill() {
     await tidy(ctx);
   }));
   $('subject').value = $('nb-subject').value;
-  await refresh(); notice('Bill started: section 1 is blank for you to type in; the first section you insert from Amend a law takes its place.');
+  await refresh(); notice('Bill started. Now add sections: the first one you add takes the place of the blank section 1.');
 }
 
-/* ---------- amending a law ---------- */
-const pick = { law: null, sec: null };
+/* ---------- amending a law ----------
+   One box finds both: "GCN 12", "executive 296", "tax 606(c)", "general construction affidavit". The words that
+   name a law (its Bank ID or words of its name) come first; what follows is a section number or heading words. */
+const pick = { law: null, sec: null, unit: null };
+let bankIdx = {};
 async function fillLaws() {
-  const idx = await BD.bank.index(), ids = Object.keys(idx).sort();
-  $('bank-empty').hidden = ids.length > 0;
-  const f = $('law-filter').value.trim().toLowerCase(), sel = $('law'), keep = sel.value;
-  sel.innerHTML = '';
-  for (const id of ids) {
-    const i = idx[id], label = id + ' – ' + i.name;
-    if (f && !label.toLowerCase().includes(f)) continue;
-    sel.append(el('option', { value: id, textContent: label }));
+  bankIdx = await BD.bank.index();
+  const empty = !Object.keys(bankIdx).length;
+  $('bank-empty').hidden = !empty; $('sec-q').disabled = empty;
+  welcome();
+  return bankIdx;
+}
+// Which laws do these words name?
+function lawsNamed(words) {
+  const w = words.toLowerCase(), ids = Object.keys(bankIdx).sort();
+  const exact = ids.filter(id => id.toLowerCase() === w);
+  if (exact.length) return exact;
+  return ids.filter(id => { const n = bankIdx[id].name.toLowerCase().replace(/&/g, 'and'); return w.length > 2 && (n === w || n.split(/[\s,]+/).some((x, i, a) => a.slice(i).join(' ').startsWith(w))); });
+}
+function parseQuery(q) {
+  const toks = q.replace(/§/g, ' ').trim().split(/\s+/).filter(Boolean);
+  for (let k = toks.length; k >= 1; k--) {
+    const laws = lawsNamed(toks.slice(0, k).join(' '));
+    if (laws.length) return { laws, rest: toks.slice(k).join(' ') };
   }
-  if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
-  else if (sel.options.length === 1) { sel.selectedIndex = 0; chooseLaw(); }
-  return idx;
+  return { laws: pick.law ? [pick.law.info.lawId] : [], rest: toks.join(' ') };
 }
-async function chooseLaw() {
-  const id = $('law').value; pick.law = id ? await getLaw(id) : null; pick.sec = null;
-  $('sec-results').innerHTML = ''; $('sec-preview').hidden = true; $('action').disabled = true;
-  if ($('sec-q').value.trim()) searchSecs();
-}
-function searchSecs() {
-  const ul = $('sec-results'); ul.innerHTML = '';
-  if (!pick.law) return;
-  for (const s of BD.searchSections(pick.law, $('sec-q').value, 40)) {
-    const li = el('li', {}, el('b', { textContent: '§ ' + BD.secId(s.loc) }), s.title + (s.repealed ? ' (repealed)' : ''));
-    li.onclick = () => { for (const x of ul.children) x.classList.remove('on'); li.classList.add('on'); chooseSec(s); };
-    ul.append(li);
+let active = -1;
+async function search() {
+  const ul = $('sec-results'); ul.innerHTML = ''; active = -1;
+  const q = $('sec-q').value.trim(); if (!q) return;
+  const { laws, rest } = parseQuery(q);
+  const item = (lawId, main, sub, fn) => { const li = el('li', { role: 'option' }, el('span', { className: 'law', textContent: lawId }), el('b', { textContent: main }), sub ? ' ' + sub : ''); li.onclick = fn; ul.append(li); };
+  if (!laws.length) { ul.append(el('li', { className: 'hint', textContent: 'No law in the Bank matches "' + q.split(/\s+/)[0] + '". Start with the law\'s ID (GCN) or a word of its name (construction).' })); return; }
+  if (!rest) {
+    for (const id of laws.slice(0, 12)) item(id, bankIdx[id].name, '', () => { $('sec-q').value = id + ' '; $('sec-q').focus(); search(); });
+    if (laws.length === 1) ul.append(el('li', { className: 'hint', textContent: 'Now type a section number or words of its heading.' }));
+    return;
   }
-  if (!ul.children.length) ul.append(el('li', { className: 'hint', textContent: 'No section matches. To add a new one, type its number and pick "Add a new section".' }));
-  // A number that is not in the law yet: offer to add it.
-  const k = BD.locKey($('sec-q').value);
-  if (/\d/.test(k) && !BD.findSection(pick.law, k)) { pick.sec = { loc: k, title: '', text: '', missing: true }; showActions(); }
+  // "606(c)" or "296 subd 1": a section and one of its units.
+  const m = /^([\w.-]+)\s*(?:\(([\w-]+)\)|\s+(?:subd(?:ivision)?\.?|subsec(?:tion)?\.?)\s*\(?([\w-]+)\)?)$/i.exec(rest);
+  const secQ = m ? m[1] : rest, unitQ = m ? (m[2] || m[3]) : null;
+  let n = 0;
+  for (const id of laws.slice(0, 6)) {
+    const law = await getLaw(id); if (!law) continue;
+    for (const s of BD.searchSections(law, secQ, 30)) {
+      if (n++ >= 40) break;
+      item(id, '§ ' + BD.secId(s.loc), s.title + (s.repealed ? ' (repealed)' : ''), () => chooseSec(law, s, unitQ));
+    }
+    // A number that is not in the law yet: offer to add it.
+    const k = BD.locKey(secQ);
+    if (laws.length === 1 && /\d/.test(k) && !BD.findSection(law, k)) item(id, '§ ' + BD.secId(k), 'is not in the law: add it as a new section', () => chooseSec(law, { loc: k, title: '', text: '', missing: true }));
+  }
+  if (!ul.children.length) ul.append(el('li', { className: 'hint', textContent: 'No section of ' + laws.join(', ') + ' matches "' + rest + '".' }));
 }
-function chooseSec(s) {
-  pick.sec = s;
-  const paras = BD.lawParagraphs(s.text);
-  $('sec-preview').textContent = paras.join('\n'); $('sec-preview').hidden = false;
+function moveActive(d) {
+  const items = [...$('sec-results').querySelectorAll('li[role=option]')]; if (!items.length) return;
+  active = (active + d + items.length) % items.length;
+  items.forEach((x, i) => x.classList.toggle('active', i === active)); items[active].scrollIntoView({ block: 'nearest' });
+}
+function chooseSec(law, s, unit) {
+  pick.law = law; pick.sec = s; pick.unit = unit || null;
+  $('sec-results').innerHTML = '';
+  $('picked').hidden = false;
+  $('picked-title').textContent = law.info.lawId + ' § ' + BD.secId(s.loc) + (s.title ? '. ' + s.title : '') + (s.missing ? ' (new)' : '');
+  $('sec-preview').textContent = BD.lawParagraphs(s.text).join('\n');
+  $('sec-preview-box').hidden = !!s.missing; $('sec-preview-box').open = false;
   showActions();
 }
+function clearPick() {
+  pick.law = null; pick.sec = null; pick.unit = null;
+  $('picked').hidden = true; $('action').disabled = true; $('sec-q').value = ''; $('sec-q').focus();
+}
+const subsecs = () => BD.usesSubsections(pick.law && pick.law.info.lawId);
 function showActions() {
-  const s = pick.sec, subs = s.missing ? [] : BD.subdivisions(BD.lawParagraphs(s.text), BD.usesSubsections(pick.law && pick.law.info.lawId));
+  const s = pick.sec, subs = s.missing ? [] : BD.subdivisions(BD.lawParagraphs(s.text), subsecs());
   $('action').disabled = false;
+  const word = subsecs() ? 'subsection' : 'subdivision';
+  $('sub-word').textContent = word; $('sub-word2').textContent = word;
   const sub = $('sub'); sub.innerHTML = '';
-  for (const x of subs) sub.append(el('option', { value: x.unit, textContent: x.unit }));
+  for (const x of subs) sub.append(el('option', { value: x.unit, textContent: subsecs() ? '(' + x.unit + ')' : x.unit }));
   const radio = v => document.querySelector('input[name=act][value=' + v + ']');
   radio('amendSub').disabled = !subs.length; sub.disabled = !subs.length;
   radio('amend').disabled = radio('repeal').disabled = !!s.missing; radio('addSub').disabled = !!s.missing;
   $('add-num').value = s.missing ? BD.secId(s.loc) : BD.nextFreeSection(pick.law, s.loc);
-  const last = subs.length ? subs[subs.length - 1].unit : '0';
-  $('add-sub').value = /^\d+$/.test(last) ? String(+last + 1) : last + '-a';
+  const last = subs.length ? subs[subs.length - 1].unit : (subsecs() ? '' : '0');
+  $('add-sub').value = subsecs() ? (last ? String.fromCharCode(last.charCodeAt(0) + 1) : 'a') : /^\d+$/.test(last) ? String(+last + 1) : last + '-a';
   if (s.missing) radio('add').checked = true;
-  else if (radio('add').checked) radio('amend').checked = true;
+  else if (pick.unit && subs.some(x => x.unit.toLowerCase() === pick.unit.toLowerCase())) { radio('amendSub').checked = true; sub.value = subs.find(x => x.unit.toLowerCase() === pick.unit.toLowerCase()).unit; }
+  else if (radio('add').checked || radio('amendSub').disabled && radio('amendSub').checked) radio('amend').checked = true;
+  actionChanged();
+}
+// The button says what will happen; history only matters for an amendment or a repeal.
+function actionChanged() {
+  if (!pick.sec) { $('insert-amend').textContent = 'Insert section'; return; }
+  const how = (document.querySelector('input[name=act]:checked') || {}).value, id = pick.law.info.lawId, sec = BD.secId(pick.sec.loc);
+  const unit = subsecs() ? '(' + $('sub').value + ')' : $('sub').value;
+  $('history-row').hidden = !(how === 'amend' || how === 'amendSub' || how === 'repeal');
+  $('insert-amend').textContent = {
+    amend: 'Insert: amend ' + id + ' § ' + sec,
+    amendSub: 'Insert: amend ' + id + ' § ' + sec + ' ' + (subsecs() ? 'subsec. ' : 'subd. ') + unit,
+    add: 'Insert: add ' + id + ' § ' + ($('add-num').value || '?'),
+    addSub: 'Insert: add ' + (subsecs() ? 'subsec. (' + $('add-sub').value + ')' : 'subd. ' + $('add-sub').value) + ' to ' + id + ' § ' + sec,
+    repeal: 'Insert: repeal ' + id + ' § ' + sec,
+  }[how] || 'Insert section';
 }
 async function insertAmendment() {
-  const law = pick.law, s = pick.sec; if (!law || !s) throw new Error('Pick a law and a section first.');
+  const law = pick.law, s = pick.sec; if (!law || !s) throw new Error('Find the section first: type the law and the section, e.g. "GCN 12", and pick it from the list.');
   const how = document.querySelector('input[name=act]:checked').value, history = historyText();
   let o;
   if (how === 'amend') o = { act: 'amend', loc: s.loc, quoted: BD.lawParagraphs(s.text).map(t => [{ t, k: '' }]) };
@@ -209,7 +261,8 @@ async function insertAmendment() {
   o.clause = BD.amendingClause({ act: o.act, info: law.info, loc: o.loc, unit: o.unit, history: o.act === 'add' ? '' : history });
   await insertSection(o.act, BD.sectionXml(o));
   await updateTitle(null);
-  notice(o.act === 'repeal' ? 'Repeal inserted.' : 'Section inserted. Edit the law\'s text in the document, then Mark changes.');
+  $('history').value = '';
+  notice(o.act === 'repeal' ? 'Repeal inserted.' : o.act === 'add' ? 'New ' + (o.unit ? 'unit' : 'section') + ' inserted, all underlined. Type over the ____ in the document.' : 'Section inserted with the law\'s text. Edit it in the document like plain text, then press Mark changes.');
 }
 // Brackets and underlines from comparing each amended text with the Bank.
 async function markChanges() {
@@ -245,8 +298,8 @@ async function markChanges() {
 }
 
 // "As amended by …": what the drafter typed, as the clause will cite it.
-function historyText() {
-  const h = $('history').value.trim().replace(/^,\s*/, '').replace(/[,.]\s*$/, '');
+function historyText(id) {
+  const h = $(id || 'history').value.trim().replace(/^,\s*/, '').replace(/[,.]\s*$/, '');
   return !h ? '' : /^as (amended|added|renumbered|relettered)\b/i.test(h) ? h.replace(/^As/, 'as') : 'as amended by ' + h;
 }
 // The bill section that holds the cursor (or the selection).
@@ -262,7 +315,7 @@ async function sectionAtCursor(ctx) {
 }
 // Put the history into the amending clause of the section at the cursor, in place of any history it cites.
 async function applyHistory() {
-  const h = historyText();
+  const h = historyText('history-fix');
   if (!h) throw new Error('Type the history first, e.g. "chapter 55 of the laws of 2023".');
   let where = '';
   await word(async ctx => quietly(ctx, async () => {
@@ -279,6 +332,7 @@ async function applyHistory() {
     mod.insertText(clause, 'Replace'); await ctx.sync();
     where = sec.title || '';
   }));
+  $('history-fix').value = ''; $('history-card').hidden = true;
   notice('History put in the amending clause' + (where ? ' (' + where + ')' : '') + '.');
 }
 
@@ -310,7 +364,9 @@ const KIND = { amend: 'Amend', add: 'Add', repeal: 'Repeal', new: '', shortTitle
 async function refresh() {
   if (!inWord) return;
   const model = await Word.run(readModel);
-  $('no-bill').hidden = !!(model.title || model.sections.length);
+  hasBill = !!(model.title || model.sections.length);
+  $('no-bill').hidden = hasBill; $('bill-card').hidden = !hasBill; $('dock').hidden = !hasBill;
+  welcome();
   if (model.title && document.activeElement !== $('subject')) $('subject').value = model.title.subject.replace(/^_+$/, '');
   const ol = $('outline'); ol.innerHTML = '';
   model.sections.forEach((s, i) => {
@@ -318,8 +374,14 @@ async function refresh() {
     const li = el('li', {}, el('span', { className: 'n', textContent: s.num || '?' }), el('span', { className: 'k', textContent: what }));
     li.onclick = () => goTo(i); ol.append(li);
   });
-  if (!model.sections.length) ol.append(el('li', { className: 'hint', textContent: 'No sections yet.' }));
   return model;
+}
+// The getting-started card shows until the Bank is loaded and a bill is started.
+let hasBill = false;
+function welcome() {
+  const bank = Object.keys(bankIdx).length > 0;
+  $('step-bank').classList.toggle('done', bank); $('step-bill').classList.toggle('done', hasBill);
+  $('welcome').hidden = bank && hasBill || !inWord && bank;
 }
 async function goTo(i) {
   await word(async ctx => { const secs = await sectionControls(ctx); if (secs[i]) { secs[i].select('Start'); await ctx.sync(); } });
@@ -328,13 +390,17 @@ async function runChecks() {
   const model = await word(readModel);
   const found = await BD.check(model, getLaw);
   const ul = $('findings'); ul.innerHTML = '';
-  const errs = found.filter(f => f.level === 'error').length;
+  const errs = found.filter(f => f.level === 'error').length, warns = found.filter(f => f.level === 'warning').length, notes = found.length - errs - warns;
   $('check-count').textContent = String(errs); $('check-count').hidden = !errs;
-  if (!found.length) { ul.append(el('li', { className: 'ok', textContent: 'No problems found.' })); return; }
-  const FIX = { history: ['Add history', async f => { showTab('draft'); await goTo(f.sec); $('history').focus(); notice('Type the history (e.g. "chapter 55 of the laws of 2023") and press "Put in the section at the cursor".'); }], renumber: ['Renumber', () => renumber()], title: ['Update title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', () => { showTab('draft'); $('subject').focus(); }] };
+  const sum = $('check-summary'), pl = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  sum.className = 'summary ' + (errs ? 'bad' : warns ? 'meh' : 'good');
+  sum.textContent = !found.length ? 'No problems found. The bill is ready for its clean copy.' : [errs && pl(errs, 'error') + ' to fix', warns && pl(warns, 'warning'), notes && pl(notes, 'note')].filter(Boolean).join(', ') + '.';
+  if (!found.length) return;
+  found.sort((a, b) => ['error', 'warning', 'info'].indexOf(a.level) - ['error', 'warning', 'info'].indexOf(b.level));
+  const FIX = { history: ['Add history', async f => { showTab('draft'); await goTo(f.sec); openHistory(); notice('The cursor is in ' + ((model.sections[f.sec].num || '').replace(/\.$/, '') || 'that section') + '. Type its last amendment and press "Put it in that section".'); }], renumber: ['Renumber', () => renumber()], title: ['Update title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', () => { showTab('draft'); $('subject').focus(); }] };
   for (const f of found) {
     const li = el('li', { className: f.level }, el('span', { className: 'rule', textContent: f.rule + ':' }), f.text);
-    if (f.sec != null) { const w = el('div', { className: 'where' }); const b = el('button', { textContent: 'Go to ' + (model.sections[f.sec].num || 'section') }); b.onclick = () => goTo(f.sec); w.append(b); li.append(w); }
+    if (f.sec != null) { const w = el('div', { className: 'where' }); const b = el('button', { textContent: 'Go to ' + ((model.sections[f.sec].num || '').replace(/\.$/, '') || 'section') }); b.onclick = () => goTo(f.sec); w.append(b); li.append(w); }
     if (f.fix && FIX[f.fix]) { const b = el('button', { textContent: FIX[f.fix][0] }); b.onclick = () => busy(b, async () => { await FIX[f.fix][1](f); if (f.fix !== 'history') await runChecks(); }); li.append(b); }
     ul.append(li);
   }
@@ -350,24 +416,35 @@ async function loadInfo() {
     return out;
   });
 }
-async function saveInfo() {
+async function saveInfo(quiet) {
+  infoSummary();
+  if (!inWord) return;
   await word(async ctx => {
     const cp = ctx.document.properties.customProperties;
     for (const [id, key] of INFO) cp.add(key, $(id).value.trim());
     await ctx.sync();
   });
-  notice('Saved in the document\'s properties.');
+  if (!quiet) notice('Saved in the document\'s properties.');
+}
+// One line saying what the clean copy will be.
+function infoSummary() {
+  const i = paneInfo(), H = i.house === 'assembly' ? 'Assembly' : 'Senate', missing = [];
+  if (!i.lbd) missing.push('the LBD number'); if (!i.sponsor) missing.push('the sponsor'); if (i.billNumber && !i.date) missing.push('the date introduced');
+  const what = i.billNumber ? H + ' bill ' + (i.house === 'assembly' ? 'A. ' : 'S. ') + i.billNumber.replace(/-+/, '--') + (i.date ? ', introduced ' + new Date(i.date + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '') : 'Draft for the ' + H + (i.lbd ? ', LBD ' + i.lbd : '') + ' (no bill number yet)';
+  const sum = $('info-summary');
+  sum.className = 'summary ' + (missing.length ? 'meh' : 'good');
+  sum.textContent = what + '.' + (missing.length ? ' Add ' + missing.join(' and ') + ' under Bill information below.' : '');
 }
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
 async function toAkn() {
   const model = await word(readModel);
   const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws };
+  if (!info.year && info.date) info.year = info.date.slice(0, 4);
   aknText = BD.toAkn(model, info);
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   const errs = (await BD.check(model, getLaw)).filter(f => f.level === 'error').length;
-  const draft = !info.billNumber ? ' No bill number yet, so the bill is addressed by its LBD number, a draft form the profile (0.3) does not yet define.' : '';
-  notice((errs ? 'Converted, but the checks found ' + errs + ' problem' + (errs === 1 ? '' : 's') + ' to fix first (Checks tab).' : 'Converted.') + draft, false);
+  notice(errs ? 'Done, but Check found ' + errs + ' error' + (errs === 1 ? '' : 's') + ' to fix (Check tab).' : 'Done.', false);
 }
 function saveAkn() {
   const name = ($('lbd').value.trim() || 'bill') + '.akn.xml';
@@ -383,7 +460,7 @@ async function toPdf() {
   const pdf = await BD.cleanCopyPdf(aknText, status);
   if (pdfUrl) URL.revokeObjectURL(pdfUrl);
   pdfUrl = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
-  $('pdf-open').disabled = $('pdf-save').disabled = false;
+  $('pdf-open').disabled = $('pdf-save').disabled = false; $('pdf-actions').hidden = false;
   status('Clean copy ready (' + Math.max(1, Math.round(pdf.length / 1024)) + ' KB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s).');
 }
 function savePdf() {
@@ -418,27 +495,70 @@ async function showBank() {
 function showTab(name) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
   for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== name;
+  // Opening a tab brings it up to date: checks run, the clean-copy summary reflects the bill information.
+  if (name === 'checks' && inWord) busy($('run-checks'), runChecks);
+  if (name === 'export') infoSummary();
+  if (name === 'draft' && inWord) busy(null, refresh);
+}
+function openHistory() { $('history-card').hidden = false; $('history-card').scrollIntoView({ block: 'nearest' }); $('history-fix').focus(); }
+function showSeg(name) {
+  for (const b of document.querySelectorAll('.seg button')) b.setAttribute('aria-selected', String(b.dataset.seg === name));
+  for (const p of document.querySelectorAll('[data-segpanel]')) p.hidden = p.dataset.segpanel !== name;
+}
+function effPreview() {
+  const addons = [...document.querySelectorAll('#eff-addons input:checked')].map(i => i.value);
+  $('eff-preview').textContent = BD.effectiveText($('eff-form').value, addons);
 }
 function wire() {
   for (const b of document.querySelectorAll('nav button')) b.onclick = () => showTab(b.dataset.tab);
+  for (const b of document.querySelectorAll('.seg button')) b.onclick = () => showSeg(b.dataset.seg);
   const on = (id, fn) => { const b = $(id); b.onclick = () => busy(b, fn); };
-  on('nb-go', newBill); on('title-update', async () => { await updateTitle(null); notice('Title updated.'); }); on('renumber', () => renumber());
+  $('notice-close').onclick = () => { $('notice').hidden = true; };
+  on('go-bank', async () => showTab('bank')); on('go-bank2', async () => showTab('bank'));
+  on('nb-go', newBill); on('renumber', () => renumber());
+  $('nb-subject').onkeydown = e => { if (e.key === 'Enter') $('nb-go').click(); };
+  // The title follows the subject line: rebuilt when it changes.
+  $('subject').onchange = () => busy(null, async () => { await updateTitle(null); notice('Title rebuilt.'); });
+  $('subject').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
   on('insert-amend', insertAmendment); on('mark', markChanges); on('history-apply', applyHistory);
+  on('dock-check', async () => showTab('checks'));
+  on('history-open', async () => openHistory()); $('history-close').onclick = () => { $('history-card').hidden = true; };
+  $('history-fix').onkeydown = e => { if (e.key === 'Enter') $('history-apply').click(); };
+  on('picked-clear', async () => clearPick());
   on('add-short', () => addStandard('shortTitle')); on('add-findings', () => addStandard('findings'));
   on('add-sev', () => addStandard('severability')); on('add-new', () => addStandard('new')); on('add-eff', setEffective);
-  on('refresh', refresh); on('run-checks', runChecks); on('to-akn', toAkn); on('save-info', saveInfo);
+  $('st-name').onkeydown = e => { if (e.key === 'Enter') $('add-short').click(); };
+  on('refresh', refresh); on('run-checks', runChecks);
+  on('to-akn', async () => { await toAkn(); $('akn-card').open = true; });
   on('akn-copy', async () => { $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
   on('akn-save', async () => saveAkn());
   on('to-pdf', toPdf); on('pdf-save', async () => savePdf());
   on('pdf-open', async () => { if (!window.open(pdfUrl, '_blank')) savePdf(); });
-  on('bank-clear', async () => { await BD.bank.clear(); await showBank(); await fillLaws(); notice('The Bank was removed from this computer.'); });
-  $('law-filter').oninput = () => fillLaws();
-  $('law').onchange = () => busy(null, chooseLaw);
-  let t; $('sec-q').oninput = () => { clearTimeout(t); t = setTimeout(searchSecs, 150); };
+  on('bank-clear', async () => { if (!confirmClear()) return; await BD.bank.clear(); await showBank(); await fillLaws(); notice('The Bank was removed from this computer.'); });
+  // Bill information is saved as it is typed.
+  let st; for (const [id] of INFO) $(id).addEventListener('input', () => { infoSummary(); clearTimeout(st); st = setTimeout(() => busy(null, () => saveInfo(true)), 600); });
+  // Law and section search, with the arrow keys and Enter.
+  // A new search puts the last pick away, so the form always acts on what is shown.
+  let t; $('sec-q').oninput = () => { if (pick.sec) { pick.sec = null; $('picked').hidden = true; $('action').disabled = true; } clearTimeout(t); t = setTimeout(() => busy(null, search), 150); };
+  $('sec-q').onkeydown = e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); moveActive(e.key === 'ArrowDown' ? 1 : -1); }
+    else if (e.key === 'Enter') { e.preventDefault(); const items = [...$('sec-results').querySelectorAll('li[role=option]')]; const li = items[active >= 0 ? active : 0]; if (li) li.click(); }
+  };
+  for (const r of document.querySelectorAll('input[name=act]')) r.onchange = actionChanged;
+  for (const id of ['sub', 'add-num', 'add-sub']) $(id).addEventListener('input', actionChanged);
   for (const id of ['bank-folder', 'bank-files']) $(id).onchange = e => busy(null, () => loadBankFiles(e.target.files));
   const form = $('eff-form');
-  for (const [label, text] of BD.EFF_FORMS) form.append(el('option', { value: text, textContent: label + ' – ' + text }));
+  for (const [label, text] of BD.EFF_FORMS) form.append(el('option', { value: text, textContent: label }));
   for (const [key, label] of BD.EFF_ADDONS) $('eff-addons').append(el('label', {}, el('input', { type: 'checkbox', value: key }), label));
+  form.onchange = effPreview; $('eff-addons').onchange = effPreview; effPreview();
+}
+// The pane's own dialogs can't use confirm() inside Word, so the button asks by changing its label once.
+function confirmClear() {
+  const b = $('bank-clear');
+  if (b.dataset.armed) { delete b.dataset.armed; b.textContent = 'Remove the Bank from this computer'; return true; }
+  b.dataset.armed = '1'; b.textContent = 'Press again to remove all laws from this computer';
+  setTimeout(() => { delete b.dataset.armed; b.textContent = 'Remove the Bank from this computer'; }, 5000);
+  return false;
 }
 
 async function start(host) {
@@ -450,9 +570,9 @@ async function start(host) {
     await busy(null, refresh);
     const info = await loadInfo().catch(() => ({}));
     for (const [id] of INFO) if (info[id]) $(id).value = info[id];
-    if (!$('year').value) $('year').value = String(new Date().getFullYear());
-    if (!$('bdate').value) $('bdate').value = new Date().toISOString().slice(0, 10);
+    if (!$('year').value) { const y = new Date().getFullYear(); $('year').value = String(y % 2 ? y : y - 1); }
   }
+  infoSummary(); welcome();
 }
 if (window.Office && Office.onReady) Office.onReady(info => start(info && info.host));
 else document.addEventListener('DOMContentLoaded', () => start(null));

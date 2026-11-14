@@ -1,8 +1,8 @@
 # Clean copy from the add-in's Akoma Ntoso
 
 Step 2 of LBDC's clean-copy demo pipeline (Akoma Ntoso XML -> clean-copy PDF), the same template the desktop demo uses,
-fed the AKN-NY profile XML that Bill Drafter for Word exports. Step 1 (Word -> Akoma Ntoso) is the add-in itself: **Export > Convert to
-Akoma Ntoso > Save .xml**, or `node tools/docx2akn.cjs bill.docx bill.akn.xml` for a saved document.
+fed the AKN-NY profile XML that Bill Drafter for Word exports. Step 1 (Word -> Akoma Ntoso) is the add-in itself: **Clean copy > Akoma Ntoso XML > Show the XML > Save .xml**,
+or `node tools/docx2akn.cjs bill.docx bill.akn.xml` for a saved document.
 
 ```
 Word (add-in) ──Export──▶ bill.akn.xml ──bill.typ (Typst)──▶ clean-copy.pdf
@@ -10,7 +10,7 @@ Word (add-in) ──Export──▶ bill.akn.xml ──bill.typ (Typst)──▶
 
 ## Build the PDF
 
-In Word: **Export > Make clean copy (PDF)** does this inside the pane (Typst compiled to WebAssembly, loaded from the add-in's site; nothing to install). Outside Word:
+In Word: **Clean copy > Make the clean copy (PDF)** does this inside the pane (Typst compiled to WebAssembly, loaded from the add-in's site; nothing to install). Outside Word:
 
 With [Typst](https://typst.app/) installed (0.15 or later), from this folder:
 

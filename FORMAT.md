@@ -70,7 +70,7 @@ eIds follow the profile: the `mod`'s eId, then `__qstr`, then each level (`sec_3
 
 ## Document properties
 
-The Export tab saves the bill information as custom document properties, and both converters read them:
+The Clean copy tab saves the bill information as custom document properties as it is typed, and both converters read them:
 
 | Property | Akoma Ntoso |
 |---|---|
@@ -82,7 +82,7 @@ The Export tab saves the bill information as custom document properties, and bot
 
 The front matter is written as the profile's classed paragraphs (`authority`, `number`, `session`, `stage`, `date`, `introduction`) and the `longTitle`; the clean-copy template prints the cover from them.
 
-**Before a bill number is given** the XML is a draft: the bill is addressed by its LBD route number (`/akn/us-ny/bill/2025/lbd12345`, Expression `eng@01` for the LBD version) and has no print number. Version 0.3 of the profile defines only printed bills, so a draft does not yet validate; everything else in it does.
+**Before a bill number is given** the XML is the profile's draft form: the bill is addressed by its LBD route number (`/akn/us-ny/bill/2025/lbd12345`), each LBD version is an Expression (`eng@01`, `eng@02` …), and there is no print number, no printed bill number and no introduction date. The clean copy leaves those lines blank, so the rest of the cover sits where it will on the printed bill. Once the house gives the number, fill in **Bill number** and the date: the printed bill is a new Work (`/akn/us-ny/bill/2025/s1234`) with the same LBD number.
 
 ## What the converter adds
 
@@ -94,7 +94,7 @@ The output validates against the OASIS Akoma Ntoso 3.0 schema, LBDC's extension 
 
 ## Converting a saved .docx
 
-The task pane's **Export** tab converts the open document. For a saved file:
+The task pane converts the open document (**Clean copy > Akoma Ntoso XML**). For a saved file:
 
 ```
 npm install
