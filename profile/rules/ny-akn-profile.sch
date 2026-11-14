@@ -136,7 +136,7 @@
       <!-- Attachments share their parent document's identifiers (the AKN schema
            makes eIds unique across the whole document), so look in both. -->
       <let name="refs" value="ancestor-or-self::*[a:meta][1]/a:meta/a:references | /a:akomaNtoso/*[1]/a:meta/a:references"/>
-      <assert test="not(@refersTo) or (starts-with(@refersTo, '#') and not(contains(normalize-space(@refersTo), ' ')) and key('eid', substring-after(@refersTo, '#'))[parent::a:references])">refersTo="<value-of select="@refersTo"/>" must name one entry in &lt;references&gt;.</assert>
+      <assert test="not(@refersTo) or (starts-with(@refersTo, '#') and not(contains(normalize-space(@refersTo), ' ')) and key('eid', substring-after(@refersTo, '#'))[parent::a:references]) or (@name = 'agencySummary' and contains(normalize-space(@refersTo), ' '))">refersTo="<value-of select="@refersTo"/>" must name one entry in &lt;references&gt; (only an agency summary that covers several agencies lists them).</assert>
       <assert test="not(@source) or key('eid', substring-after(@source, '#'))[parent::a:references]">source="<value-of select="@source"/>" must name an entry in &lt;references&gt;.</assert>
       <assert test="not(@by) or key('eid', substring-after(@by, '#'))[parent::a:references]">by="<value-of select="@by"/>" must name an entry in &lt;references&gt;.</assert>
       <assert test="not(@as) or $refs/*[@eId = substring-after(current()/@as, '#')]">as="<value-of select="@as"/>" must name an entry in &lt;references&gt;.</assert>
@@ -428,7 +428,10 @@
     </rule>
     <rule context="a:hcontainer[@name = 'reappropriation']">
       <assert test="ancestor::a:hcontainer[@name = 'reappropriationSource']">A reappropriation belongs under its source ("By chapter 50, section 1, of the laws of ...").</assert>
-      <assert test="count(.//a:quantity[@class = 'originalAmount']) = 1 and count(.//a:quantity[@class = 'reappropriatedAmount']) = 1">A reappropriation has the original amount and the reappropriated amount ("(re. $...)").</assert>
+      <assert test="(count(.//a:quantity[@class = 'originalAmount']) = 1 or contains(concat(' ', @class, ' '), ' noOriginal ')) and count(.//a:quantity[@class = 'reappropriatedAmount']) = 1">A reappropriation has the original amount and the reappropriated amount ("(re. $...)").</assert>
+      <!-- Old bond act reappropriations print no original amount (S.3004-D: "... (01347607) (80920) ......
+           (re. $7,294,000)"); class "noOriginal" records that, and is flagged so the source can be checked. -->
+      <assert role="warning" test="not(contains(concat(' ', @class, ' '), ' noOriginal '))">This reappropriation prints no original amount, only the amount reappropriated.</assert>
       <assert role="warning" test="not(.//a:quantity[@class = 'reappropriatedAmount'] and .//a:quantity[@class = 'originalAmount']) or number(.//a:quantity[@class = 'reappropriatedAmount']/@normalized) &lt;= number(.//a:quantity[@class = 'originalAmount']/@normalized) or ancestor::a:hcontainer[@name = 'reappropriationSource']//a:ref[contains(concat(' ', @class, ' '), ' supplemented ')]">The reappropriated amount is more than the original appropriation (and the source line names no supplement by transfer).</assert>
     </rule>
     <rule context="*[@refersTo = '#legislativeAddition']">
@@ -455,16 +458,29 @@
       <let name="off" value="sum(.//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
       <assert test="number(a:heading/a:quantity[@class = 'programTotal']/@normalized) = $sum or number(a:heading/a:quantity[@class = 'programTotal']/@normalized) = $sum - $off">The program total <value-of select="normalize-space(a:heading/a:quantity)"/> doesn't equal its items (<value-of select="format-number($sum, '#,##0')"/>).</assert>
     </rule>
-    <rule context="a:tr[@class = 'totalRow']/*[a:p/a:quantity]">
+    <rule context="a:table[contains(@class, 'projectSchedule')][a:tr[contains(concat(' ', @class, ' '), ' totalRow ')]//a:quantity]">
+      <!-- A project schedule allocates its item: its total (the last column, the state share, where there are
+           two) is the item's amount, in thousands of dollars where the caption says so. -->
+      <let name="item" value="number((ancestor::a:hcontainer[@name = 'appropriation' or @name = 'reappropriation'][1]/a:content/a:p//a:quantity[@class = 'amount' or @class = 'originalAmount'][not(ancestor::a:del)])[1]/@normalized)"/>
+      <let name="tot" value="number((a:tr[contains(concat(' ', @class, ' '), ' totalRow ')][last()]/*[a:p/a:quantity][last()]/a:p/a:quantity)[last()]/@normalized)"/>
+      <let name="mult" value="1 + 999 * number(contains(a:caption, 'thousands'))"/>
+      <assert test="string($item) = 'NaN' or $tot * $mult = $item">The project schedule's total (<value-of select="format-number($tot, '#,##0')"/><value-of select="substring(' thousand', 1, 9 * number($mult = 1000))"/>) isn't the amount of the item it allocates (<value-of select="format-number($item, '#,##0')"/>).</assert>
+    </rule>
+    <rule context="a:tr[contains(concat(' ', @class, ' '), ' totalRow ')]/*[a:p/a:quantity]">
       <let name="k" value="count(preceding-sibling::*) + 1"/>
-      <let name="sum" value="sum(../../a:tr[@class = 'summaryRow']/*[position() = $k]/a:p/a:quantity/@normalized)"/>
+      <let name="sum" value="sum(../../a:tr[contains(concat(' ', @class, ' '), ' summaryRow ')]/*[position() = $k]/a:p/a:quantity[not(@class = 'offset')]/@normalized) - sum(../../a:tr[contains(concat(' ', @class, ' '), ' summaryRow ')]/*[position() = $k]/a:p/a:quantity[@class = 'offset']/@normalized)"/>
       <assert test="number(a:p/a:quantity/@normalized) = $sum">The summary total <value-of select="normalize-space(.)"/> doesn't equal the rows above it (<value-of select="format-number($sum, '#,##0')"/>).</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'agencySummary']">
       <let name="ag" value="string(../@refersTo)"/>
-      <let name="appr" value="sum(..//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
-      <let name="off" value="sum(..//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
-      <let name="reappr" value="sum(key('agency', $ag)//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
+      <!-- A summary that covers more than its own agency (CUNY's Senior Colleges summary also counts the Community
+           Colleges) refers to each agency it covers. -->
+      <let name="refs" value="concat(' ', normalize-space(@refersTo), ' ')"/>
+      <let name="many" value="contains(normalize-space(@refersTo), ' ')"/>
+      <let name="scope" value="//a:hcontainer[@name = 'agency'][$many and contains($refs, concat(' ', @refersTo, ' '))]"/>
+      <let name="appr" value="sum(..//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized) * number(not($many)) + sum($scope//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
+      <let name="off" value="sum(..//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized) * number(not($many)) + sum($scope//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
+      <let name="reappr" value="sum(key('agency', $ag)//a:quantity[@class = 'reappropriatedAmount']/@normalized) * number(not($many)) + sum($scope//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']) or (number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr - $off)">The agency summary's appropriations total doesn't equal the agency's items (<value-of select="format-number($appr, '#,##0')"/>).</assert>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']) or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']/@normalized) = $reappr">The agency summary's reappropriations total doesn't equal the agency's reappropriations (<value-of select="format-number($reappr, '#,##0')"/>).</assert>
     </rule>

@@ -443,7 +443,7 @@
     // the last line must leave room for " . " and the amount before the end column
     let (amt, endc) = tail
     let lastcol = if lines.len() == 1 { first } else { cont }
-    let room = endc - lastcol - amt.len() - 3
+    let room = endc - lastcol - amt.clusters().len() - 3
     let last = lines.last()
     if line-len(last) > room {
       let keepw = ()
@@ -460,7 +460,7 @@
     if lastl and tail != none {
       let (amt, endc) = tail
       let used = col + line-len(l)
-      let dots = endc - used - 2 - amt.len()
+      let dots = endc - used - 2 - amt.clusters().len()
       out.push(a-line(col, draw-line(l) + nb(1) + leaders(dots) + nb(1) + amt))
     } else if not lastl and just {
       out.push(a-line(col, draw-just(l, right - col, i)))
@@ -534,6 +534,118 @@
   out
 }
 
+// A project schedule (under an item or a reappropriation): projects at column 0, words to column 30, amounts to
+// 44; its total, "Total" at column 2 closed by a double rule, or "Project schedule total" at column 0.
+#let project-lines(ps) = {
+  // a schedule kept line for line as printed (the aviation net project cost schedule)
+  if "preformatted" in attr(ps, "class").split(" ") {
+    let title = attr(ps, "title")
+    let out = (a-blank, a-line(calc.floor((72 - title.clusters().len()) / 2), title.replace(" ", nb(1))))
+    for r in kids(ps, "tr") { out.push(a-line(0, text-of(kid(r.children.find(is-el), "p")).replace(" ", nb(1)))) }
+    return out
+  }
+  // Its width: 44 columns, or 58 ("wide": Capital Projects). Amount columns end at the right edge, a second one
+  // (two columns: estimated total and state share) 14 to its left.
+  let W = if "wide" in attr(ps, "class").split(" ") { 58 } else { 44 }
+  let rows = kids(ps, "tr")
+  let head = rows.find(r => attr(r, "class") == "headerRow")
+  let ncol = calc.max(1, ..rows.map(r => els(r).len() - 1))
+  let ends = if ncol == 1 { (W,) } else { (W - 14, W) }
+  let pad(s, n) = nb(calc.max(0, n - s.clusters().len())) + s
+  // its title centred over the schedule
+  let title = if attr(ps, "title") != "" { attr(ps, "title") } else { "Project Schedule" }
+  let lines = (a-blank, a-line(calc.floor((W - title.clusters().len()) / 2), title.replace(" ", nb(1))))
+  if head != none {
+    // the head's words by column, stacked and bottom-aligned: "PROJECT" at column 0, each amount column's words
+    // set flush with the column's end
+    let cols = els(head).map(th => kids(th, "p").map(p => text-of(p)))
+    let depth = calc.max(..cols.map(c => c.len()))
+    for i in range(depth) {
+      let s = ""
+      for (k, c) in cols.enumerate() {
+        let j = i - (depth - c.len())
+        if j < 0 { continue }
+        let t = c.at(j)
+        if k == 0 { s = t } else {
+          let e = ends.at(calc.min(k - 1, ends.len() - 1))
+          s = s + pad(t, e - s.clusters().len())
+        }
+      }
+      lines.push(a-line(0, s.replace(" ", nb(1))))
+    }
+    lines.push(rule-line(0, n: W))
+  }
+  let cap = kid(ps, "caption")
+  if cap != none { let t = text-of(cap); lines.push(a-line(W - t.clusters().len(), t.replace(" ", nb(1)))) }
+  // an amount cell as printed: a struck amount in brackets ("[208,360,000]190,360,000"), the bracket of a run
+  // of struck rows that closes on it, an offset in parentheses
+  let amount-cell(c) = {
+    let p = kid(c, "p")
+    if p == none { return "" }
+    p.children.map(n => {
+      if type(n) == str { n.trim() }
+      else if is-el(n) and n.tag == "del" {
+        let k = attr(n, "class")
+        (if k in ("", "spanStart") { "[" } else { "" }) + text-of(n) + (if k in ("", "spanEnd") { "]" } else { "" })
+      } else if is-el(n) and n.tag == "quantity" and attr(n, "class") == "offset" { "(" + text-of(n) + ")" }
+      else if is-el(n) { text-of(n) } else { "" }
+    }).join()
+  }
+  // the amounts of a row as one tail: one amount, or two set in their columns (9 and 14 wide)
+  let tail-of(cs) = {
+    let a = cs.slice(1).map(amount-cell)
+    if ncol == 1 { a.at(0, default: "") } else { pad(a.at(0, default: ""), 9) + pad(a.at(1, default: ""), 14) }
+  }
+  // words of a two-column row: its last line takes leaders up to the amounts, or none where it is full
+  let two-col(ws, first, cont, tail) = {
+    let right = W - 24
+    let ls = wrap2(ws, right - first, right - cont)
+    let out = ()
+    for (i, l) in ls.enumerate() {
+      let col = if i == 0 { first } else { cont }
+      if i < ls.len() - 1 { out.push(a-line(col, draw-line(l))); continue }
+      let used = col + line-len(l)
+      let gap = W - 23 - used
+      out.push(a-line(col, draw-line(l) + (if gap >= 3 { nb(1) + leaders(gap - 1) } else { nb(calc.max(gap, 0)) }) + tail))
+    }
+    out
+  }
+  let total-rule(tr, ch) = {
+    if ncol == 1 { return rule-line(W - 14, ch: ch) }
+    let a = els(tr).slice(1).map(amount-cell)
+    let s = ""
+    for (k, e) in ends.enumerate() { let t = a.at(k, default: ""); s = s + pad(ch * t.clusters().len(), e - s.clusters().len()) }
+    a-line(0, s)
+  }
+  for r in rows.filter(r => attr(r, "class") != "headerRow") {
+    let toks = attr(r, "class").split(" ")
+    let cs = els(r)
+    let ps_ = kids(cs.at(0), "p")
+    let label = ps_.at(0)
+    let lvl = if "level1" in toks { 2 } else { 0 }
+    if "groupRow" in toks {
+      lines += a-par(nodes-words(label.children), first: lvl, cont: lvl + 2, right: W, just: false)
+      continue
+    }
+    let a = tail-of(cs)
+    if "totalRow" in toks {
+      let plain-total = text-of(label).starts-with("Total")
+      let col = if not plain-total { 0 } else if W == 44 { 2 } else { 4 }
+      lines.push(total-rule(r, "-"))
+      if ncol == 1 { lines += a-par(nodes-words(label.children), first: col, cont: col + 2, right: W, tail: (a, W), just: false) }
+      else { lines += two-col(nodes-words(label.children), col, col + 2, a) }
+      lines.push(total-rule(r, if plain-total { "=" } else { "-" }))
+      continue
+    }
+    let cont = if "noHang" in toks { lvl } else { lvl + 2 }
+    if ncol == 1 { lines += a-par(nodes-words(label.children), first: lvl, cont: cont, right: W - 14, tail: (a, W)) }
+    else { lines += two-col(nodes-words(label.children), lvl, cont, a) }
+    // words set after the amount ("-Academic Building I")
+    if ps_.len() > 1 { lines += a-par(nodes-words(ps_.at(1).children), first: lvl + 2, cont: lvl + 4, right: W - 14) }
+  }
+  lines
+}
+
 // Items, subtotals and totals of one group; "ruleAfter" / "doubleRuleAfter" draw the rule under an entry.
 #let render-entry(c) = {
   let name = attr(c, "name")
@@ -555,23 +667,7 @@
   }
   // a project schedule under the item: its projects (allocations of the item) and the schedule's total
   let ps = find(c, "table")
-  if name == "appropriation" and ps != none and attr(ps, "class") == "projectSchedule" {
-    lines.push(a-blank)
-    lines.push(a-line(14, "Project" + nb(1) + "Schedule"))
-    lines.push(a-line(0, "PROJECT" + nb(31) + "AMOUNT"))
-    lines.push(rule-line(0, n: 44))
-    for r in kids(ps, "tr").filter(r => attr(r, "class") != "headerRow") {
-      let cs = els(r)
-      let a = text-of(cs.at(1))
-      if attr(r, "class") == "totalRow" {
-        lines.push(rule-line(30))
-        lines += a-par(nodes-words(kid(cs.at(0), "p").children), first: 0, cont: 2, right: 44, tail: (a, 44), just: false)
-        lines.push(rule-line(30))
-      } else {
-        lines += a-par(nodes-words(kid(cs.at(0), "p").children), first: 0, cont: 2, right: 30, tail: (a, 44))
-      }
-    }
-  }
+  if name == "appropriation" and ps != none and "projectSchedule" in attr(ps, "class").split(" ") { lines += project-lines(ps) }
   if cls.contains("doubleRuleAfter") { lines.push(rule-line(44, ch: "=")) }
   else if cls.contains("ruleAfter") { lines.push(rule-line(44)) }
   lines
@@ -648,7 +744,7 @@
   if summary != none {
     blocks += render-summary(summary)
     // a summary without its "For payment according to ..." line has no SCHEDULE heading either
-    if kid(summary, "intro") != none { blocks.push((center-text("SCHEDULE"),)) }
+    if kid(summary, "intro") != none and attr(summary, "class") != "noScheduleLine" { blocks.push((center-text("SCHEDULE"),)) }
   }
   for prog in kids(n, "hcontainer").filter(c => attr(c, "name") == "program") {
     let h = kid(prog, "heading")
@@ -678,6 +774,27 @@
 #let render-reitem(c) = {
   let p = find(c, "p")
   let qs = els(p).filter(x => x.tag == "quantity")
+  if "noOriginal" in attr(c, "class").split(" ") {
+    // no original amount: the words, leaders and "(re. $...)" at the margin, or a line of leaders under the
+    // words when it does not fit
+    let re = text-of(qs.find(q => attr(q, "class") == "reappropriatedAmount"))
+    let all = nodes-words(p.children)
+    let ws = all.slice(0, calc.max(0, all.len() - 2))
+    let tail = "(re. $" + re + ")"
+    let lines = wrap2(ws, 70, 68)
+    let last = lines.last()
+    let lastcol = if lines.len() == 1 { 2 } else { 4 }
+    let out = ()
+    for (i, l) in lines.slice(0, -1).enumerate() { out.push(a-line(if i == 0 { 2 } else { 4 }, draw-just(l, 72 - if i == 0 { 2 } else { 4 }, i))) }
+    let dots = 72 - lastcol - line-len(last) - 2 - tail.len()
+    if dots >= 3 {
+      out.push(a-line(lastcol, draw-line(last) + nb(1) + leaders(dots) + nb(1) + tail))
+    } else {
+      out.push(a-line(lastcol, draw-line(last) + nb(1) + leaders(72 - lastcol - line-len(last) - 1)))
+      out.push(a-line(4, leaders(72 - 4 - 1 - tail.len()) + nb(1) + tail))
+    }
+    return out
+  }
   let orig = text-of(qs.find(q => attr(q, "class") == "originalAmount"))
   let re = text-of(qs.find(q => attr(q, "class") == "reappropriatedAmount"))
   let cs = p.children
@@ -724,6 +841,8 @@
       for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children), first: 2, cont: 4, right: 72)) }
     } else if name == "reappropriation" {
       out += no-widows(render-reitem(c))
+      let ps = find(c, "table")
+      if ps != none and "projectSchedule" in attr(ps, "class").split(" ") { out += no-widows(project-lines(ps)) }
     }
   }
   out
@@ -734,7 +853,12 @@
   let summary = kids(n, "hcontainer").find(c => attr(c, "name") == "agencySummary")
   if summary != none {
     blocks += render-summary(summary)
-    if kid(summary, "intro") != none { blocks.push((center-text("SCHEDULE"),)) }
+    if kid(summary, "intro") != none and attr(summary, "class") != "noScheduleLine" { blocks.push((center-text("SCHEDULE"),)) }
+  }
+  // a note over all the reappropriations, at column 2 continued at 4 (Capital Projects, Transportation)
+  for note in kids(n, "hcontainer").filter(c => attr(c, "name") == "text") {
+    let c0 = if attr(note, "class") == "flush" { 0 } else { 2 }
+    blocks.push(a-par(nodes-words(find(note, "p").children), first: c0, cont: c0 + 2, right: 72))
   }
   for prog in kids(n, "hcontainer").filter(c => attr(c, "name") == "program") {
     let h = kid(prog, "heading")
@@ -745,7 +869,8 @@
       for src in kids(acct, "hcontainer").filter(c => attr(c, "name") == "reappropriationSource") {
         let lines = ()
         let intro = kid(src, "intro")
-        if intro != none { lines += no-widows(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72)) }
+        // a source line that also covers an earlier account is printed only there
+        if intro != none and attr(src, "class") != "continued" { lines += no-widows(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72)) }
         let content = kid(src, "content")
         if content != none {
           // an amended reappropriation: the lead-in, then the quoted text with its new and old matter
@@ -767,13 +892,17 @@
   let misc = kid(n, "num")
   // the budget line has three spaces before the fiscal year ("STATE OPERATIONS   2025-26")
   let sub = squeeze(text-of(kid(n, "subheading"))).replace(regex(" (\d{4}-\d{2})$"), m => "   " + m.captures.at(0))
-  let heads = (if misc != none { (text-of(misc),) } else { () }) + (text-of(kid(n, "heading")), sub)
+  // "(APPROPRIATED TO THE CITY UNIVERSITY CONSTRUCTION FUND)": a note under the department (Capital Projects)
+  let note = n.attrs.at("lbdc:headNote", default: n.attrs.at("headNote", default: none))
+  let names = (if misc != none { (text-of(misc),) } else { () }) + (text-of(kid(n, "heading")),)
+  if note != none { names.insert(1, note) }
+  let heads = names + (sub,)
   // A department over its agency ("DEPARTMENT OF FAMILY ASSISTANCE" / "OFFICE OF CHILDREN AND FAMILY SERVICES")
   // is set on consecutive lines, as for most of S.3000-D; the "MISCELLANEOUS -- ALL STATE DEPARTMENTS AND
   // AGENCIES" heading stands a line above its agency.
   let toks = attr(n, "class").split(" ")
-  let tight = heads.len() == 3 and not heads.first().starts-with("MISCELLANEOUS")
-  let slots = if tight { (0, 1, 3) } else { range(heads.len()).map(i => 2 * i) }
+  let tight = heads.len() >= 3 and not heads.first().starts-with("MISCELLANEOUS")
+  let slots = if tight { range(heads.len() - 1) + (heads.len(),) } else { range(heads.len()).map(i => 2 * i) }
   let ntop = slots.last() + 2
   let blocks = if "reappropriations" in toks { render-reapprops(n) } else { render-schedule(n) }
   let fg = {
