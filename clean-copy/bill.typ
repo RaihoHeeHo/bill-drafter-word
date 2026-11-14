@@ -495,6 +495,8 @@
   if intro != none { out.push(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 2, right: 58)) }
   let t = find(n, "table")
   let rows = kids(t, "tr")
+  // an intro with no table under it (CUNY and SUNY community colleges, covered by the summary before them)
+  if rows.filter(r => attr(r, "class") != "headerRow").len() == 0 { return out }
   out.push((a-line(40, "APPROPRIATIONS" + nb(2) + "REAPPROPRIATIONS"),))
   let body = ()
   for r in rows.filter(r => attr(r, "class") != "headerRow") {
@@ -528,6 +530,9 @@
     if nxt != none and attr(nxt, "name") == "accountCode" {
       let between = h.children.slice(h.children.position(c => c == p) + 1, h.children.position(c => c == nxt))
       nodes = (p,) + between + (nxt,)
+      // a letter after the number ("31900(M)", Capital Projects) is printed with it
+      let k = h.children.position(c => c == nxt) + 1
+      while k < h.children.len() and type(h.children.at(k)) == str and h.children.at(k).trim() != "" { nodes.push(h.children.at(k).trim()); k += 1 }
     }
     out += a-par(nodes-words(nodes), first: 2, cont: 4, right: right)
   }
@@ -628,6 +633,13 @@
       continue
     }
     let a = tail-of(cs)
+    if "totalRow" in toks and text-of(label).trim() == "" {
+      // a total printed as a bare amount under its rule (Transportation's schedules)
+      lines.push(total-rule(r, "-"))
+      lines.push(a-line(W - a.clusters().len(), a.replace(" ", nb(1))))
+      lines.push(total-rule(r, "="))
+      continue
+    }
     if "totalRow" in toks {
       let plain-total = text-of(label).starts-with("Total")
       let col = if not plain-total { 0 } else if W == 44 { 2 } else { 4 }
@@ -700,7 +712,12 @@
     (keep(..a-par(nodes-words(cs.first().children), first: 0, cont: 2, right: 72, just: false)),)
   } else if mode == "purpose" {
     let out = ()
-    for c in cs { for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children))) } }
+    for c in cs {
+      for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children))) }
+      // a schedule set inside the words of a purpose, before its amount
+      let ps = kid(kid(c, "content"), "table")
+      if ps != none { out += no-widows(project-lines(ps)) }
+    }
     out
   } else {
     // items. As measured on S.3000-D: the last two items stay together with the rule under them, and each
@@ -744,7 +761,7 @@
   if summary != none {
     blocks += render-summary(summary)
     // a summary without its "For payment according to ..." line has no SCHEDULE heading either
-    if kid(summary, "intro") != none and attr(summary, "class") != "noScheduleLine" { blocks.push((center-text("SCHEDULE"),)) }
+    if (kid(summary, "intro") != none and attr(summary, "class") != "noScheduleLine") or attr(summary, "class") == "scheduleLine" { blocks.push((center-text("SCHEDULE"),)) }
   }
   for prog in kids(n, "hcontainer").filter(c => attr(c, "name") == "program") {
     let h = kid(prog, "heading")
@@ -839,6 +856,9 @@
     let name = attr(c, "name")
     if name == "purpose" {
       for p in kids(kid(c, "content"), "p") { out += no-widows(a-par(nodes-words(p.children), first: 2, cont: 4, right: 72)) }
+      // a schedule set inside the words of a reappropriation, before its amounts (the aviation schedule)
+      let ps = kid(kid(c, "content"), "table")
+      if ps != none and "projectSchedule" in attr(ps, "class").split(" ") { out += no-widows(project-lines(ps)) }
     } else if name == "reappropriation" {
       out += no-widows(render-reitem(c))
       let ps = find(c, "table")
@@ -853,7 +873,7 @@
   let summary = kids(n, "hcontainer").find(c => attr(c, "name") == "agencySummary")
   if summary != none {
     blocks += render-summary(summary)
-    if kid(summary, "intro") != none and attr(summary, "class") != "noScheduleLine" { blocks.push((center-text("SCHEDULE"),)) }
+    if (kid(summary, "intro") != none and attr(summary, "class") != "noScheduleLine") or attr(summary, "class") == "scheduleLine" { blocks.push((center-text("SCHEDULE"),)) }
   }
   // a note over all the reappropriations, at column 2 continued at 4 (Capital Projects, Transportation)
   for note in kids(n, "hcontainer").filter(c => attr(c, "name") == "text") {
@@ -865,22 +885,35 @@
     if h != none { blocks.push(a-par(nodes-words(h.children), first: 0, cont: 2, right: 72, just: false)) }
     for acct in kids(prog, "hcontainer").filter(c => attr(c, "name") == "account") {
       let ah = kid(acct, "heading")
+      let srcs = kids(acct, "hcontainer").filter(c => attr(c, "name") == "reappropriationSource")
+      // a source line printed above the account heading (Community Projects Fund accounts), with the entries
+      // read before the heading ("Maintenance Undistributed" / "For services and expenses ... provided:")
+      let above = srcs.len() > 0 and "leadAbove" in attr(srcs.first(), "class").split(" ")
+      if above {
+        let s0 = srcs.first()
+        let intro = kid(s0, "intro")
+        let pre = ()
+        if intro != none { pre += no-widows(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72)) }
+        pre += render-reentries(kids(s0, "hcontainer").filter(c => attr(c, "class") == "aboveHeading"))
+        blocks.push(pre)
+      }
       if ah != none { blocks.push(render-account-heading(ah, right: 72)) }
-      for src in kids(acct, "hcontainer").filter(c => attr(c, "name") == "reappropriationSource") {
+      for (si, src) in srcs.enumerate() {
         let lines = ()
         let intro = kid(src, "intro")
         // a source line that also covers an earlier account is printed only there
-        if intro != none and attr(src, "class") != "continued" { lines += no-widows(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72)) }
+        if intro != none and attr(src, "class") != "continued" and not (above and si == 0) { lines += no-widows(a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72)) }
         let content = kid(src, "content")
         if content != none {
-          // an amended reappropriation: the lead-in, then the quoted text with its new and old matter
+          // an amended reappropriation: the lead-in, then the quoted text with its new and old matter (a lead-in
+          // that also covers an earlier account is printed only there)
           let mod = find(content, "mod")
           let lead = mod.children.filter(c => not (is-el(c) and c.tag == "quotedStructure"))
-          lines += no-widows(a-par(nodes-words(lead), first: 0, cont: 4, right: 72))
+          if attr(src, "class") != "continued" { lines += no-widows(a-par(nodes-words(lead), first: 0, cont: 4, right: 72)) }
           lines += render-reentries(kids(find(mod, "quotedStructure"), "hcontainer"))
         }
-        lines += render-reentries(kids(src, "hcontainer"))
-        blocks.push(lines)
+        lines += render-reentries(kids(src, "hcontainer").filter(c => attr(c, "class") != "aboveHeading"))
+        if lines.len() > 0 { blocks.push(lines) }
       }
     }
   }
