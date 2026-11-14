@@ -64,8 +64,22 @@
       return cells;
     };
     const rows = []; let pending = [], caption = null;
+    // Rows labelled "(A)", "(B)" ... (or "(1)", "(2)" ...) whose cells all wrap: a line that doesn't start a label
+    // continues every cell of the row above (Education Law § 667).
+    const LABEL = /^\(([A-Z]|[0-9]{1,2})\)\s/;
+    const labelled = lines.filter(l => l.trim() && LABEL.test(cut(l)[0] || '')).length >= 2;
+    let inLabels = false;
     for (const l of lines) {
       if (!l.trim()) continue;
+      if (labelled) {
+        const cs = cut(l);
+        if (LABEL.test(cs[0] || '')) { inLabels = true; rows.push({ kind: '', cells: cs }); continue; }
+        if (inLabels && !isGroupLine(l) && !NOTE.test(l.trim())) {
+          const last = rows[rows.length - 1];
+          cs.forEach((c, k) => { if (c) last.cells[k] = last.cells[k] ? last.cells[k] + '\n' + c : c; });
+          continue;
+        }
+      }
       if (CAPTION.test(l.trim())) { caption = l.trim(); continue; }
       // Words waiting for a row end where a group or note begins: they finish the row above.
       if ((isGroupLine(l) || NOTE.test(l.trim())) && pending.length && rows.length) { rows[rows.length - 1].cells[0] += '\n' + pending.join('\n'); pending = []; }
@@ -78,9 +92,31 @@
       // its last line, so the words go with the row below.
       if (!isGapLine(l) && cells.slice(1).every(c => !c)) { pending.push(cells[0]); continue; }
       if (pending.length) { cells[0] = pending.concat(cells[0] ? [cells[0]] : []).join('\n'); pending = []; }
+      // A line with words only in one later column, under a row that has words there, continues that cell
+      // ("$640 plus 4.5% of excess over" / "$16,000" in Tax Law § 601).
+      const only = cells.map((c, k) => c ? k : -1).filter(k => k >= 0);
+      if (!cells[0] && only.length === 1 && last && last.kind === '' && last.cells[only[0]] && !/^\$?[\d.,]+%?$/.test(last.cells[only[0]])) {
+        last.cells[only[0]] += '\n' + cells[only[0]]; continue;
+      }
       rows.push({ kind: '', cells });
     }
     if (pending.length) { const last = rows[rows.length - 1]; if (last) last.cells[0] += '\n' + pending.join('\n'); }
+    // Columns of figures set only two spaces apart (".80  .60  .50") came out as one column: split them where every
+    // row of figures has the same number of figures (ISC 4217, LAB 577 ...). Heading words over them split too
+    // when they have as many parts; otherwise they head the first.
+    const NUMS = /^\$?[\d.,]+%?(?: {2,}\$?[\d.,]+%?)+$/;
+    for (let k = cols.length - 1; k >= 0; k--) {
+      const body = rows.filter(r => r.kind === '' && r.cells[k] && /\d/.test(r.cells[k]));
+      if (body.length < 2 || !body.every(r => NUMS.test(r.cells[k]))) continue;
+      const n = body[0].cells[k].split(/ {2,}/).length;
+      if (!body.every(r => r.cells[k].split(/ {2,}/).length === n)) continue;
+      for (const r of rows) {
+        const c = r.cells[k] || '', parts = c.split(/ {2,}/);
+        const put = r.kind !== '' ? [c].concat(new Array(n - 1).fill('')) : parts.length === n ? parts : [c].concat(new Array(n - 1).fill(''));
+        r.cells.splice(k, 1, ...put);
+      }
+      cols.splice(k, 1, ...new Array(n).fill(cols[k]));
+    }
     // Headings: the rows before the first one with an amount or a number in a later column, merged into one row.
     const firstData = rows.findIndex(r => r.kind !== '' || r.cells.slice(1).some(c => /[\d$%]/.test(c)));
     if (firstData > 0 && rows.slice(0, firstData).every(r => r.kind === '')) {
@@ -115,7 +151,12 @@
         while (end < lines.length && lines[end].trim() && !/^\s/.test(lines[end]) && !NOTE.test(lines[end].trim())) end++;
       }
       if (gaps >= 2) {
-        out.push({ start, end, table: blockToTable(lines.slice(start, end)) });
+        const table = blockToTable(lines.slice(start, end));
+        // Columns that don't line up from row to row (or wide spaces in justified prose) give a table with words in
+        // one column only: not a table the tools can work on, so the lines stay text, exactly as the Bank has them.
+        const used = new Set(); table.rows.forEach(r => r.cells.forEach((c, k) => { if (String(c).trim()) used.add(k); }));
+        if (used.size < 2) { i = end - 1; continue; }
+        out.push({ start, end, table });
         i = end - 1;
       }
     }
@@ -180,32 +221,46 @@
     if (o === n) return o ? [{ t: o, k: '' }] : [];
     if (!o.trim()) return n ? [{ t: n, k: 'ins' }] : [];
     if (!n.trim()) return [{ t: '[' + o + ']', k: 'del' }];
+    // A cell whose line breaks change is struck and replaced whole; otherwise word by word, line by line.
+    if (lines(o).length !== lines(n).length) return [{ t: '[' + o + ']', k: 'del' }, { t: ' ', k: '' }, { t: n, k: 'ins' }];
     return joinLines(BD.markChanges(lines(o), lines(n)));
   }
-  // A row taken out stays in the table in one pair of brackets: "[" before its first words, "]" after its last.
-  function struckRow(r) {
-    const filled = r.cells.map((c, k) => c.trim() ? k : -1).filter(k => k >= 0), first = filled[0], last = filled[filled.length - 1];
-    return { kind: r.kind, cells: r.cells.map((c, k) => c.trim() ? [{ t: (k === first ? '[' : '') + c + (k === last ? ']' : ''), k: 'del' }] : []) };
+  // Rows taken out stay in the table, inside ONE pair of brackets for each run of consecutive struck rows, read
+  // from the top left to the bottom right: "[" before the first words of the run's first row, "]" after the last
+  // words of its last row (LBDC practice: never a pair per row).
+  function struckRows(rs) {
+    const out = rs.map(r => ({ kind: r.kind, cells: r.cells.map(c => c.trim() ? [{ t: c, k: 'del' }] : []) }));
+    const filled = out.flatMap((r, i) => r.cells.map((c, k) => c.length ? [i, k] : null).filter(Boolean));
+    if (filled.length) {
+      const [fi, fk] = filled[0], [li, lk] = filled[filled.length - 1];
+      out[fi].cells[fk][0].t = '[' + out[fi].cells[fk][0].t;
+      out[li].cells[lk][0].t += ']';
+    }
+    return out;
   }
   const newRow = r => ({ kind: r.kind, cells: r.cells.map(c => c ? [{ t: c, k: 'ins' }] : []) });
   // The change from one text table to another, as a marked table.
   function markTable(oldT, nowT) {
     const O = oldT.rows, N = nowT.rows, rows = [];
+    let run = [];
+    const flush = () => { if (run.length) rows.push(...struckRows(run)); run = []; };
     for (const [i, j] of alignRows(O, N)) {
+      if (j < 0) { run.push(O[i]); continue; }
+      flush();
       if (i < 0) { rows.push(newRow(N[j])); continue; }
-      if (j < 0) { rows.push(struckRow(O[i])); continue; }
       const n = Math.max(O[i].cells.length, N[j].cells.length);
       const cells = [];
       for (let k = 0; k < n; k++) cells.push(markCell(O[i].cells[k] || '', N[j].cells[k] || ''));
       rows.push({ kind: N[j].kind, cells });
     }
+    flush();
     // Every row spans the same number of columns.
     const w = Math.max(0, ...rows.map(r => r.cells.length));
     for (const r of rows) while (r.cells.length < w) r.cells.push([]);
     return { table: true, caption: nowT.caption || oldT.caption, rows };
   }
   const insTable = t => ({ table: true, caption: t.caption, rows: t.rows.map(newRow) });
-  const delTable = t => ({ table: true, caption: t.caption, rows: t.rows.map(struckRow) });
+  const delTable = t => ({ table: true, caption: t.caption, rows: struckRows(t.rows) });
 
   /* Marking a text that holds tables: each table stands in the word diff as one marker paragraph. Tables are first
      paired old to new (in order, by similarity); a pair shares a marker, so the diff keeps it in place, and the
@@ -213,7 +268,14 @@
      stays in brackets. */
   function markWithTables(law, now, markText) {
     const LT = law.filter(isTable), NT = now.filter(isTable);
-    const pairs = alignRows(LT.map(t => ({ cells: [tableText(t)] })), NT.map(t => ({ cells: [tableText(t)] })));
+    const pairs0 = alignRows(LT.map(t => ({ cells: [tableText(t)] })), NT.map(t => ({ cells: [tableText(t)] })));
+    // An old table and a new one left unpaired side by side are one table changed a lot (rows struck and added).
+    const pairs = [];
+    for (const p of pairs0) {
+      const l = pairs[pairs.length - 1];
+      if (l && ((l[1] < 0 && p[0] < 0 && l[0] >= 0) || (l[0] < 0 && p[1] < 0 && l[1] >= 0))) { pairs[pairs.length - 1] = [Math.max(l[0], p[0]), Math.max(l[1], p[1])]; continue; }
+      pairs.push(p);
+    }
     // An unpaired table still pairs with one at the same place when the counts agree (a table rewritten whole).
     const tag = k => '⟦T' + k + '⟧', lawTag = new Map(), nowTag = new Map(), byTag = {};
     pairs.forEach(([i, j], k) => {

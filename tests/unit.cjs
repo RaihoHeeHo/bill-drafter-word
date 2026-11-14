@@ -167,6 +167,11 @@ t('tables marked against the Bank: changed amount, struck row, new row; both rea
   const added = BD.markChanges(['Text.'], ['Text.', BD.tableFromText('A  B\n1  2', true)]);
   assert.ok(added[1].rows.every(r => r.cells.every(c => c.every(x => x.k === 'ins'))));
   assert.deepStrictEqual(BD.tokens(['$1,250,000 and 4.5%.']).map(x => x.w), ['$1,250,000', 'and', '4.5%', '.']);
+  // two rows taken out together: one pair of brackets, top left to bottom right
+  const two = JSON.parse(JSON.stringify(law)), t2 = two.find(BD.isTable); t2.rows.splice(4, 2);
+  const m2 = BD.markChanges(law, two).find(BD.isTable), s2 = m2.rows.map(r => r.cells.map(flat).join('|')).join('\n');
+  assert.strictEqual((s2.match(/\[/g) || []).length, 1, s2); assert.strictEqual((s2.match(/\]/g) || []).length, 1, s2);
+  const r2 = BD.readings(BD.markChanges(law, two)); assert.ok(BD.sameText(r2.old, law) && BD.sameText(r2.now, two));
 });
 t('tables in Word: written as Word tables and read back the same', () => {
   const law = BD.lawParagraphs(ISC_TEXT), sub = BD.subdivisions(law, true)[0];

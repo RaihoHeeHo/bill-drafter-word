@@ -293,7 +293,7 @@
       }
       return out;
     };
-    // In a table, a pair of brackets can run from a row's first cell to its last.
+    // In a table, one pair of brackets can run across cells and rows, from the top left to the bottom right.
     return paras.map(p => BD.isTable && BD.isTable(p) ? { ...p, rows: p.rows.map(r => ({ ...r, cells: r.cells.map(c => one(c)) })) } : one(p));
   }
   // "TABLE ONE." right above a table is its caption.
