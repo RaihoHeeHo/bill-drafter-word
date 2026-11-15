@@ -216,6 +216,8 @@
       <let name="ver" value="string($id/a:FRBRExpression/a:FRBRversionNumber/@value)"/>
       <let name="suffix" value="substring(concat('--', $ver), 1, 3 * number(string-length($ver) &gt; 0))"/>
       <let name="uni" value="boolean($info/l:uniBill)"/>
+      <let name="amended" value="$id/a:FRBRExpression/a:FRBRdate[@name = 'amended']/@date"/>
+      <let name="introduced" value="number(translate($id/a:FRBRWork/a:FRBRdate/@date, '-', ''))"/>
       <assert test="normalize-space(a:p/a:docAuthority) = 'STATE OF NEW YORK'">The front matter must begin "STATE OF NEW YORK" (docAuthority).</assert>
       <assert test="$uni or $pn = '' or normalize-space(a:p/a:docNumber) = concat($digits, $suffix)">The printed bill number should be "<value-of select="concat($digits, $suffix)"/>", not "<value-of select="normalize-space(a:p/a:docNumber)"/>".</assert>
       <assert test="not($uni) or (normalize-space(a:p/a:docNumber[1]) = concat('S. ', translate($info/l:uniBill/@senate, $UP, ''), $suffix) and normalize-space(a:p/a:docNumber[2]) = concat('A. ', translate($info/l:uniBill/@assembly, $UP, ''), $suffix))">A uni-bill print shows both numbers, Senate first: "S. …" then "A. …", as recorded in lbdc:uniBill.</assert>
@@ -225,6 +227,8 @@
       <assert test="not($draft) or normalize-space(a:p/a:docNumber) = ''">A draft has no bill number yet; leave docNumber empty (the clean copy leaves the line blank).</assert>
       <assert test="not($draft) or not(a:p/a:docDate)">A draft has no introduction date yet; leave docDate out until the bill is introduced.</assert>
       <assert test="not(a:p/a:docDate/@date) or a:p/a:docDate/@date = $id/a:FRBRWork/a:FRBRdate/@date">The printed date is the date of original introduction (<value-of select="$id/a:FRBRWork/a:FRBRdate/@date"/>), on every print; it is not the date the bill was amended.</assert>
+      <assert test="$draft or not($amended) or number(translate($amended, '-', '')) &gt;= $introduced">An amended print cannot be dated before the bill was introduced (<value-of select="$id/a:FRBRWork/a:FRBRdate/@date"/>).</assert>
+      <assert role="warning" test="$draft or not($amended) or number(translate($amended, '-', '')) != $introduced">This amended print is dated the day the bill was introduced. That is the printed date, which every print keeps; the print itself was made the day of the action that names it ("print number 3006c"). See tools/print_dates.py.</assert>
       <assert test="$draft or a:p[@class = 'introduction']//a:docProponent">The "Introduced by" line must mark the sponsor (docProponent).</assert>
       <assert role="warning" test="not($draft) or a:p[@class = 'introduction']//a:docProponent or $info/l:requestedBy">This draft names no sponsor (docProponent) and no requester (lbdc:requestedBy).</assert>
       <assert test="$dname != 'concurrentResolution' or normalize-space(a:p/a:docType) = 'CONCURRENT RESOLUTION OF THE SENATE AND ASSEMBLY'">A concurrent resolution must carry the line "CONCURRENT RESOLUTION OF THE SENATE AND ASSEMBLY" (docType).</assert>

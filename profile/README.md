@@ -192,6 +192,8 @@ Tools:
   Legislation's text (PDF or saved HTML): number, sponsor, caption, recitals,
   RESOLVED clauses and an attached report; `resolution.typ` (beside `bill.typ`)
   prints it.
+* `tools/print_dates.py` finds the date each amended print was made from the
+  bill's actions (`read`) and writes it into the print's Expression (`set`).
 * `tools/print_lines.py` finds the page and lines where each purpose, item and
   reappropriation of a converted bill is printed.
 * `tools/line_vetoes.py` ties the Governor's line vetoes (cited by page and line)
