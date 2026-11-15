@@ -194,3 +194,4 @@ input.need { border-color: var(--warn); box-shadow: 0 0 0 1px var(--warn); }
 details#tables-card > summary { color: var(--ink); }
 details#tables-card[open] > summary { margin-bottom: 4px; }
 #pdf-actions .primary { flex: 1; }
+.std > button { white-space: nowrap; flex-shrink: 0; }
