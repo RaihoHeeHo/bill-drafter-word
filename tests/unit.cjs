@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'package', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -392,4 +392,51 @@ t('budget: the whole of S.3003-D, as the Python tools find it', () => {
   const V = B.placeVetoes(d, JSON.parse(fs.readFileSync(path.join(dir, 'vetoes-2025.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(dir, 'S3003D.lines.json'), 'utf8')));
   for (const v of V) assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number);
 });
+
+// Signed packages (.nysakn): made and checked here and by the profile's tools/nysakn.py, each checking the other's.
+pending.push((async () => {
+  const P = BD.nysakn, cp = require('child_process'), os = require('os');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill.akn.xml'), 'utf8');
+  const ann = await P.makeKeys({ name: 'Ann Drafter', role: 'drafter' }), ed = await P.makeKeys({ name: 'Ed Examiner', role: 'examiner' });
+  const ka = await P.loadKeys(ann), ke = await P.loadKeys(ed), trusted = new Set([ann.card.keyId]);
+  assert.ok(await P.cardValid(ann.card)); assert.ok(!await P.cardValid({ ...ann.card, name: 'Someone' }));
+  const z = await P.build({ xml, keys: ka, copy: 'clean', note: 'For proofreading' });
+  let o = await P.open(z, { trusted });
+  assert.strictEqual(o.signature.status, 'valid'); assert.strictEqual(o.void, null); assert.deepStrictEqual(o.warnings, []);
+  assert.strictEqual(o.fingerprint, await P.xmlFingerprint(xml)); assert.strictEqual(o.manifest.bill.lbd, 'LBD12345-01-6');
+  assert.ok((await P.open(z)).warnings.some(w => /does not yet trust/.test(w)));
+  const { files, order } = await P.readZip(z), rezip = ch => { const f = ch(new Map(files)); return P.writeZip([...order, ...[...f.keys()].filter(k => !order.includes(k))].filter(k => f.has(k)).map(k => ({ path: k, data: f.get(k), store: k === 'mimetype' }))); };
+  o = await P.open(await rezip(f => f.set('bill.akn.xml', new TextEncoder().encode(xml.replace('1234', '1235')))));
+  assert.ok(o.void && o.void.reasons.some(r => /bill.akn.xml was changed/.test(r)));
+  o = await P.open(await rezip(f => f.set('manifest.json', new TextEncoder().encode(new TextDecoder().decode(f.get('manifest.json')).replace('For proofreading', 'For printing')))));
+  assert.ok(o.void && o.void.reasons.some(r => /signature does not match/.test(r)));
+  o = await P.open(await rezip(f => f.set('extra.txt', new TextEncoder().encode('later'))), { trusted });
+  assert.strictEqual(o.void, null); assert.ok(o.warnings.some(w => /Left out extra.txt/.test(w)));
+  const e = await P.encrypt(z, { password: 'correct horse', to: [ed.card] }, ann.card);
+  assert.ok((await P.open(e)).needPassword);
+  assert.strictEqual((await P.open(e, { password: 'correct horse' })).signature.status, 'valid');
+  assert.strictEqual((await P.open(e, { keys: ke })).signature.status, 'valid');
+  assert.ok((await P.open(e, { password: 'wrong one' })).needPassword);
+  // the PDF carries its package
+  globalThis.PDFLib = require('pdf-lib');
+  const blank = await PDFLib.PDFDocument.create(); blank.addPage(); const pdf = await P.embedInPdf(await blank.save(), z, xml);
+  const att = await P.pdfAttachments(pdf);
+  assert.ok(P.isPdf(pdf)); assert.deepStrictEqual([...att.keys()].sort(), ['bill.akn.xml', 'bill.nysakn']);
+  assert.strictEqual((await P.open(att.get('bill.nysakn'), { trusted })).void, null);
+  n++; console.log('ok - signed packages: build, check, VOID, encryption, a PDF carrying its package');
+  // and the Python tools, each way
+  try { cp.execFileSync('python3', ['-c', 'import cryptography, lxml'], { stdio: 'ignore' }); } catch (x) { console.log('   (Python side skipped: needs python3 with cryptography and lxml)'); return; }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nysakn-')), tool = path.join(__dirname, '..', 'profile', 'tools', 'nysakn.py');
+  fs.writeFileSync(path.join(dir, 'js.nysakn'), z); fs.writeFileSync(path.join(dir, 'js-enc.nysakn'), e); fs.writeFileSync(path.join(dir, 'ed.key.json'), JSON.stringify(ed));
+  let r = cp.spawnSync('python3', [tool, 'check', path.join(dir, 'js.nysakn'), '--trust', ann.card.keyId, '--json'], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr); assert.strictEqual(JSON.parse(r.stdout).fingerprint, await P.xmlFingerprint(xml));
+  r = cp.spawnSync('python3', [tool, 'check', path.join(dir, 'js-enc.nysakn'), '--key', path.join(dir, 'ed.key.json'), '--no-profile'], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  fs.writeFileSync(path.join(dir, 'bill.xml'), xml);
+  cp.execFileSync('python3', [tool, 'key', '--name', 'Pat Proofreader', '--role', 'proofreader', '-o', path.join(dir, 'pat.key.json')]);
+  cp.execFileSync('python3', [tool, 'make', path.join(dir, 'bill.xml'), '--key', path.join(dir, 'pat.key.json'), '--to', path.join(dir, 'ed.key.json'), '-o', path.join(dir, 'py.nysakn')], { env: { ...process.env } });
+  o = await P.open(fs.readFileSync(path.join(dir, 'py.nysakn')), { keys: ke });
+  assert.strictEqual(o.signature.status, 'valid'); assert.strictEqual(o.void, null); assert.strictEqual(o.signature.signer.name, 'Pat Proofreader');
+  n++; console.log('ok - signed packages: the profile\'s tools/nysakn.py checks ours and we check its');
+})());
 Promise.all(pending).then(() => console.log(n + ' passed'), e => { console.error(e); process.exit(1); });

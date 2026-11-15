@@ -115,16 +115,18 @@
     });
     return out;
   }
-  async function cleanCopyPdf(xml, progress) {
+  // extra: more of the template's inputs, e.g. [['fingerprint', 'XXXX-XXXX-XXXX'], ['void', 'yes']] (signed packages).
+  async function cleanCopyPdf(xml, progress, extra) {
+    extra = extra || [];
     const c = await getEngine(progress);
     const ps = xml.length > PART_LIMIT * 1.15 ? parts(xml) : null;
-    if (!ps) { progress && progress('Laying out the clean copy…'); return (await c.compile(xml)).pdf; }
+    if (!ps) { progress && progress('Laying out the clean copy…'); return (await c.compile(xml, extra)).pdf; }
     if (!root.PDFLib) throw new Error('The PDF joiner (vendor/pdf-lib) did not load.');
     const done = [], pages = {}; let offset = 0;
     for (let i = 0; i < ps.length; i++) {
       progress && progress('Laying out the clean copy, part ' + (i + 1) + ' of ' + ps.length + (offset ? ' (from page ' + (offset + 1) + ')' : '') + '…');
       await new Promise(r => setTimeout(r, 0)); // let the pane show it
-      const r = await c.compile(ps[i].xml, [['page-offset', String(offset)], ['front', i === 0 ? 'yes' : 'no'], ['toc', i === ps.length - 1 ? 'yes' : 'no'], ['agency-pages', JSON.stringify(pages)]], '<agency-page>');
+      const r = await c.compile(ps[i].xml, [['page-offset', String(offset)], ['front', i === 0 ? 'yes' : 'no'], ['toc', i === ps.length - 1 ? 'yes' : 'no'], ['agency-pages', JSON.stringify(pages)]].concat(extra), '<agency-page>');
       try { for (const x of JSON.parse(r.query)) pages[x.eid] = x.page; }
       catch (e) { throw new Error('The clean copy could not be made: where the agencies begin could not be read (' + readable(e) + ').'); }
       const part = await root.PDFLib.PDFDocument.load(r.pdf);

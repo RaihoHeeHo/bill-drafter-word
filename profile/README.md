@@ -88,6 +88,21 @@ The rules (pattern `working-copy`):
 Who may edit, and when, is the editing tool's business (the Word add-in, or Propylon's editor): the file records
 what was done, so the checker can show the rules were kept.
 
+## Signed packages (0.4 draft, 2026-11-15)
+
+A document can travel in a signed package (`.nysakn`): a zip with the AKN-NY file, a manifest of every file's
+SHA-256 and the signer's Ed25519 signature over the manifest's exact bytes, optionally encrypted for a password
+or for named people (X25519). A clean copy PDF prints the bill's fingerprint (the start of its XML's SHA-256) at
+the foot of every page and carries its signed package inside. A package or PDF that fails a check is VOID. The
+format, the checks and what it is not (keys on the computer are for the demonstration; production would use the
+state's sign-ins or certificates) are in [PACKAGE.md](PACKAGE.md).
+
+```
+pip install cryptography pypdf
+python3 profile/tools/nysakn.py check bill.nysakn            # or a clean copy PDF; --rerender compares page words
+python3 profile/tests/test_package.py
+```
+
 ## Status
 
 Draft for discussion with LBDC and Propylon. The demo converter

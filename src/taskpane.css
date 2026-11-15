@@ -236,3 +236,13 @@ table.counts tr.prob td { color: var(--warn); font-weight: 600; }
 .rv-list li.stale .what { color: #b45309; }
 .rv-history { margin: 6px 0 0; padding-left: 1.2em; font-size: 12px; }
 button.mini:disabled { opacity: .45; }
+
+/* signed packages */
+.fp { font: 600 11.5px ui-monospace, Menlo, Consolas, monospace; letter-spacing: .03em; white-space: nowrap; }
+.sub { margin: 2px 0 6px 22px; }
+.pk-result { margin-top: 10px; }
+.verdict { border-left: 4px solid var(--warn); padding: 6px 10px; margin: 6px 0; background: rgba(0,0,0,.03); }
+.verdict.good { border-color: var(--accent); }
+.verdict.void { border-color: var(--err); background: rgba(180,35,24,.08); }
+.verdict.void b { color: var(--err); letter-spacing: .02em; }
+ul.bad, p.bad { color: var(--err); }

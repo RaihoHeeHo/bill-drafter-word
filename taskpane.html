@@ -249,6 +249,23 @@
     <div class="row" id="pdf-actions" hidden><button id="pdf-open" class="primary">Open the PDF</button><button id="pdf-save">Save .pdf</button></div>
   </div>
 
+  <div class="card" id="pk-card">
+    <h2>Signed package</h2>
+    <p class="hint">The bill's XML in a file only its signer could have made (.nysakn): anyone can check who signed it and that nothing in it changed since. One that fails is VOID. Signed with your key (Review tab, You), kept on this computer.</p>
+    <label class="check"><input type="radio" name="pk-copy" id="pk-working" checked> Working copy: with the suggestions, comments and review</label>
+    <label class="check"><input type="radio" name="pk-copy" id="pk-clean"> Clean copy: the bill as it reads (not while suggestions wait)</label>
+    <h3>Who can open it</h3>
+    <label class="check"><input type="radio" name="pk-lock" id="pk-lock-none" checked> Anyone who gets it (still signed)</label>
+    <label class="check"><input type="radio" name="pk-lock" id="pk-lock-pw"> With a password</label>
+    <div class="row" id="pk-pw-box" hidden><input id="pk-pw" type="password" placeholder="8 or more characters" autocomplete="new-password"><input id="pk-pw2" type="password" placeholder="The password again" autocomplete="new-password"></div>
+    <label class="check"><input type="radio" name="pk-lock" id="pk-lock-people"> Only these people (no password to share)</label>
+    <div id="pk-people" class="sub" hidden></div>
+    <label class="full">Note for whoever opens it <input id="pk-note" placeholder="Optional"></label>
+    <div class="row"><button id="pk-save" class="primary">Save signed package</button><button id="pk-check">Check a package or PDF…</button></div>
+    <input type="file" id="pk-file" accept=".nysakn,.pdf" hidden>
+    <div id="pk-result" class="pk-result" hidden></div>
+  </div>
+
   <div class="card">
     <h2>Bill information</h2>
     <p class="hint">Saved in the document as you type.</p>
@@ -269,7 +286,7 @@
 
   <details class="card" id="akn-card">
     <summary><b>For other systems</b> <span class="hint">Akoma Ntoso XML</span></summary>
-    <p class="hint">The bill as structured data in LBDC's AKN-NY profile (version 0.3), the same XML the clean copy is printed from.</p>
+    <p class="hint">The bill as structured data in LBDC's AKN-NY profile (version 0.3; working copies 0.4 draft), the same XML the clean copy is printed from.</p>
     <button id="to-akn" class="wide">Show the XML</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
     <textarea id="akn-out" rows="12" readonly spellcheck="false" aria-label="Akoma Ntoso XML"></textarea>
@@ -351,6 +368,7 @@
 <script src="src/lib/checks.js"></script>
 <script src="src/lib/akn.js"></script>
 <script src="src/lib/review.js"></script>
+<script src="src/lib/package.js"></script>
 <script src="src/lib/budget.js"></script>
 <script src="src/lib/budgetword.js"></script>
 <script src="src/lib/windowstore.js"></script>

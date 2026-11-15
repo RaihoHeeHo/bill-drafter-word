@@ -39,7 +39,18 @@
 #let doc = root.children.find(c => is-el(c))
 
 #set document(title: "Resolution")
-#set page(paper: "us-letter",
+// Signed packages: the bill's fingerprint at the foot of every page, and VOID on a copy that failed its checks (as bill.typ).
+#let fingerprint = sys.inputs.at("fingerprint", default: "")
+#let void-copy = sys.inputs.at("void", default: "no") == "yes"
+#let stamp = {
+  if void-copy {
+    place(center + horizon, rotate(-40deg, text(size: 150pt, weight: "bold", fill: rgb(180, 35, 24, 90), tracking: 6pt, "VOID")))
+  }
+  if fingerprint != "" {
+    place(bottom + left, dx: spec.left, dy: -0.32in, text(size: 6.5pt, fill: luma(110), "Signed package fingerprint " + fingerprint + if void-copy { " · VOID: this copy failed its checks" } else { "" }))
+  }
+}
+#set page(paper: "us-letter", foreground: stamp,
   margin: (left: spec.left, right: 8.5in - spec.left - spec.chars * char - 2pt, top: spec.top - 0.8 * spec.size,
     bottom: 11in - spec.top - (spec.lines - 1) * spec.pitch - 0.2 * spec.size))
 #set text(font: spec.font, size: spec.size, hyphenate: false, top-edge: 0.8em, bottom-edge: -0.2em)

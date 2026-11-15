@@ -94,6 +94,10 @@ A table with a caption or groups is written as the profile's *named table*. That
 
 **Marking.** Mark changes compares each table with the Bank's: rows are lined up by their words, in order. A changed cell is marked word by word (a sum stays one word: `[$100,000] $400,000`). A new row is underlined, and a row taken out stays in brackets. A table that is new to the law is underlined whole.
 
+## Signed packages
+
+The review's custom XML part (`urn:x-lbdc:bill-drafter:review`) also holds `cards`: each person's public card (name, role, Ed25519 and X25519 public keys, key id, self-signature), added when they say who they are. Private keys stay in the browser's storage on each computer (`bill-drafter-key:<name>|<role>`), as do the keys each person trusts (`bill-drafter-trusted:<name>`). A `.nysakn` package holds the XML the pane writes, signed; a signed clean copy PDF embeds `bill.nysakn` and `bill.akn.xml`. The format is in `profile/PACKAGE.md`.
+
 ## Document properties
 
 The Clean copy tab saves the bill information as custom document properties as it is typed, and both converters read them:

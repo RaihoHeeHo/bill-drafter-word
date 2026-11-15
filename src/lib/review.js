@@ -107,6 +107,28 @@
     return sec ? sha256hex(c14n(withoutComments(sec))) : '';
   }
 
+  // The sign-offs standing in a working copy's XML, each with whether its section has changed since (as validate.py's
+  // stale_signoffs): [{ section, by, date, stale }].
+  async function signoffsInXml(xml, DOMParserImpl) {
+    const doc = new (DOMParserImpl || root.DOMParser)().parseFromString(xml, 'application/xml'), out = [];
+    const wf = Array.from(doc.getElementsByTagNameNS(AKN, 'workflow')).find(w => w.getAttribute('source') === '#lbdc-review');
+    if (!wf) return out;
+    const names = {}; for (const p of Array.from(doc.getElementsByTagNameNS(AKN, 'TLCPerson'))) names[p.getAttribute('eId')] = p.getAttribute('showAs');
+    const standing = new Map();
+    for (const st of Array.from(wf.getElementsByTagNameNS(AKN, 'step'))) {
+      const sec = st.getAttributeNS(LBDC, 'section'), ev = st.getAttribute('refersTo');
+      if (!sec) continue;
+      if (ev === '#signedOff') standing.set(sec, st); else if (ev === '#signoffWithdrawn') standing.delete(sec);
+    }
+    const body = doc.getElementsByTagNameNS(AKN, 'body')[0];
+    for (const [sec, st] of standing) {
+      const el = body && Array.from(body.getElementsByTagNameNS(AKN, 'section')).find(s => s.getAttribute('eId') === sec);
+      const want = st.getAttributeNS(LBDC, 'hash'), who = (st.getAttribute('by') || '').replace(/^#/, '');
+      out.push({ section: sec, by: names[who] || who, date: st.getAttribute('date'), stale: !!(el && want && await sha256hex(c14n(withoutComments(el))) !== want) });
+    }
+    return out;
+  }
+
   /* ---------- in the working copy's XML ---------- */
   // <workflow source="#lbdc-review"> with a step per event; personId(name) gives the TLCPerson's eId.
   function workflowXml(steps, personId) {
@@ -123,6 +145,6 @@
       used.map(e => '<TLCEvent eId="' + e + '" href="/akn/ontology/event/us-ny/lbdc.' + e + '" showAs="' + EVENTS[e] + '"/>').join('');
   }
 
-  BD.review = { ROLES, ROLE_NAME, STATUS, FLOW, EVENTS, statusOf, handOff, mayDecide, maySignOff, mayProofread, signoffs, proofread, stepPeople, c14n, withoutComments, sha256hex, sectionHash, workflowXml, workflowRefs };
+  BD.review = { ROLES, ROLE_NAME, STATUS, FLOW, EVENTS, statusOf, handOff, mayDecide, maySignOff, mayProofread, signoffs, proofread, stepPeople, c14n, withoutComments, sha256hex, sectionHash, signoffsInXml, workflowXml, workflowRefs };
   if (typeof module !== 'undefined') module.exports = BD;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
