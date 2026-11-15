@@ -51,6 +51,7 @@
     get paragraphs() { return new Paras(contentOf(this.node)); }
     getRange() { return new Range(this.node); }
     get isNullObject() { return false; }
+    get id() { if (!CC.ids.has(this.node)) CC.ids.set(this.node, CC.ids.size + 1); return CC.ids.get(this.node); }
     get parentContentControlOrNullObject() { const a = parentSdt(this.node); return a ? ccFor(a) : NULL_CC; }
     getOoxml() { return { value: pkgOf(isInline(this.node) ? '<w:p xmlns:w="' + W + '">' + ser(this.node) + '</w:p>' : ser(this.node)) }; }
     insertOoxml(x, where) {
@@ -79,7 +80,7 @@
       return all.map(ccFor);
     }
   }
-  CC.cache = new WeakMap();
+  CC.cache = new WeakMap(); CC.ids = new Map();
   class Range extends Proxy {
     constructor(node) { super(); this.node = node; }
     insertOoxml(x, where) {

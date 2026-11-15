@@ -10,15 +10,19 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   await p.waitForTimeout(300); await p.screenshot({ path: OUT + '/0-start.png' });
   const notice = async () => (await p.textContent('#notice')).trim();
   const step = async (label, fn) => { await fn(); await p.waitForTimeout(150); console.log('-', label, '|', await notice()); };
-  await step('bank', async () => { await p.click('[data-tab=bank]'); await p.setInputFiles('#bank-files', fs.readdirSync(BANK).map(f => path.join(BANK, f))); await p.waitForFunction(() => /Loaded/.test(document.querySelector('#notice').textContent), null, { timeout: 60000 }); });
+  await step('bank', async () => { await p.click('#bank-btn'); await p.setInputFiles('#bank-files', fs.readdirSync(BANK).map(f => path.join(BANK, f))); await p.waitForFunction(() => /Loaded/.test(document.querySelector('#notice').textContent), null, { timeout: 60000 }); });
   await p.screenshot({ path: OUT + '/1-bank.png' });
-  await p.click('[data-tab=draft]');
+  await p.click('#bank-back');
+  await p.screenshot({ path: OUT + '/1b-no-bill.png' });
   await step('new bill', async () => { await p.fill('#nb-subject', 'affidavits'); await p.click('#nb-go'); });
   // One box: the law and the section ("GCN 12"); the first result is picked with Enter.
   const amend = async (law, q, act, extra) => {
     await p.fill('#sec-q', law + ' ' + q); await p.waitForTimeout(400);
     if (law === 'executive') await p.screenshot({ path: OUT + '/2a-search.png' });
     await p.press('#sec-q', 'Enter'); await p.waitForTimeout(100);
+    // A new pick never keeps the last section's choice.
+    const def = await p.$eval('input[name=act]:checked', r => r.value);
+    if (law === 'GCN' && q === '12' || law === 'ISC') if (def !== (q.includes('(') ? 'amendSub' : 'amend')) throw new Error('pick started at ' + def);
     await p.check('input[name=act][value=' + act + ']');
     if (extra) await extra();
     console.log('  button:', await p.textContent('#insert-amend'));
@@ -37,11 +41,18 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
     __typeInLaw('sexual orientation, gender identity', 'sexual orientation, height, weight, gender identity'),
     __typeInLaw('employ or to bar or to discharge', 'employ or to discharge'),
   ]));
+  // The drafter comes back to the pane from the document: the list shows what is not marked yet.
+  await p.waitForTimeout(1600); await p.evaluate(() => window.dispatchEvent(new Event('focus'))); await p.waitForTimeout(600);
+  console.log('dock:', await p.textContent('#dock-status'));
+  console.log('chips:', await p.$$eval('#outline li', l => l.map(x => x.textContent.replace(/\s+/g, ' ').trim())));
+  if (!/not yet bracketed/.test(await p.textContent('#dock-status'))) throw new Error('coming back to the pane did not show the unmarked edits');
+  await p.screenshot({ path: OUT + '/2d-unmarked.png' });
   await step('mark changes', () => p.click('#mark'));
+  console.log('dock:', await p.textContent('#dock-status'));
   // A table: amend Insurance Law § 4103(a), then edit its table in the pane's editor.
   await step('amend ISC 4103(a)', () => amend('ISC', '4103(a)', 'amendSub'));
   console.log('tables:', await p.$$eval('#table-list li', l => l.map(x => x.textContent)));
-  await step('open table editor', async () => { await p.click('#table-list li button'); await p.waitForTimeout(200); });
+  await step('open table editor', async () => { await p.click('#tables-card summary'); await p.click('#table-list li button'); await p.waitForTimeout(200); });
   await p.screenshot({ path: OUT + '/2b-table-editor.png', fullPage: false });
   const cell = (r, c) => '#te-grid textarea[aria-label="Row ' + r + ', column ' + c + '"]';
   await p.fill(cell(4, 2), '$400,000');                                   // change an amount
@@ -61,7 +72,9 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   console.log(await p.$$eval('#findings li', l => l.map(x => x.className + ' ' + x.textContent)));
   // The History finding's button goes to the section; the drafter types the history and puts it in.
   await step('history fix', async () => { await p.click('#findings li.warning:has-text("History") button:has-text("Add history")'); });
-  await step('history apply', async () => { await p.fill('#history-fix', 'chapter 55 of the laws of 2023'); await p.click('#history-apply'); });
+  await p.screenshot({ path: OUT + '/3b-history-row.png' });
+  await step('history apply', async () => { await p.fill('#outline li.open input', 'chapter 55 of the laws of 2023'); await p.click('#outline li.open button:has-text("Put it in")'); });
+  console.log('chips:', await p.$$eval('#outline li', l => l.map(x => x.textContent.replace(/\s+/g, ' ').trim())));
   await step('checks again', () => p.click('[data-tab=checks]')); await p.waitForTimeout(500);
   console.log('summary:', await p.textContent('#check-summary'));
   console.log(await p.$$eval('#findings li', l => l.map(x => x.className + ' ' + x.textContent)));
@@ -90,6 +103,17 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   });
   await p.screenshot({ path: OUT + '/5-export.png', fullPage: true });
   fs.writeFileSync(OUT + '/document.xml', await p.evaluate(() => __docXml()));
+  // The drafter deletes a section in the document: back in the pane, the list offers to renumber.
+  await p.click('[data-tab=draft]');
+  await p.evaluate(() => { const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const secs = [...__mockDoc.getElementsByTagNameNS(W, 'sdt')].filter(n => { const t = n.getElementsByTagNameNS(W, 'tag')[0]; return t && /^akn:section/.test(t.getAttribute('w:val')); });
+    const n = secs[2]; (n.parentNode.localName === 'p' ? n.parentNode : n).remove(); });
+  await p.waitForTimeout(1600); await p.evaluate(() => window.dispatchEvent(new Event('focus'))); await p.waitForTimeout(600);
+  const fixes = await p.textContent('#bill-fixes'); console.log('after deleting a section:', fixes);
+  if (!/not numbered in order/.test(fixes)) throw new Error('no renumber offer after deleting a section');
+  await p.screenshot({ path: OUT + '/6-renumber.png' });
+  await step('renumber', () => p.click('#bill-fixes button:has-text("Renumber")')); await p.waitForTimeout(300);
+  console.log('after renumbering:', JSON.stringify(await p.textContent('#bill-fixes')), await p.$$eval('#outline .n', l => l.map(x => x.textContent).join(' ')));
   console.log('ops', await p.evaluate(() => __ops.join(', ')));
   console.log('errors', errors);
   await b.close();

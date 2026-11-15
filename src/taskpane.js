@@ -6,9 +6,11 @@ const el = (tag, props, ...kids) => { const e = Object.assign(document.createEle
 let inWord = false;
 
 /* ---------- small helpers ---------- */
+// Messages show as a toast just above the buttons at the bottom, where the drafter's eyes are after pressing one.
+// Errors stay until dismissed; other messages go after a few seconds.
 function notice(text, isError) {
   const n = $('notice'); $('notice-text').textContent = text; n.className = 'notice' + (isError ? ' error' : ''); n.hidden = !text;
-  clearTimeout(notice.t); if (text && !isError) notice.t = setTimeout(() => { n.hidden = true; }, 8000);
+  clearTimeout(notice.t); if (text && !isError) notice.t = setTimeout(() => { n.hidden = true; }, 7000);
 }
 async function busy(btn, fn) {
   if (btn) btn.disabled = true;
@@ -133,7 +135,7 @@ async function newBill() {
     await tidy(ctx);
   }));
   $('subject').value = $('nb-subject').value;
-  await refresh(); notice('Bill started. Now add sections: the first one you add takes the place of the blank section 1.');
+  await refresh(); notice('Bill started. Add its sections below: the first one you add takes the place of the blank section 1.');
 }
 
 /* ---------- amending a law ----------
@@ -144,7 +146,9 @@ let bankIdx = {};
 async function fillLaws() {
   bankIdx = await BD.bank.index();
   const empty = !Object.keys(bankIdx).length;
-  $('bank-empty').hidden = !empty; $('sec-q').disabled = empty;
+  $('bank-empty').hidden = !empty; $('sec-q').disabled = empty; $('sec-help').hidden = empty || !!pick.sec;
+  const n = Object.keys(bankIdx).length, b = $('bank-btn');
+  b.textContent = empty ? 'Load the Bank' : 'Bank · ' + n + ' law' + (n === 1 ? '' : 's'); b.classList.toggle('warn', empty);
   welcome();
   return bankIdx;
 }
@@ -203,16 +207,18 @@ function chooseSec(law, s, unit) {
   $('picked-title').textContent = law.info.lawId + ' § ' + BD.secId(s.loc) + (s.title ? '. ' + s.title : '') + (s.missing ? ' (new)' : '');
   $('sec-preview').textContent = BD.lawParagraphs(s.text).map(p => BD.isTable(p) ? '[table, ' + p.rows.length + ' rows]\n' + p.rows.map(r => r.cells.map(c => String(c).replace(/\n/g, ' ')).join('  |  ')).join('\n') : p).join('\n');
   $('sec-preview-box').hidden = !!s.missing; $('sec-preview-box').open = false;
+  $('sec-help').hidden = true;
   showActions();
+  $('action').scrollIntoView({ block: 'nearest' });
 }
 function clearPick() {
   pick.law = null; pick.sec = null; pick.unit = null;
-  $('picked').hidden = true; $('action').disabled = true; $('sec-q').value = ''; $('sec-q').focus();
+  $('picked').hidden = true; $('action').hidden = true; $('sec-help').hidden = false; $('sec-q').value = ''; $('sec-q').focus();
 }
 const subsecs = () => BD.usesSubsections(pick.law && pick.law.info.lawId);
 function showActions() {
   const s = pick.sec, subs = s.missing ? [] : BD.subdivisions(BD.lawParagraphs(s.text), subsecs());
-  $('action').disabled = false;
+  $('action').hidden = false;
   const word = subsecs() ? 'subsection' : 'subdivision';
   $('sub-word').textContent = word; $('sub-word2').textContent = word;
   const sub = $('sub'); sub.innerHTML = '';
@@ -223,9 +229,11 @@ function showActions() {
   $('add-num').value = s.missing ? BD.secId(s.loc) : BD.nextFreeSection(pick.law, s.loc);
   const last = subs.length ? subs[subs.length - 1].unit : (subsecs() ? '' : '0');
   $('add-sub').value = subsecs() ? (last ? String.fromCharCode(last.charCodeAt(0) + 1) : 'a') : /^\d+$/.test(last) ? String(+last + 1) : last + '-a';
+  // Every pick starts from what was asked for, never from the last section's choice (a repeal left selected
+  // would repeal the next section too): a new number adds it, a unit typed amends that unit, otherwise amend.
   if (s.missing) radio('add').checked = true;
   else if (pick.unit && subs.some(x => x.unit.toLowerCase() === pick.unit.toLowerCase())) { radio('amendSub').checked = true; sub.value = subs.find(x => x.unit.toLowerCase() === pick.unit.toLowerCase()).unit; }
-  else if (radio('add').checked || radio('amendSub').disabled && radio('amendSub').checked) radio('amend').checked = true;
+  else radio('amend').checked = true;
   actionChanged();
 }
 // The button says what will happen; history only matters for an amendment or a repeal.
@@ -264,7 +272,8 @@ async function insertAmendment() {
   await insertSection(o.act, BD.sectionXml(o));
   await updateTitle(null);
   $('history').value = '';
-  notice(o.act === 'repeal' ? 'Repeal inserted.' : o.act === 'add' ? 'New ' + (o.unit ? 'unit' : 'section') + ' inserted, all underlined. Type over the ____ in the document.' : 'Section inserted with the law\'s text. Edit it in the document like plain text, then press Mark changes.');
+  clearPick(); $('sec-q').blur();
+  notice(o.act === 'repeal' ? 'Repeal inserted.' : o.act === 'add' ? 'New ' + (o.unit ? 'unit' : 'section') + ' inserted, all underlined. Type over the ____ in the document.' : 'Section inserted with the law\'s text. Edit it in the document as you would any text, then press Mark changes.');
 }
 // Brackets and underlines from comparing each amended text with the Bank.
 async function markChanges() {
@@ -296,12 +305,13 @@ async function markChanges() {
       done++;
     }
   }));
-  notice(done ? 'Marked changes in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (problems.length ? ' Skipped: ' + problems.join('; ') : '') : 'No amended sections to mark.' + (problems.length ? ' ' + problems.join('; ') : ''), !!problems.length && !done);
+  await refresh();
+  notice(done ? 'Brackets and underlines put in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (problems.length ? ' Skipped: ' + problems.join('; ') : '') : 'No amended sections to mark.' + (problems.length ? ' ' + problems.join('; ') : ''), !!problems.length && !done);
 }
 
 // "As amended by …": what the drafter typed, as the clause will cite it.
-function historyText(id) {
-  const h = $(id || 'history').value.trim().replace(/^,\s*/, '').replace(/[,.]\s*$/, '');
+function historyText(id, typed) {
+  const h = (typed != null ? typed : $(id || 'history').value).trim().replace(/^,\s*/, '').replace(/[,.]\s*$/, '');
   return !h ? '' : /^as (amended|added|renumbered|relettered)\b/i.test(h) ? h.replace(/^As/, 'as') : 'as amended by ' + h;
 }
 // The bill section that holds the cursor (or the selection).
@@ -315,14 +325,14 @@ async function sectionAtCursor(ctx) {
   }
   return null;
 }
-// Put the history into the amending clause of the section at the cursor, in place of any history it cites.
-async function applyHistory() {
-  const h = historyText('history-fix');
+// Put the history into the amending clause of section i, in place of any history it cites.
+async function applyHistory(i, typed) {
+  const h = historyText(null, typed);
   if (!h) throw new Error('Type the history first, e.g. "chapter 55 of the laws of 2023".');
   let where = '';
   await word(async ctx => quietly(ctx, async () => {
-    const sec = await sectionAtCursor(ctx);
-    if (!sec) throw new Error('Click inside the section in the document (its amending clause or the law\'s text), then press the button again.');
+    const sec = (await sectionControls(ctx))[i];
+    if (!sec) throw new Error('That section is no longer in the bill.');
     const tag = BD.parseTag(sec.tag);
     if (tag.act !== 'amend' && tag.act !== 'repeal') throw new Error('That section does not amend or repeal a provision, so it cites no history.');
     const mod = (await controlsByName(ctx, 'akn:mod', sec))[0];
@@ -334,7 +344,7 @@ async function applyHistory() {
     mod.insertText(clause, 'Replace'); await ctx.sync();
     where = sec.title || '';
   }));
-  $('history-fix').value = ''; $('history-card').hidden = true;
+  await refresh();
   notice('History put in the amending clause' + (where ? ' (' + where + ')' : '') + '.');
 }
 
@@ -347,7 +357,7 @@ const std = {
 };
 async function addStandard(kind) {
   await insertSection(kind, BD.sectionXml(std[kind]()));
-  notice({ shortTitle: 'Short title added as section 1.', findings: 'Findings added. Fill in the blank.', severability: 'Severability clause added before the effective date.', new: 'Blank section added. Type over the ____.' }[kind]);
+  notice({ shortTitle: 'Short title added as section 1.', findings: 'Findings added. Fill in the blank in the document.', severability: 'Severability clause added before the effective date.', new: 'Blank section added. Type over the ____ in the document.' }[kind]);
 }
 async function setEffective() {
   const addons = [...document.querySelectorAll('#eff-addons input:checked')].map(i => i.value);
@@ -361,26 +371,113 @@ async function setEffective() {
   notice(replaced ? 'Effective date replaced.' : 'Effective date added.');
 }
 
-/* ---------- outline and checks ---------- */
+/* ---------- the section list, kept up to date ----------
+   refresh() reads the bill and runs the checks, so the list can show each section's state (to fix, edits not
+   marked, history wanted) with its fix next to it. It runs after every change the pane makes and whenever the
+   drafter comes back to the pane from the document. */
 const KIND = { amend: 'Amend', add: 'Add', repeal: 'Repeal', new: '', shortTitle: 'Short title', findings: 'Findings', severability: 'Severability', effective: 'Effective date' };
+const SHORT = { Blanks: 'Fill in the blank', Citation: 'Citation', 'Already in law': 'Number taken', 'Amending clause': 'Clause', 'Effective date': 'Effective date', 'Short title': 'Short title', Structure: 'Missing text', Brackets: 'Brackets' };
+// openRow: the section whose history is being typed (rowDraft keeps what was typed across refreshes).
+let state = { model: null, found: [] }, hasBill = false, refreshing = null, again = false, openRow = null, rowDraft = '', rowFocus = false;
+const numOf = s => (s && s.num || '').replace(/\.$/, '') || 'that section';
 async function refresh() {
   if (!inWord) return;
+  if (refreshing) { again = true; return refreshing; }
+  refreshing = (async () => {
+    do { again = false; await refreshOnce(); } while (again);
+  })().finally(() => { refreshing = null; });
+  return refreshing;
+}
+// Clicking the pane focuses it, which starts a refresh; the list is not redrawn while the mouse button is down, or
+// the button under it would be replaced before the click lands.
+let pointerDown = false, released = [];
+document.addEventListener('pointerdown', () => { pointerDown = true; }, true);
+document.addEventListener('pointerup', () => { pointerDown = false; setTimeout(() => { const r = released; released = []; r.forEach(f => f()); }, 0); }, true);
+const mouseUp = () => pointerDown ? new Promise(r => released.push(r)) : null;
+async function refreshOnce() {
   const model = await Word.run(readModel);
+  const found = await BD.check(model, getLaw);
+  await mouseUp();
+  state = { model, found, at: Date.now() };
   hasBill = !!(model.title || model.sections.length);
-  $('no-bill').hidden = hasBill; $('bill-card').hidden = !hasBill; $('dock').hidden = !hasBill;
+  for (const id of ['add-card', 'dock']) $(id).hidden = !hasBill;
+  $('no-bill').hidden = hasBill; $('bill-card').hidden = !hasBill;
+  document.body.classList.toggle('has-dock', hasBill && !$('dock').closest('[data-panel]').hidden);
   welcome();
   if (model.title && document.activeElement !== $('subject')) $('subject').value = model.title.subject.replace(/^_+$/, '');
-  const ol = $('outline'); ol.innerHTML = '';
-  model.sections.forEach((s, i) => {
-    const what = s.law ? KIND[s.act] + ' ' + s.law + ' § ' + BD.secId(s.loc) + (s.unit ? ' subd. ' + s.unit : '') : (KIND[s.act] || (s.text || '').slice(0, 40));
-    const li = el('li', {}, el('span', { className: 'n', textContent: s.num || '?' }), el('span', { className: 'k', textContent: what }));
-    li.onclick = () => goTo(i); ol.append(li);
-  });
-  listTables(model);
+  $('subject').classList.toggle('need', found.some(f => f.fix === 'subject'));
+  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model);
+  const errs = found.filter(f => f.level === 'error').length;
+  $('check-count').textContent = String(errs); $('check-count').hidden = !errs || !hasBill;
   return model;
 }
+function drawOutline(model, found) {
+  const ol = $('outline'); ol.innerHTML = '';
+  model.sections.forEach((s, i) => {
+    const what = s.law ? KIND[s.act] + ' ' + s.law + ' § ' + BD.secId(s.loc) + (s.unit ? (BD.usesSubsections(s.law) ? '(' + s.unit + ')' : ' subd. ' + s.unit) : '') : (KIND[s.act] || (s.heading || s.text || '').replace(/_{2,}/g, '…').slice(0, 40) || 'Blank section');
+    const mine = found.filter(f => f.sec === i);
+    const main = el('button', { className: 'row-main', title: (s.num || '') + ' ' + what + ': go to it in the document' }, el('span', { className: 'n', textContent: s.num || '?' }), el('span', { className: 'k', textContent: what }));
+    main.onclick = () => busy(null, () => goTo(i));
+    const chips = el('span', { className: 'chips' });
+    const chip = (text, cls, title, fn) => { const b = el('button', { className: 'chip ' + cls, textContent: text, title }); b.onclick = e => { e.stopPropagation(); busy(b, fn); }; chips.append(b); };
+    const mark = mine.find(f => f.fix === 'mark'), hist = mine.find(f => f.fix === 'history');
+    const others = mine.filter(f => f.level === 'error' && f.fix !== 'mark' && f.fix !== 'renumber');
+    if (mark) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', markChanges);
+    if (others.length) chip(others.length === 1 ? (SHORT[others[0].rule] || others[0].rule) : others.length + ' to fix', 'err', others.map(f => f.text).join('\n'), async () => showTab('checks', i));
+    if (hist) chip('Add history', 'warn', 'The amending clause should cite the last amendment. The Bank does not have it: type it in.', async () => { openRow = openRow === i ? null : i; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); });
+    if (!mine.some(f => f.level === 'error' || f.fix === 'history') && (s.act === 'amend' || s.act === 'add' || s.act === 'repeal')) chips.append(el('span', { className: 'ok', textContent: '✓', title: 'Nothing to fix' }));
+    const li = el('li', { className: openRow === i ? 'open' : '' }, el('div', { className: 'line' }, main, chips));
+    li.dataset.i = String(i);
+    if (openRow === i && hist) {
+      const inp = el('input', { placeholder: 'chapter 55 of the laws of 2023', autocomplete: 'off', value: rowDraft });
+      inp.oninput = () => { rowDraft = inp.value; };
+      inp.setAttribute('aria-label', 'As amended by');
+      const put = el('button', { className: 'primary', textContent: 'Put it in' });
+      put.onclick = () => busy(put, async () => { await applyHistory(i, inp.value); openRow = null; drawOutline(state.model, state.found); });
+      inp.onkeydown = e => { if (e.key === 'Enter') put.click(); if (e.key === 'Escape') { openRow = null; drawOutline(state.model, state.found); } };
+      li.append(el('div', { className: 'row-edit' }, el('label', { textContent: 'As amended by' }), el('div', { className: 'row' }, inp, put)));
+      if (rowFocus) { rowFocus = false; setTimeout(() => inp.focus()); }
+    }
+    ol.append(li);
+  });
+  markCurrent();
+}
+// Problems with the bill as a whole, each with its fix.
+function billFixes(found) {
+  const box = $('bill-fixes'); box.innerHTML = '';
+  const add = (text, label, fn) => {
+    const d = el('div', { className: 'callout' }, el('span', { textContent: text }));
+    if (label) { const b = el('button', { className: 'link', textContent: label }); b.onclick = () => busy(b, fn); d.append(' ', b); }
+    box.append(d);
+  };
+  if (found.some(f => f.fix === 'renumber')) add('The sections are not numbered in order.', 'Renumber them', () => renumber());
+  else if (found.some(f => f.fix === 'title' && f.level !== 'error' || f.fix === 'title' && /no title/.test(f.text))) add('The title does not match what the sections do.', 'Rebuild the title', async () => { await updateTitle(null); notice('Title rebuilt.'); });
+  if (found.some(f => f.fix === 'effective')) add('No effective-date section.', 'Add "This act shall take effect immediately."', async () => { $('eff-form').selectedIndex = 0; effPreview(); await setEffective(); });
+  const en = found.find(f => f.rule === 'Enacting clause'); if (en) add(en.text);
+}
+// The dock says whether the brackets and underlines are up to date.
+function dockStatus(model, found) {
+  const marked = model.sections.filter(s => s.act === 'amend' || s.act === 'add').length;
+  const need = [...new Set(found.filter(f => f.fix === 'mark').map(f => f.sec))].map(i => numOf(model.sections[i]));
+  const st = $('dock-status'), m = $('mark');
+  m.classList.toggle('primary', need.length > 0 || !marked);
+  st.className = 'dock-status' + (need.length ? ' need' : '');
+  st.textContent = need.length ? (need.length === 1 ? need[0] + ' has edits' : need.slice(0, -1).join(', ') + ' and ' + need[need.length - 1] + ' have edits') + ' not yet bracketed and underlined.'
+    : marked ? 'Brackets and underlines are up to date.' : 'After you edit a law\'s text in the document, Mark changes brackets and underlines it.';
+}
+// Standard sections already in the bill say so, and the effective date says whether it adds or replaces.
+function stdButtons(model) {
+  const at = act => model.sections.findIndex(s => s.act === act);
+  for (const [id, act, label] of [['add-short', 'shortTitle', 'Add'], ['add-findings', 'findings', 'Add'], ['add-sev', 'severability', 'Add']]) {
+    const i = at(act), b = $(id);
+    b.textContent = i < 0 ? label : 'Go to ' + numOf(model.sections[i]);
+    b.dataset.go = i < 0 ? '' : String(i);
+  }
+  $('st-name').hidden = at('shortTitle') >= 0;
+  const e = model.sections.map(s => s.act).lastIndexOf('effective');
+  $('add-eff').textContent = e < 0 ? 'Add this effective date' : 'Replace the effective date (' + numOf(model.sections[e]) + ')';
+}
 // The getting-started card shows until the Bank is loaded and a bill is started.
-let hasBill = false;
 function welcome() {
   const bank = Object.keys(bankIdx).length > 0;
   $('step-bank').classList.toggle('done', bank); $('step-bill').classList.toggle('done', hasBill);
@@ -388,25 +485,39 @@ function welcome() {
 }
 async function goTo(i) {
   await word(async ctx => { const secs = await sectionControls(ctx); if (secs[i]) { secs[i].select('Start'); await ctx.sync(); } });
+  current = i; markCurrent();
 }
-async function runChecks() {
-  const model = await word(readModel);
-  const found = await BD.check(model, getLaw);
+// The section holding the cursor is highlighted in the list.
+let current = -1;
+function markCurrent() { for (const li of $('outline').children) li.classList.toggle('current', +li.dataset.i === current); }
+async function findCurrent() {
+  if (!inWord) return;
+  const i = await Word.run(async ctx => {
+    const cc = await sectionAtCursor(ctx); if (!cc) return -1;
+    const secs = await sectionControls(ctx); cc.load('id'); secs.forEach(c => c.load('id')); await ctx.sync();
+    return secs.findIndex(c => c.id === cc.id);
+  }).catch(() => -1);
+  if (i !== current) { current = i; markCurrent(); }
+}
+async function runChecks(focusSec) {
+  const model = await refresh() || state.model, found = state.found;
   const ul = $('findings'); ul.innerHTML = '';
   const errs = found.filter(f => f.level === 'error').length, warns = found.filter(f => f.level === 'warning').length, notes = found.length - errs - warns;
-  $('check-count').textContent = String(errs); $('check-count').hidden = !errs;
   const sum = $('check-summary'), pl = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
   sum.className = 'summary ' + (errs ? 'bad' : warns ? 'meh' : 'good');
   sum.textContent = !found.length ? 'No problems found. The bill is ready for its clean copy.' : [errs && pl(errs, 'error') + ' to fix', warns && pl(warns, 'warning'), notes && pl(notes, 'note')].filter(Boolean).join(', ') + '.';
   if (!found.length) return;
-  found.sort((a, b) => ['error', 'warning', 'info'].indexOf(a.level) - ['error', 'warning', 'info'].indexOf(b.level));
-  const FIX = { history: ['Add history', async f => { showTab('draft'); await goTo(f.sec); openHistory(); notice('The cursor is in ' + ((model.sections[f.sec].num || '').replace(/\.$/, '') || 'that section') + '. Type its last amendment and press "Put it in that section".'); }], renumber: ['Renumber', () => renumber()], title: ['Update title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', () => { showTab('draft'); $('subject').focus(); }] };
+  const FIX = { history: ['Add history', async f => { showTab('draft'); openRow = f.sec; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); $('outline').children[f.sec].scrollIntoView({ block: 'center' }); }], renumber: ['Renumber', () => renumber()], title: ['Rebuild the title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', async () => { showTab('draft'); $('subject').focus(); }] };
   for (const f of found) {
     const li = el('li', { className: f.level }, el('span', { className: 'rule', textContent: f.rule + ':' }), f.text);
-    if (f.sec != null) { const w = el('div', { className: 'where' }); const b = el('button', { textContent: 'Go to ' + ((model.sections[f.sec].num || '').replace(/\.$/, '') || 'section') }); b.onclick = () => goTo(f.sec); w.append(b); li.append(w); }
-    if (f.fix && FIX[f.fix]) { const b = el('button', { textContent: FIX[f.fix][0] }); b.onclick = () => busy(b, async () => { await FIX[f.fix][1](f); if (f.fix !== 'history') await runChecks(); }); li.append(b); }
+    if (f.sec != null) li.dataset.sec = String(f.sec);
+    const acts = el('div', { className: 'where' });
+    if (f.sec != null) { const b = el('button', { textContent: 'Go to ' + numOf(model.sections[f.sec]) }); b.onclick = () => busy(b, () => goTo(f.sec)); acts.append(b); }
+    if (f.fix && FIX[f.fix]) { const b = el('button', { textContent: FIX[f.fix][0] }); b.onclick = () => busy(b, async () => { await FIX[f.fix][1](f); if (f.fix !== 'history' && f.fix !== 'subject') await runChecks(); }); acts.append(b); }
+    if (acts.children.length) li.append(acts);
     ul.append(li);
   }
+  if (focusSec != null) { const li = ul.querySelector('li[data-sec="' + focusSec + '"]'); if (li) { li.classList.add('flash'); li.scrollIntoView({ block: 'center' }); } }
 }
 
 /* ---------- tables ----------
@@ -431,8 +542,9 @@ function listTables(model) {
     });
   });
   $('table-new-row').hidden = !sel.options.length;
-  if (!sel.options.length) ul.append(el('li', { className: 'hint', textContent: 'Tables live in the law\'s text: amend or add a section first.' }));
-  else if (!any) ul.append(el('li', { className: 'hint', textContent: 'No tables in the bill yet.' }));
+  $('tables-card').hidden = !sel.options.length || !$('table-editor').hidden;
+  const n = ul.children.length; $('table-count').textContent = n ? '· ' + n + ' in the bill' : '';
+  if (sel.options.length && !any) ul.append(el('li', { className: 'hint', textContent: 'No tables in the bill yet.' }));
 }
 function openEditor(model, si, pi) {
   const s = model.sections[si];
@@ -554,7 +666,15 @@ function infoSummary() {
   const what = i.billNumber ? H + ' bill ' + (i.house === 'assembly' ? 'A. ' : 'S. ') + i.billNumber.replace(/-+/, '--') + (i.date ? ', introduced ' + new Date(i.date + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '') : 'Draft for the ' + H + (i.lbd ? ', LBD ' + i.lbd : '') + ' (no bill number yet)';
   const sum = $('info-summary');
   sum.className = 'summary ' + (missing.length ? 'meh' : 'good');
-  sum.textContent = what + '.' + (missing.length ? ' Add ' + missing.join(' and ') + ' under Bill information below.' : '');
+  sum.textContent = what + '.';
+  for (const [id] of INFO) $(id).classList.remove('need');
+  if (missing.length) {
+    const ids = { 'the LBD number': 'lbd', 'the sponsor': 'sponsor', 'the date introduced': 'bdate' };
+    for (const m of missing) $(ids[m]).classList.add('need');
+    const b = el('button', { className: 'link', textContent: 'Add ' + missing.join(' and ') });
+    b.onclick = () => { const f = $(ids[missing[0]]); f.scrollIntoView({ block: 'center' }); f.focus(); };
+    sum.append(' ', b, '.');
+  }
 }
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
@@ -565,7 +685,7 @@ async function toAkn() {
   aknText = BD.toAkn(model, info);
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   const errs = (await BD.check(model, getLaw)).filter(f => f.level === 'error').length;
-  notice(errs ? 'Done, but Check found ' + errs + ' error' + (errs === 1 ? '' : 's') + ' to fix (Check tab).' : 'Done.', false);
+  return errs;
 }
 function saveAkn() {
   const name = ($('lbd').value.trim() || 'bill') + '.akn.xml';
@@ -575,7 +695,7 @@ function saveAkn() {
 
 let pdfUrl = null;
 async function toPdf() {
-  await toAkn();
+  const errs = await toAkn();
   const status = t => { $('pdf-status').textContent = t; };
   const t0 = Date.now();
   const pdf = await BD.cleanCopyPdf(aknText, status);
@@ -583,6 +703,11 @@ async function toPdf() {
   pdfUrl = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
   $('pdf-open').disabled = $('pdf-save').disabled = false; $('pdf-actions').hidden = false;
   status('Clean copy ready (' + Math.max(1, Math.round(pdf.length / 1024)) + ' KB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s).');
+  if (errs) {
+    const b = el('button', { className: 'link', textContent: 'Show them' }); b.onclick = () => showTab('checks');
+    $('pdf-status').append(' Check found ' + errs + ' error' + (errs === 1 ? '' : 's') + ' to fix before it goes out. ', b);
+  }
+  $('pdf-actions').scrollIntoView({ block: 'nearest' });
 }
 function savePdf() {
   const a = el('a', { href: pdfUrl, download: ($('lbd').value.trim() || 'bill') + ' clean copy.pdf' });
@@ -613,15 +738,18 @@ async function showBank() {
 }
 
 /* ---------- tabs and wiring ---------- */
-function showTab(name) {
+function showTab(name, focusSec) {
   for (const b of document.querySelectorAll('nav button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
   for (const p of document.querySelectorAll('[data-panel]')) p.hidden = p.dataset.panel !== name;
+  $('bank-btn').classList.toggle('on', name === 'bank');
+  document.body.classList.toggle('has-dock', name === 'draft' && hasBill);
+  if (!$('notice').classList.contains('error')) $('notice').hidden = true;
+  window.scrollTo(0, 0);
   // Opening a tab brings it up to date: checks run, the clean-copy summary reflects the bill information.
-  if (name === 'checks' && inWord) busy($('run-checks'), runChecks);
+  if (name === 'checks' && inWord) busy($('run-checks'), () => runChecks(focusSec));
   if (name === 'export') infoSummary();
   if (name === 'draft' && inWord) busy(null, refresh);
 }
-function openHistory() { $('history-card').hidden = false; $('history-card').scrollIntoView({ block: 'nearest' }); $('history-fix').focus(); }
 function showSeg(name) {
   for (const b of document.querySelectorAll('.seg button')) b.setAttribute('aria-selected', String(b.dataset.seg === name));
   for (const p of document.querySelectorAll('[data-segpanel]')) p.hidden = p.dataset.segpanel !== name;
@@ -636,20 +764,21 @@ function wire() {
   const on = (id, fn) => { const b = $(id); b.onclick = () => busy(b, fn); };
   $('notice-close').onclick = () => { $('notice').hidden = true; };
   on('go-bank', async () => showTab('bank')); on('go-bank2', async () => showTab('bank'));
-  on('nb-go', newBill); on('renumber', () => renumber());
+  on('bank-btn', async () => showTab('bank')); on('bank-back', async () => showTab('draft'));
+  on('nb-go', newBill);
   $('nb-subject').onkeydown = e => { if (e.key === 'Enter') $('nb-go').click(); };
   // The title follows the subject line: rebuilt when it changes.
   $('subject').onchange = () => busy(null, async () => { await updateTitle(null); notice('Title rebuilt.'); });
   $('subject').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
-  on('insert-amend', insertAmendment); on('mark', markChanges); on('history-apply', applyHistory);
+  on('insert-amend', insertAmendment); on('mark', markChanges);
   on('dock-check', async () => showTab('checks'));
-  on('history-open', async () => openHistory()); $('history-close').onclick = () => { $('history-card').hidden = true; };
-  $('history-fix').onkeydown = e => { if (e.key === 'Enter') $('history-apply').click(); };
   on('picked-clear', async () => clearPick());
-  on('add-short', () => addStandard('shortTitle')); on('add-findings', () => addStandard('findings'));
-  on('add-sev', () => addStandard('severability')); on('add-new', () => addStandard('new')); on('add-eff', setEffective);
+  // A standard section already in the bill: its button goes to it instead of adding another.
+  const stdOr = (id, kind) => on(id, async () => { const g = $(id).dataset.go; if (g) await goTo(+g); else await addStandard(kind); });
+  stdOr('add-short', 'shortTitle'); stdOr('add-findings', 'findings'); stdOr('add-sev', 'severability');
+  on('add-new', () => addStandard('new')); on('add-eff', setEffective);
   $('st-name').onkeydown = e => { if (e.key === 'Enter') $('add-short').click(); };
-  on('refresh', refresh); on('run-checks', runChecks);
+  on('run-checks', () => runChecks());
   // Tables
   on('table-new', async () => { const model = await word(readModel); openEditor(model, +$('table-target').value, null); });
   on('te-add-row', async () => { ed.table.rows.push({ kind: '', cells: new Array(ncols()).fill('') }); drawGrid(); });
@@ -668,7 +797,7 @@ function wire() {
   let st; for (const [id] of INFO) $(id).addEventListener('input', () => { infoSummary(); clearTimeout(st); st = setTimeout(() => busy(null, () => saveInfo(true)), 600); });
   // Law and section search, with the arrow keys and Enter.
   // A new search puts the last pick away, so the form always acts on what is shown.
-  let t; $('sec-q').oninput = () => { if (pick.sec) { pick.sec = null; $('picked').hidden = true; $('action').disabled = true; } clearTimeout(t); t = setTimeout(() => busy(null, search), 150); };
+  let t; $('sec-q').oninput = () => { if (pick.sec) { pick.sec = null; $('picked').hidden = true; $('action').hidden = true; } $('sec-help').hidden = !!$('sec-q').value.trim(); clearTimeout(t); t = setTimeout(() => busy(null, search), 150); };
   $('sec-q').onkeydown = e => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); moveActive(e.key === 'ArrowDown' ? 1 : -1); }
     else if (e.key === 'Enter') { e.preventDefault(); const items = [...$('sec-results').querySelectorAll('li[role=option]')]; const li = items[active >= 0 ? active : 0]; if (li) li.click(); }
@@ -702,6 +831,14 @@ async function start(host) {
     if (!$('year').value) { const y = new Date().getFullYear(); $('year').value = String(y % 2 ? y : y - 1); }
   }
   infoSummary(); welcome();
+  if (inWord) {
+    // Coming back to the pane after editing the document brings the section list up to date.
+    const back = () => { if (!document.hidden && Date.now() - (state.at || 0) > 1500) busy(null, refresh); };
+    window.addEventListener('focus', back); document.addEventListener('visibilitychange', back);
+    try {
+      let ct; Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, () => { clearTimeout(ct); ct = setTimeout(findCurrent, 400); });
+    } catch (e) { /* not in every host */ }
+  }
 }
 if (window.Office && Office.onReady) Office.onReady(info => start(info && info.host));
 else document.addEventListener('DOMContentLoaded', () => start(null));

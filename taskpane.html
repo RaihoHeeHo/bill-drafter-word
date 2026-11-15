@@ -9,15 +9,14 @@
 </head>
 <body>
 <header>
-  <div class="brand"><img src="assets/icon-32.png" alt="" width="20" height="20"> Bill Drafter <span class="demo">DEMO</span></div>
+  <div class="brand"><img src="assets/icon-32.png" alt="" width="20" height="20"> Bill Drafter <span class="demo">DEMO</span>
+    <button id="bank-btn" class="bank-btn" title="The laws this computer drafts from">Bank</button></div>
   <nav role="tablist">
     <button role="tab" data-tab="draft" aria-selected="true">Draft</button>
     <button role="tab" data-tab="checks">Check <span id="check-count" class="count" hidden></span></button>
     <button role="tab" data-tab="export">Clean copy</button>
-    <button role="tab" data-tab="bank">Bank</button>
   </nav>
 </header>
-<div id="notice" class="notice" role="status" aria-live="polite" hidden><span id="notice-text"></span><button id="notice-close" class="x" aria-label="Dismiss">×</button></div>
 
 <main>
 <!-- ============ Draft ============ -->
@@ -25,12 +24,10 @@
   <div id="welcome" class="card intro" hidden>
     <h2>Getting started</h2>
     <ol class="steps">
-      <li id="step-bank"><b>Load the Bank.</b> The laws this computer drafts from. <button id="go-bank" class="link">Open the Bank tab</button></li>
+      <li id="step-bank"><b>Load the Bank</b>, the laws this computer drafts from. <button id="go-bank" class="link">Load the Bank</button></li>
       <li id="step-bill"><b>Start a bill</b> below.</li>
-      <li><b>Add sections</b>: amend a law, or add a standard section.</li>
-      <li><b>Edit the law's text</b> in the document as plain text, then <b>Mark changes</b>.</li>
-      <li><b>Check</b> the bill and make the <b>clean copy</b>.</li>
     </ol>
+    <p class="hint">Then add sections, edit the law's text in the document as you would any text, and press <b>Mark changes</b>: brackets and underlines are put in for you.</p>
   </div>
 
   <div id="no-bill" class="card" hidden>
@@ -45,12 +42,13 @@
     <h2>This bill</h2>
     <label for="subject">In relation to</label>
     <input id="subject" placeholder="what the bill is about">
-    <p class="hint">The title ("AN ACT to amend …") is rebuilt for you whenever a section is added, and when you change this line.</p>
+    <p class="hint">The title ("AN ACT to amend …") is written from this line and the sections, and kept up to date for you.</p>
+    <div id="bill-fixes"></div>
+    <div class="head-row outline-head"><h3>Sections</h3><span class="hint" id="outline-hint">Click one to go to it</span></div>
     <ol id="outline" class="outline" aria-label="Sections of the bill"></ol>
-    <div class="row small"><button id="refresh" class="link">Refresh</button><button id="renumber" class="link">Renumber and rebuild the title</button></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="add-card">
     <h2>Add a section</h2>
     <div class="seg" role="tablist" aria-label="Kind of section">
       <button id="seg-amend" role="tab" aria-selected="true" data-seg="amend">Amend a law</button>
@@ -66,7 +64,8 @@
         <div class="picked-head"><b id="picked-title"></b><button id="picked-clear" class="link">Change</button></div>
         <details id="sec-preview-box"><summary>Show the law's text</summary><div id="sec-preview" class="preview"></div></details>
       </div>
-      <fieldset id="action" class="actions" disabled>
+      <p id="sec-help" class="hint">Type the law and the section, then pick it from the list. You can type the law's ID or a word of its name, and a subdivision: <i>GCN 12</i>, <i>executive 296(1)</i>, <i>tax 606(c)</i>.</p>
+      <fieldset id="action" class="actions" hidden>
         <legend>What the bill does</legend>
         <label><input type="radio" name="act" value="amend" checked> Amends the whole section</label>
         <label><input type="radio" name="act" value="amendSub"> Amends <span id="sub-word">subdivision</span> <select id="sub" aria-label="Which one"></select></label>
@@ -76,7 +75,7 @@
         <div id="history-row">
           <label for="history">Last amended by <span class="opt">(optional)</span></label>
           <input id="history" placeholder="e.g. chapter 55 of the laws of 2023" autocomplete="off">
-          <p class="hint">The Bank does not hold a section's history. Left blank, Check will remind you. <button id="history-open" class="link">Add history to a section already in the bill</button></p>
+          <p class="hint">The Bank does not hold a section's history. You can add it later from the section list.</p>
         </div>
         <button id="insert-amend" class="primary wide">Insert section</button>
       </fieldset>
@@ -100,16 +99,16 @@
           <button id="add-eff">Use this effective date</button>
         </div>
       </div>
-      <p class="hint">Each section goes where the Manual puts it, and the sections are renumbered.</p>
+      <p class="hint">Each section goes where the Drafting Manual puts it, and the sections are renumbered.</p>
     </div>
   </div>
 
-  <div class="card" id="tables-card">
-    <h2>Tables</h2>
-    <p class="hint">A table in the law's text is a real Word table. Change it in the document, or here: edit it as the law will read, and Mark changes brackets what you took out and underlines what you added.</p>
+  <details class="card" id="tables-card" hidden>
+    <summary><b>Tables</b> <span id="table-count" class="hint"></span></summary>
+    <p class="hint">A table in the law's text is a real Word table. Change it in the document, or here: edit it as the law will read, and the brackets and underlines are put in when you save.</p>
     <ul id="table-list" class="tlist"></ul>
     <div class="row" id="table-new-row"><select id="table-target" aria-label="Section to add a table to"></select><button id="table-new">New table</button></div>
-  </div>
+  </details>
 
   <div class="card editor" id="table-editor" hidden>
     <div class="head-row"><h2 id="te-title">Table</h2><button id="te-close" class="x" aria-label="Close the table editor">×</button></div>
@@ -128,18 +127,10 @@
     <div class="row"><button id="te-save" class="primary">Save to the bill</button><button id="te-cancel">Cancel</button></div>
   </div>
 
-  <div class="card" id="history-card" hidden>
-    <div class="head-row"><h2>Add history to a section in the bill</h2><button id="history-close" class="x" aria-label="Close">×</button></div>
-    <p class="hint">Click in the section in the document (its amending clause or the law's text), type its last amendment, and put it in.</p>
-    <label for="history-fix">As amended by</label>
-    <input id="history-fix" placeholder="e.g. chapter 55 of the laws of 2023" autocomplete="off">
-    <button id="history-apply" class="primary wide">Put it in that section</button>
-  </div>
-
   <div class="dock" id="dock" hidden>
+    <p id="dock-status" class="dock-status"></p>
     <button id="mark" class="primary" title="Compares each amended text with the Bank: what you took out goes in [brackets], what you added is underlined. Run it again after any edit.">Mark changes</button>
     <button id="dock-check">Check the bill</button>
-    <p class="hint">After editing the law's text: [brackets] and underlines, from the Bank.</p>
   </div>
 </section>
 
@@ -147,9 +138,9 @@
 <section data-panel="checks" hidden>
   <div class="card">
     <div class="head-row"><h2>Check the bill</h2><button id="run-checks" class="link">Check again</button></div>
+    <p class="hint">The title and enacting clause, section numbers and order, each amendment against the Bank (citation, history, marking), and style in new matter.</p>
     <p id="check-summary" class="summary"></p>
     <ul id="findings" class="findings"></ul>
-    <p class="hint">Checks the title and enacting clause, section numbers and order, each amendment against the Bank (citation, history, marking), and style in new matter.</p>
   </div>
 </section>
 
@@ -159,9 +150,8 @@
     <h2>Clean copy</h2>
     <p id="info-summary" class="summary"></p>
     <button id="to-pdf" class="primary wide">Make the clean copy (PDF)</button>
-    <div class="row" id="pdf-actions" hidden><button id="pdf-open">Open</button><button id="pdf-save">Save .pdf</button></div>
-    <p id="pdf-status" class="hint"></p>
-    <p class="hint">Printed here on this computer with LBDC's clean-copy template, line for line as the public prints. The first time, the typesetter takes a few seconds to load.</p>
+    <p id="pdf-status" class="hint">Typeset here on this computer with LBDC's clean-copy template, line for line as the public prints. The first one takes a few seconds while the typesetter loads.</p>
+    <div class="row" id="pdf-actions" hidden><button id="pdf-open" class="primary">Open the PDF</button><button id="pdf-save">Save .pdf</button></div>
   </div>
 
   <div class="card">
@@ -183,7 +173,7 @@
   </div>
 
   <details class="card" id="akn-card">
-    <summary><b>Akoma Ntoso XML</b> <span class="hint">for Propylon and other systems</span></summary>
+    <summary><b>For other systems</b> <span class="hint">Akoma Ntoso XML</span></summary>
     <p class="hint">The bill as structured data in LBDC's AKN-NY profile (version 0.3), the same XML the clean copy is printed from.</p>
     <button id="to-akn" class="wide">Show the XML</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
@@ -194,7 +184,7 @@
 <!-- ============ Bank ============ -->
 <section data-panel="bank" hidden>
   <div class="card">
-    <h2>The Bank on this computer</h2>
+    <div class="head-row"><h2>The Bank on this computer</h2><button id="bank-back" class="link">Back to the bill</button></div>
     <p id="bank-status" class="summary"></p>
     <p class="hint">Pick the law files the NYS Law Library downloads (one .json per law, e.g. <i>EDN - Education.json</i>), or the whole folder. They are kept in Word's storage on this computer only; nothing is sent anywhere. Pick them again when the Bank is updated.</p>
     <div class="row">
@@ -207,6 +197,7 @@
   </div>
 </section>
 </main>
+<div id="notice" class="notice" role="status" aria-live="polite" hidden><span id="notice-text"></span><button id="notice-close" class="x" aria-label="Dismiss">×</button></div>
 
 <script src="src/lib/drafting.js"></script>
 <script src="src/lib/laws.js"></script>

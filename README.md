@@ -6,7 +6,7 @@ A Word add-in that brings parts of the bill drafter into Word:
 2. **Tables.** A table in the law comes in from the Bank as a real Word table. Change it in Word or in the pane's table editor, which shows the table as the law will read: cells to type in, row kinds (headings, group, note), add or delete rows and columns, and paste rows from Excel or text. Saving marks it against the Bank: changed amounts bracketed and underlined, struck rows in brackets, new rows underlined.
 3. **Standard sections.** Short title, legislative findings, severability clause and effective date (the desktop drafter's forms and add-ons), each put where the Manual puts it, with the sections renumbered. The title ("AN ACT to amend … in relation to …; and to repeal …") is rebuilt from what the sections do.
 4. **Drafting checks.** Title and enacting clause, section numbers, order of the standard sections, effective date last, amending clause form and history, every amended text checked against the Bank (unmarked changes, nothing amended), added sections fully underlined and not already in the law, blanks left in, and style in new matter (gendered words, "said", "must", session-law citations, sums of money, "§" in text, stray brackets).
-5. **Akoma Ntoso in LBDC's profile.** Every part that means something is a tagged content control or a Bill Insert / Bill Delete run, so the .docx converts without guessing to Akoma Ntoso 3.0 XML in the shape of LBDC's **AKN-NY profile, version 0.3**: classed front matter and LBDC metadata, laws addressed by their Bank ID alone (`/akn/us-ny/act/consolidated/gcn/~sec_12`), the whole lead-in inside the `mod` with the history linked, New York's unit names (subdivision, or subsection for the Tax and Insurance Laws), renumbered and struck units, and bracket pairs split across units. The output passes the profile's validator. See [FORMAT.md](FORMAT.md). Get it from the pane (**Clean copy > Akoma Ntoso XML**), or `node tools/docx2akn.cjs bill.docx`.
+5. **Akoma Ntoso in LBDC's profile.** Every part that means something is a tagged content control or a Bill Insert / Bill Delete run, so the .docx converts without guessing to Akoma Ntoso 3.0 XML in the shape of LBDC's **AKN-NY profile, version 0.3**: classed front matter and LBDC metadata, laws addressed by their Bank ID alone (`/akn/us-ny/act/consolidated/gcn/~sec_12`), the whole lead-in inside the `mod` with the history linked, New York's unit names (subdivision, or subsection for the Tax and Insurance Laws), renumbered and struck units, and bracket pairs split across units. The output passes the profile's validator. See [FORMAT.md](FORMAT.md). Get it from the pane (**Clean copy > For other systems**), or `node tools/docx2akn.cjs bill.docx`.
 
 It does **not** try to look like a printed bill: no line numbers, no bill spacing or fonts.
 
@@ -36,12 +36,23 @@ If the add-in options are greyed out, the organization has turned off adding add
 
 The **Draft** tab opens with a short *Getting started* list until both steps are done.
 
-1. Open the pane (Home > Bill Drafter) and go to the **Bank** tab.
-2. **Choose a folder…** and pick the folder with the law files (e.g. `Downloads\NYS Law Library\NY-Law-Exporter\Downloads\<date>`), or **Choose files…** for a few laws. They are kept in Word's storage on this computer; nothing leaves it. Do this again when the Bank is updated.
-3. On **Draft**, type what the bill is in relation to and click **Start the bill**.
+1. Open the pane (Home > Bill Drafter) and press **Load the Bank** at the top right.
+2. **Choose a folder…** and pick the folder with the law files (e.g. `Downloads\NYS Law Library\NY-Law-Exporter\Downloads\<date>`), or **Choose files…** for a few laws. They are kept in Word's storage on this computer; nothing leaves it. Do this again when the Bank is updated (the button at the top right shows how many laws are loaded).
+3. Type what the bill is in relation to and click **Start the bill**.
 4. Under **Add a section**, type the law and the section in one box (`GCN 12`, `executive 296`, `tax 606(c)`), press Enter, choose what the bill does, and insert it.
 5. Edit the law's text in the document, then press **Mark changes** in the bar at the bottom of the pane.
-6. **Check the bill**, then on **Clean copy** fill in the bill information and make the PDF.
+6. On **Clean copy**, fill in the bill information and make the PDF.
+
+## While drafting
+
+The section list under **This bill** shows what each section does and what it still needs, and it brings itself up to date whenever you come back to the pane from the document:
+
+- **Not marked**: the law's text was edited but not bracketed and underlined yet. Press it (or **Mark changes**).
+- **Add history**: the amending clause doesn't cite the last amendment, which the Bank doesn't hold. Press it, type e.g. *chapter 55 of the laws of 2023*, and **Put it in**.
+- **Fill in the blank**, **Citation** and similar: an error; press it to see it on the **Check** tab.
+- **✓**: nothing to fix in that amendment.
+
+Click a section to go to it in the document; the section holding the cursor is highlighted. If the numbers or the title stop matching the sections (after deleting one in the document, say), a note above the list offers to renumber or rebuild the title. The bar at the bottom says whether the brackets and underlines are up to date. Standard sections already in the bill offer to go to them instead of adding another, and the effective date says whether it adds one or replaces the one in the bill.
 
 ## For developers
 
