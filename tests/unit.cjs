@@ -207,6 +207,57 @@ t('output is valid AKN-NY 0.3', () => {
   const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--quiet', ...files], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
 });
+// Several people (profile 0.4 working copies): Word's tracked changes are suggestions, not new matter; comments
+// come from the comments part; the XML is a working copy that the profile's own checker accepts.
+function trackedBill() {
+  const m = taxBill(), s = m.sections[0];
+  let body = BD.sectionXml({ act: 'amend', law: 'TAX', loc: '606', unit: 'c', num: 'Section 1.', clause: s.clause, content: [], more: [], quoted: s.quoted.paras }) +
+    BD.sectionXml({ act: 'effective', num: '§ 2.', content: [r('This act shall take effect immediately.')], more: [] });
+  const forty = '<w:r><w:rPr><w:rStyle w:val="BillInsert"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">forty</w:t></w:r>';
+  assert.ok(body.includes(forty), 'fixture: the forty run');
+  body = body.replace(forty, '<w:commentRangeStart w:id="1"/>' + forty + '<w:commentRangeEnd w:id="1"/><w:r><w:commentReference w:id="1"/></w:r>' +
+    '<w:ins w:id="9" w:author="Lee Smith" w:date="2026-11-14T15:20:00Z"><w:r><w:rPr><w:rStyle w:val="BillInsert"/></w:rPr><w:t xml:space="preserve"> or forty-five</w:t></w:r></w:ins>');
+  const eff = '<w:t xml:space="preserve">This act shall take effect immediately.</w:t></w:r>';
+  assert.ok(body.includes(eff), 'fixture: the effective date run');
+  body = body.replace(eff, '<w:t xml:space="preserve">This act shall take effect </w:t></w:r><w:del w:id="10" w:author="Ana Ruiz" w:date="2026-11-15T09:00:00Z"><w:r><w:delText>immediately</w:delText></w:r></w:del>' +
+    '<w:ins w:id="11" w:author="Ana Ruiz" w:date="2026-11-15T09:00:00Z"><w:r><w:t>on the thirtieth day after it shall have become a law</w:t></w:r></w:ins><w:r><w:t>.</w:t></w:r>');
+  const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml', W15 = 'http://schemas.microsoft.com/office/word/2012/wordml';
+  const comments = '<pkg:part pkg:name="/word/comments.xml" pkg:contentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"><pkg:xmlData><w:comments xmlns:w="' + BD.W_NS + '" xmlns:w14="' + W14 + '">' +
+    '<w:comment w:id="1" w:author="Lee Smith" w:date="2026-11-14T15:22:00Z"><w:p w14:paraId="0A000001"><w:r><w:t>Is this the Executive Budget figure?</w:t></w:r></w:p></w:comment>' +
+    '<w:comment w:id="2" w:author="Kim Lo" w:date="2026-11-14T16:00:00Z"><w:p w14:paraId="0A000002"><w:r><w:t>Yes, per the sponsor.</w:t></w:r></w:p></w:comment>' +
+    '</w:comments></pkg:xmlData></pkg:part>' +
+    '<pkg:part pkg:name="/word/commentsExtended.xml" pkg:contentType="application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"><pkg:xmlData><w15:commentsEx xmlns:w15="' + W15 + '">' +
+    '<w15:commentEx w15:paraId="0A000001" w15:done="0"/><w15:commentEx w15:paraId="0A000002" w15:paraIdParent="0A000001" w15:done="0"/></w15:commentsEx></pkg:xmlData></pkg:part>';
+  const xml = BD.pkg(body).replace('</pkg:package>', comments + '</pkg:package>');
+  const model = BD.readBill(xml, DOMParser);
+  model.title = m.title; model.enacting = { text: BD.ENACTING };
+  return model;
+}
+t('several people: tracked changes are suggestions, comments are read, the working copy is valid', () => {
+  const m = trackedBill(), q = m.sections[0].quoted.paras;
+  assert.strictEqual(m.suggestions.total, 3, JSON.stringify(m.suggestions));
+  assert.deepStrictEqual(m.suggestions.bySection, [1, 2]);
+  assert.deepStrictEqual(m.suggestions.people.sort(), ['Ana Ruiz', 'Kim Lo', 'Lee Smith']);
+  assert.strictEqual(m.comments.length, 1); assert.strictEqual(m.comments[0].replies[0].by, 'Kim Lo');
+  // the tracked insertion is not new matter, and not in the text until it is accepted
+  assert.ok(!BD.readings(q).now.join(' ').includes('forty-five'));
+  assert.ok(m.sections[1].text.includes('immediately') && !m.sections[1].text.includes('thirtieth'));
+  // every person needs a review role
+  assert.throws(() => BD.toAkn(m, info()), e => e.missingRoles && e.missingRoles.length === 3);
+  const roles = { 'Lee Smith': 'examiner', 'Kim Lo': 'drafter', 'Ana Ruiz': 'proofreader' };
+  const x = BD.toAkn(m, info({ review: { roles } }));
+  assert.ok(x.includes('<ins><span lbdc:comment="c1">forty</span><span lbdc:suggest="insert" lbdc:by="#staff-lee-smith" lbdc:at="2026-11-14T15:20:00Z"> or forty-five</span></ins>'), x.slice(x.indexOf('<quotedStructure'), x.indexOf('</quotedStructure>')));
+  assert.ok(x.includes('<span lbdc:suggest="delete" lbdc:by="#staff-ana-ruiz" lbdc:at="2026-11-15T09:00:00Z">immediately</span>'));
+  assert.ok(x.includes('<lbdc:working status="drafting"><lbdc:comment id="c1" by="#staff-lee-smith"'));
+  assert.ok(x.includes('<lbdc:reply by="#staff-kim-lo"'));
+  // the effective date's kind is read from the text as it stands
+  assert.ok(/refersTo="#effectiveDate"/.test(x) && /class="immediate"/.test(x));
+  const cp = require('child_process'), os = require('os');
+  try { cp.execFileSync('python3', ['-c', 'import lxml'], { stdio: 'ignore' }); } catch (e) { return; }
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'akn-')), 'working.xml'); fs.writeFileSync(f, x);
+  const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), f], { encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+});
 t('the pane loads every file the clean-copy template reads', () => {
   // A file the template reads but the pane doesn't map stops the build with "failed to load file (access denied)".
   const dir = path.join(__dirname, '..'), js = fs.readFileSync(path.join(dir, 'src', 'cleancopy.js'), 'utf8');

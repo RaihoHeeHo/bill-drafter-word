@@ -41,19 +41,36 @@
   const lawUri = (id, loc, unit) => provision(lawBase(id), loc, unit, BD.usesSubsections(id));
 
   /* ---------- inline text ---------- */
-  // Bill Insert -> <ins>, Bill Delete -> <del> (its brackets are the print form, so they are left out).
+  // Bill Insert -> <ins>, Bill Delete -> <del> (its brackets are the print form, so they are left out). In a working
+  // copy (profile 0.4 draft) a run Word tracked is a suggestion, <span lbdc:suggest>, and a run inside a comment's
+  // range is wrapped in <span lbdc:comment>; both go inside the ins or del, never around them.
+  let review = null; // set by toAkn: {personId(name), anchor(wordCommentId), when(date)}
+  function wrap(r, inner) {
+    if (!review || !r.t.trim()) return inner;
+    const cms = (r.cm || '').split(' ').map(id => review.anchor(id)).filter((v, i, a) => v && a.indexOf(v) === i);
+    let out = inner;
+    if (r.sug) out = '<span lbdc:suggest="' + r.sug.kind + '" lbdc:by="#' + review.personId(r.sug.by) + '" lbdc:at="' + review.when(r.sug.at) + '"' + (cms.length ? ' lbdc:comment="' + cms.shift() + '"' : '') + '>' + out + '</span>';
+    for (const c of cms) out = '<span lbdc:comment="' + c + '">' + out + '</span>';
+    return out;
+  }
   function inline(rs) {
-    let out = '';
+    const groups = [];
     for (const r of rs) {
       if (!r.t) continue;
-      if (r.k === 'ins') {
-        const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(r.t);
-        out += m[2] ? m[1] + '<ins>' + x(m[2]) + '</ins>' + m[3] : x(r.t);
-      } else if (r.k === 'del') {
-        const t = r.t.replace(/^(\s*)\[/, '$1').replace(/\](\s*)$/, '$1');
-        const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(t);
-        out += m[2] ? m[1] + '<del' + (r.g ? ' data-g="' + r.g + '"' : '') + '>' + x(m[2]) + '</del>' + m[3] : x(t);
-      } else out += x(r.t);
+      if (!review && r.sug && r.sug.kind === 'insert') continue; // not a working copy: a waiting insertion is not in
+      const g = groups[groups.length - 1];
+      if (g && g.k === r.k && (r.k !== 'del' || g.g === r.g)) g.rs.push({ ...r }); else groups.push({ k: r.k, g: r.g, rs: [{ ...r }] });
+    }
+    let out = '';
+    for (const g of groups) {
+      const rs = g.rs, first = rs[0];
+      if (g.k === 'del') { first.t = first.t.replace(/^(\s*)\[/, '$1'); const l = rs[rs.length - 1]; l.t = l.t.replace(/\](\s*)$/, '$1'); }
+      if (g.k !== 'ins' && g.k !== 'del') { out += rs.map(r => wrap(r, x(r.t))).join(''); continue; }
+      const lead = /^\s*/.exec(first.t)[0]; first.t = first.t.slice(lead.length);
+      const last = rs[rs.length - 1], trail = /\s*$/.exec(last.t)[0]; last.t = last.t.slice(0, last.t.length - trail.length);
+      const inner = rs.map(r => wrap(r, x(r.t))).join('');
+      if (!rs.some(r => r.t.trim())) { out += lead + inner + trail; continue; }
+      out += lead + (g.k === 'ins' ? '<ins>' + inner + '</ins>' : '<del' + (g.g ? ' data-g="' + g.g + '"' : '') + '>' + inner + '</del>') + trail;
     }
     return out.replace(/^\s+|\s+$/g, '').replace(/ {2,}/g, ' ');
   }
@@ -308,6 +325,42 @@
      introduction date are left blank until a house introduces it. */
   function toAkn(model, info) {
     info = info || {};
+    const work_ = workingCopy(model, info);
+    review = work_;
+    try { return build(model, info, work_); } finally { review = null; }
+  }
+  /* A working copy (profile 0.4 draft): the draft carries suggestions (Word's tracked changes) or comments. Everyone
+     who made one has a review role (info.review.roles: {name: 'drafter'|'examiner'|'proofreader'}); status is who
+     has the draft. Returns null for a draft with neither. */
+  const ROLES = ['drafter', 'examiner', 'proofreader'];
+  function workingCopy(model, info) {
+    const sg = model.suggestions || { total: 0, people: [] }, comments = model.comments || [];
+    if (!sg.total && !comments.length) return null;
+    const roles = (info.review && info.review.roles) || {}, missing = sg.people.filter(n => !ROLES.includes(roles[n]));
+    if (missing.length) { const e = new Error('Give a review role (drafter, examiner or proofreader) to ' + missing.join(', ') + ': ' + (missing.length === 1 ? 'they' : 'they each') + ' made suggestions or comments in this draft.'); e.missingRoles = missing; throw e; }
+    const now = (info.now || new Date().toISOString()).replace(/\.\d+Z$/, 'Z');
+    const ids = new Map(); for (const n of sg.people) { let id = 'staff-' + (slugName(n) || 'person'); while ([...ids.values()].includes(id)) id += '-2'; ids.set(n, id); }
+    const anchors = new Map(); comments.forEach((c, i) => { for (const id of c.ids || [c.id]) anchors.set(String(id), 'c' + (i + 1)); });
+    const when = d => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(d || '') ? d : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d || '') ? d + 'Z' : now;
+    // Who has the draft follows the review's hand-offs, which the pane does not record yet: until it does, the drafter.
+    const status = 'drafting';
+    return { people: sg.people, roles, comments, status, personId: n => ids.get(n) || 'staff-unknown', anchor: id => anchors.get(String(id)), when };
+  }
+  function workingRefs(w) {
+    if (!w) return '';
+    const used = new Set(w.people.map(n => w.roles[n]));
+    return w.people.map(n => '<TLCPerson eId="' + w.personId(n) + '" href="/akn/ontology/person/us-ny/lbdc.' + w.personId(n).replace(/^staff-/, 'staff.') + '" showAs="' + x(n) + '" lbdc:role="#' + w.roles[n] + '"/>').join('') +
+      ROLES.filter(r => used.has(r)).map(r => '<TLCRole eId="' + r + '" href="/akn/ontology/role/us-ny/lbdc.' + r + '" showAs="' + r[0].toUpperCase() + r.slice(1) + '"/>').join('');
+  }
+  function workingInfo(w) {
+    if (!w) return '';
+    return '<lbdc:working status="' + w.status + '">' + w.comments.map((c, i) => {
+      const resolved = c.resolved ? ' resolved="true"' : '';
+      return '<lbdc:comment id="c' + (i + 1) + '" by="#' + w.personId(c.by) + '" at="' + w.when(c.at) + '"' + resolved + '><lbdc:text>' + x(c.text || '(no text)') + '</lbdc:text>' +
+        c.replies.map(r => '<lbdc:reply by="#' + w.personId(r.by) + '" at="' + w.when(r.at) + '"><lbdc:text>' + x(r.text || '(no text)') + '</lbdc:text></lbdc:reply>').join('') + '</lbdc:comment>';
+    }).join('') + '</lbdc:working>';
+  }
+  function build(model, info, work_) {
     const date = info.date || new Date().toISOString().slice(0, 10);
     const year = +(info.year || date.slice(0, 4));
     const start = year % 2 ? year : year - 1, session = start + '-' + (start + 1);
@@ -335,11 +388,11 @@
         if (s.act === 'repeal' || !s.quoted) content = '<p><mod eId="' + modId + '">' + lead + '</mod></p>';
         else content = '<p><mod eId="' + modId + '">' + lead + quoted(s.quoted, modId, sub) + '</mod></p>';
         mods.push({ type: s.act === 'repeal' ? 'repeal' : s.act === 'add' ? 'insertion' : 'substitution', source: modId, dest });
-        for (const p of s.paras) content += '<p>' + inline(p.map(r => ({ t: r.t, k: '' }))) + '</p>';
+        for (const p of s.paras) content += '<p>' + inline(p.map(r => ({ ...r, k: '' }))) + '</p>';
       } else {
         // Outside quoted text there is no new or old matter: the bill's own words are plain.
-        content = s.paras.map(p => '<p>' + inline(p.map(r => ({ t: r.t, k: '' }))) + '</p>').join('') || '<p/>';
-        if (s.act === 'effective') cls = effectiveClass(s.paras.map(plain).join(' '));
+        content = s.paras.map(p => '<p>' + inline(p.map(r => ({ ...r, k: '' }))) + '</p>').join('') || '<p/>';
+        if (s.act === 'effective') cls = effectiveClass(s.paras.map(p => plain(BD.pendingRuns ? BD.pendingRuns(p) : p)).join(' '));
       }
       body += '<section eId="' + eid + '"' + (cls ? ' class="' + cls + '"' : '') + (refers ? ' refersTo="#' + refers + '"' : '') + '><num>' + x(BD.sectionNum(i)) + '</num>' +
         (s.heading ? '<heading>' + x(s.heading) + '</heading>' : '') + '<content>' + content + '</content></section>';
@@ -347,7 +400,11 @@
     let hasSubject = false;
     const title = model.title ? (() => {
       const rs = model.title.runs || [{ t: model.title.text, k: '' }];
-      let t = ''; for (const r of rs) if (r.cc === 'akn:subject') { hasSubject = true; t += '<span refersTo="#subject">' + x(r.t) + '</span>'; } else t += x(r.t);
+      let t = '';
+      for (const r of rs) {
+        if (!review && r.sug && r.sug.kind === 'insert') continue;
+        if (r.cc === 'akn:subject') { hasSubject = true; t += '<span refersTo="#subject">' + wrap(r, x(r.t)) + '</span>'; } else t += wrap(r, x(r.t));
+      }
       return '<longTitle><p>' + t.trim() + '</p></longTitle>';
     })() : '<longTitle><p>AN ACT</p></longTitle>';
     if (hasSubject) used.add('subject');
@@ -379,9 +436,9 @@
       '</identification>' +
       (mods.length ? '<analysis source="#lbdc"><activeModifications>' + mods.map((m, k) =>
         '<textualMod eId="amod_' + (k + 1) + '" type="' + m.type + '"><source href="#' + m.source + '"/><destination href="' + m.dest + '"/></textualMod>').join('') + '</activeModifications></analysis>' : '') +
-      '<references source="#lbdc">' + refs.join('') + '</references>' +
+      '<references source="#lbdc">' + refs.join('') + workingRefs(work_) + '</references>' +
       '<proprietary source="#lbdc"><lbdc:documentInfo><lbdc:profile name="AKN-NY" version="' + PROFILE_VERSION + '"/><lbdc:house>' + house + '</lbdc:house><lbdc:session>' + session + '</lbdc:session>' +
-      (printNo ? '<lbdc:printNumber>' + printNo + '</lbdc:printNumber>' : '') + (lbd ? '<lbdc:lbdNumber>LBD' + x(lbd) + '</lbdc:lbdNumber>' : '') + '</lbdc:documentInfo></proprietary></meta>' +
+      (printNo ? '<lbdc:printNumber>' + printNo + '</lbdc:printNumber>' : '') + (lbd ? '<lbdc:lbdNumber>LBD' + x(lbd) + '</lbdc:lbdNumber>' : '') + workingInfo(work_) + '</lbdc:documentInfo></proprietary></meta>' +
       '<preface><p class="authority"><docAuthority>STATE OF NEW YORK</docAuthority></p>' +
       '<p class="number"><docNumber>' + (digits ? digits + (letter ? '--' + letter : '') : '') + '</docNumber></p>' +
       '<p class="session"><session value="' + session + '">' + session + ' Regular Sessions</session></p>' +

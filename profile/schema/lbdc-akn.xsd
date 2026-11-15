@@ -45,6 +45,7 @@
         <xsd:element ref="lbdc:law" minOccurs="0"/>
         <xsd:element ref="lbdc:passage" minOccurs="0"/>
         <xsd:element ref="lbdc:convertedFrom" minOccurs="0"/>
+        <xsd:element ref="lbdc:working" minOccurs="0"/>
       </xsd:sequence>
     </xsd:complexType>
   </xsd:element>
@@ -318,4 +319,77 @@
       </xsd:attribute>
     </xsd:complexType>
   </xsd:element>
+  <!-- Working copies (0.4 draft, 2026-11-15). A draft inside the Commission, while drafters, examiners and
+       proofreaders work on it: who has it, and the comment threads. Suggested changes and comment anchors are
+       spans in the text (lbdc:suggest, lbdc:comment); review steps are a workflow with source="#lbdc-review".
+       None of it may appear in a published print or a clean copy. -->
+  <xsd:element name="working">
+    <xsd:annotation>
+      <xsd:documentation>Marks the document as a working copy. status is the review stage it is in:
+        drafting (with the drafter), examination, proofreading, or returned (back with the examiner after
+        proofreading).</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="lbdc:comment" minOccurs="0" maxOccurs="unbounded"/>
+      </xsd:sequence>
+      <xsd:attribute name="status" use="required">
+        <xsd:simpleType>
+          <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="drafting"/>
+            <xsd:enumeration value="examination"/>
+            <xsd:enumeration value="proofreading"/>
+            <xsd:enumeration value="returned"/>
+          </xsd:restriction>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="comment">
+    <xsd:annotation>
+      <xsd:documentation>A comment thread. Its text is anchored by spans with lbdc:comment="id" (none: a
+        comment on the whole draft). assignees lists the people it is for ("#lee #kim").</xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="lbdc:text"/>
+        <xsd:element ref="lbdc:reply" minOccurs="0" maxOccurs="unbounded"/>
+      </xsd:sequence>
+      <xsd:attribute name="id" type="xsd:NCName" use="required"/>
+      <xsd:attribute name="by" type="lbdc:personRef" use="required"/>
+      <xsd:attribute name="at" type="xsd:dateTime" use="required"/>
+      <xsd:attribute name="resolved" type="xsd:boolean" default="false"/>
+      <xsd:attribute name="resolvedBy" type="lbdc:personRef"/>
+      <xsd:attribute name="assignees">
+        <xsd:simpleType>
+          <xsd:list itemType="lbdc:personRef"/>
+        </xsd:simpleType>
+      </xsd:attribute>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="reply">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element ref="lbdc:text"/>
+      </xsd:sequence>
+      <xsd:attribute name="by" type="lbdc:personRef" use="required"/>
+      <xsd:attribute name="at" type="xsd:dateTime" use="required"/>
+    </xsd:complexType>
+  </xsd:element>
+
+  <xsd:element name="text">
+    <xsd:simpleType>
+      <xsd:restriction base="xsd:string">
+        <xsd:minLength value="1"/>
+      </xsd:restriction>
+    </xsd:simpleType>
+  </xsd:element>
+
+  <xsd:simpleType name="personRef">
+    <xsd:restriction base="xsd:token">
+      <xsd:pattern value="#[A-Za-z_][A-Za-z0-9_.\-]*"/>
+    </xsd:restriction>
+  </xsd:simpleType>
 </xsd:schema>

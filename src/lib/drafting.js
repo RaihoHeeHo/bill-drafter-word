@@ -299,7 +299,8 @@
       return m;
     });
   }
-  // The two readings of marked runs: the law as it stands (old) and as the bill would leave it (new).
+  // The two readings of marked runs: the law as it stands (old) and as the bill would leave it (new), while any
+  // suggestions wait (a suggested insertion is not in yet; a suggested deletion is still there).
   function readings(paras) {
     const strip = t => t.replace(/^\[/, '').replace(/\]$/, '');
     const old = [], now = [];
@@ -307,6 +308,7 @@
       if (isTbl(p)) { const r = BD.tableReadings(p); if (r.old.rows.length) old.push(r.old); if (r.now.rows.length) now.push(r.now); continue; }
       let o = '', n = '';
       for (const r of p) {
+        if (r.sug && r.sug.kind === 'insert') continue; // a suggestion not yet accepted is not in the text
         if (r.k === 'del') o += r.t.replace(/[\[\]]/g, '');
         else if (r.k === 'ins') n += r.t;
         else { o += r.t; n += r.t; }

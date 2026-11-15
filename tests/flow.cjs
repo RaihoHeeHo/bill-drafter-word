@@ -113,6 +113,29 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   const xml2 = await p.inputValue('#akn-out');
   if (!/<del>[^<]*in this state[^<]*<\/del>/.test(xml2)) throw new Error('the clean copy left an unmarked change: ' + (xml2.match(/.{80}acknowledgment of deeds.{60}/) || [''])[0]);
   console.log('marked before the clean copy:', (xml2.match(/.{30}<del>[^<]*in this state[^<]*<\/del>.{10}/) || [''])[0]);
+  // Several people: an examiner's tracked change is a suggestion. Mark changes leaves its section alone, no clean
+  // copy is made while it waits, and the XML (a working copy) needs everyone's review role.
+  await p.click('[data-tab=draft]');
+  console.log('suggested:', await p.evaluate(() => __suggestInLaw('When an affidavit is authorized', 'commissioner of deeds or ', 'Lee Smith')));
+  await p.evaluate(() => window.dispatchEvent(new Event('focus'))); await p.waitForTimeout(600);
+  await step('mark changes with a suggestion waiting', () => p.click('#mark'));
+  if (!/suggested changes wait/.test(await notice())) throw new Error('Mark changes did not leave the section with a suggestion alone');
+  await p.click('[data-tab=export]');
+  await step('clean copy with a suggestion waiting', async () => { await p.click('#to-pdf'); await p.waitForTimeout(800); });
+  if (!/Not made: 1 suggested change/.test(await p.textContent('#pdf-status'))) throw new Error('a clean copy was made with a suggestion waiting');
+  if (await p.isHidden('#people-card')) throw new Error('the People card is not shown');
+  await step('XML without a role', () => p.click('#to-akn'));
+  if (!/give a review role to Lee Smith/.test(await notice())) throw new Error('the working copy was made without review roles');
+  await p.selectOption('#people select', 'examiner'); await p.waitForTimeout(300);
+  await step('XML: a working copy', () => p.click('#to-akn'));
+  const wc = await p.inputValue('#akn-out');
+  if (!/<lbdc:working status="drafting">/.test(wc) || !/lbdc:suggest="insert" lbdc:by="#staff-lee-smith"[^>]*>commissioner of deeds or ?<\/span>/.test(wc)) throw new Error('no working copy: ' + (wc.match(/.{60}commissioner.{40}/) || [''])[0]);
+  fs.writeFileSync(OUT + '/working-copy.akn.xml', wc);
+  await p.screenshot({ path: OUT + '/5b-people.png', fullPage: true });
+  console.log('accepted:', await p.evaluate(() => { __acceptAll(); return true; }));
+  await step('clean copy once it is accepted', async () => { await p.click('#to-pdf'); await p.waitForFunction(() => /ready|Not made/.test(document.querySelector('#pdf-status').textContent + document.querySelector('#notice').textContent), null, { timeout: 120000 }); });
+  console.log('pdf status:', await p.textContent('#pdf-status'));
+  if (!/<ins>[^<]*commissioner of deeds/.test(await p.inputValue('#akn-out')) && !/commissioner of deeds[^<]*<\/ins>/.test(await p.inputValue('#akn-out'))) throw new Error('the accepted suggestion was not marked as new matter: ' + ((await p.inputValue('#akn-out')).match(/.{80}commissioner.{40}/) || [''])[0]);
   // The drafter deletes a section in the document: back in the pane, the list offers to renumber.
   await p.click('[data-tab=draft]');
   await p.evaluate(() => { const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';

@@ -46,7 +46,11 @@ Readers match a style by how its id starts (`BillInsert…`, `BillDelete…`), b
 
 Word keeps a content control that holds a single paragraph *inside* that paragraph (an inline control), so a title or a one-paragraph section (often the effective date) is saved as `w:p > w:sdt`. Readers treat a paragraph whose text sits in an `akn:longTitle`, `akn:enactingFormula`, `akn:section` or `akn:quoted` control exactly like the block control it was written as.
 
-Word's own tracked changes (`w:ins` / `w:del`) and plain underlining are read the same way, so a document edited with Track Changes on still converts correctly. **Mark changes** rewrites each amended text with the two styles by comparing it word by word with this computer's Bank, so the unmarked and bracketed words are always exactly the law.
+Plain underlining and strike-through are read as new and old matter too. **Mark changes** rewrites each amended text with the two styles by comparing it word by word with this computer's Bank, so the unmarked and bracketed words are always exactly the law.
+
+**Word's own tracked changes are suggestions, not new matter** (since 2026-11-15, with the profile's working copies). A tracked insertion or deletion (`w:ins`, `w:del`, `w:moveTo`, `w:moveFrom`) is someone's suggestion, with their name (`w:author`) and the time (`w:date`), waiting to be accepted or rejected in Word's Review tab. Until it is, the draft reads without it: a suggested insertion is not in the text, a suggested deletion is still there. Mark changes leaves a section with suggestions alone, and no clean copy is made while any wait. Once a suggestion is accepted, Mark changes works out the new and old matter against the Bank as usual. Comments come from the package's `comments.xml` (with replies and "resolved" from `commentsExtended.xml`), anchored by `w:commentRangeStart` / `w:commentRangeEnd`.
+
+In the XML (a **working copy**, profile 0.4 draft) a suggestion is `<span lbdc:suggest="insert|delete" lbdc:by="#staff-…" lbdc:at="…">`, inside the `ins` or `del` it sits in, and the text a comment is on is `<span lbdc:comment="c1">`, with the thread in `lbdc:working`. Each person is a `TLCPerson` with their review role (`lbdc:role`), which the pane asks for (**People**, on the Clean copy tab) and keeps in the custom document property `Bill Drafter review roles`. The status is `drafting` until the pane records the review's hand-offs.
 
 ## Paragraph styles (look only)
 
@@ -151,7 +155,7 @@ Each holds the whole AKN-NY XML, gzip-compressed and base64-encoded where the br
 
 Account headings and reappropriation source lines ("By chapter 53, section 1, of the laws of 2024:") are plain paragraphs: they aren't edited here.
 
-**An item edited in Word** is read back from its first paragraph (Bill Insert, Bill Delete, typed brackets and tracked changes, as for bills) and written into the XML:
+**An item edited in Word** is read back from its first paragraph (Bill Insert, Bill Delete and typed brackets, as for bills) and written into the XML. An item with Word's tracked changes in it is left alone until they are accepted or rejected, and the bill's XML and clean copy are not made while any wait:
 
 | Item | In the XML after Mark changes |
 |---|---|

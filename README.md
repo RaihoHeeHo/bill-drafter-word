@@ -60,6 +60,15 @@ The section list under **This bill** shows what each section does and what it st
 
 Click a section to go to it in the document; the section holding the cursor is highlighted. If the numbers or the title stop matching the sections (after deleting one in the document, say), a note above the list offers to renumber or rebuild the title. The bar at the bottom says whether the brackets and underlines are up to date. Standard sections already in the bill offer to go to them instead of adding another, and the effective date says whether it adds one or replaces the one in the bill.
 
+## Working with others
+
+Word's **Track Changes** are suggestions: what a reviewer types or deletes with it on is kept in their name, to be accepted or rejected in Word's **Review** tab. Word's comments work as usual.
+
+- A section with suggestions shows **suggestions waiting**. **Mark changes** leaves it alone until they are accepted or rejected, then brackets and underlines the accepted ones against the Bank like any other change.
+- **No clean copy** is made while a suggestion waits.
+- **People** (Clean copy tab) lists everyone who made a suggestion or a comment; give each a role (drafter, examiner or proofreader). The roles are saved in the document.
+- **Show the XML** then gives a *working copy* in the profile's terms: the bill with the suggestions and comments, who made them, and their roles.
+
 ## Budget mode
 
 Switch the pane to **Budget** at the top. It works on an appropriation bill as LBDC changes one for an amended print:
@@ -68,7 +77,7 @@ Switch the pane to **Budget** at the top. It works on an appropriation bill as L
 - **Make changes in the document**, then **Mark changes**. A *reappropriation* continues existing law: changed words and original amounts are put in [brackets] and underlined, the way the prints show them ("[(15126)] (60501) ... [1,312,000] 1,433,000 ... (re. $1,433,000)"); the amount reappropriated is this year's figure and is reprinted. An *appropriation* is new money in this bill: it takes the new words and amount. The item at the cursor is shown in the pane, where an appropriation can be added after it or an item taken out.
 - **Totals.** Program totals, subtotals and agency summaries (fund rows and All Funds) are computed from the items; those that no longer add up are listed with a button to update them.
 - **Check** runs the budget tools' checks on the XML, the same way they run in Python: the print-error report's amount checks; reappropriations against **last year's chapter** (by agency, account, program and object, as `prior_check.py`); **changes in this print**, against the bill as opened or another print (`compare_prints.py`); and **line vetoes** placed on the items printed on their lines, each with its line veto memorandum (`line_vetoes.py`). `tests/budget-expected.json` holds what the Python tools find in the samples, and the unit tests check the add-in finds the same.
-- **Clean copy** reads the document's edits back first, refuses if any reappropriation no longer reads as existing law once its brackets and underlines are taken into account, and typesets the bill with the same template.
+- **Clean copy** reads the document's edits back first, refuses if any reappropriation no longer reads as existing law once its brackets and underlines are taken into account (or if an item has tracked changes waiting), and typesets the bill with the same template.
 
 ### A whole budget bill
 

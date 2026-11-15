@@ -48,6 +48,13 @@
     const F = [], S = model.sections;
     const add = (level, rule, text, sec, fix) => F.push({ level, rule, text, sec: sec == null ? null : sec, fix });
 
+    /* ----- suggestions waiting (Word's tracked changes) ----- */
+    const sg = model.suggestions;
+    if (sg) {
+      sg.bySection.forEach((n, i) => { if (n) add('warning', 'Suggestions', n + ' suggested change' + (n === 1 ? '' : 's') + ' in this section ' + (n === 1 ? 'waits' : 'wait') + ' to be accepted or rejected. Mark changes leaves the section alone until then, and no clean copy is made.', i); });
+      if (sg.outside) add('warning', 'Suggestions', sg.outside + ' suggested change' + (sg.outside === 1 ? '' : 's') + ' in the title ' + (sg.outside === 1 ? 'waits' : 'wait') + ' to be accepted or rejected.', null);
+    }
+
     /* ----- title and enacting clause ----- */
     if (!model.title) add('error', 'Title', 'The bill has no title ("AN ACT to …"). Use New bill or Update title.', null, 'title');
     else {

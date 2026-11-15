@@ -140,5 +140,17 @@
     for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(find)) { t.textContent = t.textContent.replace(find, replace); return true; }
     return false;
   };
+  // Test helper: Word's Track Changes. A tracked insertion by `author` right after the run that holds `after`.
+  window.__suggestInLaw = (after, text, author) => {
+    for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(after)) {
+      const r = t.parentNode, ins = doc.createElementNS(W, 'w:ins');
+      ins.setAttributeNS(W, 'w:id', '901'); ins.setAttributeNS(W, 'w:author', author); ins.setAttributeNS(W, 'w:date', '2026-11-15T15:00:00Z');
+      const nr = doc.createElementNS(W, 'w:r'), nt = doc.createElementNS(W, 'w:t'); nt.setAttribute('xml:space', 'preserve'); nt.textContent = text;
+      nr.appendChild(nt); ins.appendChild(nr); r.parentNode.insertBefore(ins, r.nextSibling); return true;
+    }
+    return false;
+  };
+  // Test helper: accepting every tracked change (Word's Review > Accept All).
+  window.__acceptAll = () => { for (const ins of [...doc.getElementsByTagNameNS(W, 'ins')]) { while (ins.firstChild) ins.parentNode.insertBefore(ins.firstChild, ins); ins.remove(); } };
   window.__docXml = () => ser(doc);
 })();

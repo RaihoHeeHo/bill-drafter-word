@@ -135,6 +135,8 @@ The output passes all three layers of the profile's validator: the OASIS Akoma N
 
 **Nothing leaves unmarked.** Every export (**Make the clean copy**, **Show the XML**, **Copy**, **Save .xml**) first runs Mark changes against the Bank (`markedForExport` in `taskpane.js`), so a clean copy can't show the law as other than it stands: words taken out of the law silently, or words passed off as law. If a section can't be checked against the Bank (its law isn't loaded, the provision isn't in the law as cited, or its text is missing), nothing is made and the sections are named.
 
+**Several people.** Word's Track Changes are suggestions (who suggested what), not new matter. `ooxml.js` reads a tracked run with its author and time (`r.sug`) and the comments whose range covers it (`r.cm`); the readings, the checks and Mark changes all take the text as it stands while suggestions wait (an insertion not yet in, a deletion still there). Mark changes skips a section with suggestions, and the clean copy refuses while any wait. **Show the XML** writes a working copy (AKN-NY 0.4 draft): suggestions as `span lbdc:suggest`, comment anchors as `span lbdc:comment`, the threads in `lbdc:working`, and each person as a `TLCPerson` with their review role. It needs every person's role first (the **People** card). See FORMAT.md.
+
 **Before a bill has a number.** At the drafter's desk a bill usually has only an LBD number. The add-in then writes the profile's draft form: the bill is addressed by its LBD route number (`/akn/us-ny/bill/2025/lbd12345`), the LBD version is the Expression (`eng@01`), and the print number, printed bill number and introduction date are left out. The clean copy leaves those lines blank, with everything else in place.
 
 ## 7. Akoma Ntoso → clean copy
@@ -258,6 +260,16 @@ Click a section's name to go to it in the document. The section your cursor is i
 3. Click **Open the PDF** or **Save .pdf**. The first time, the typesetter takes a few seconds to load; after that a bill takes about a second.
 4. **Bill information** (LBD number, house, sponsor, committee) saves as you type. Leave the bill number and date blank for a draft: the clean copy leaves those lines empty.
 5. **For other systems**, folded at the bottom, gives the bill's Akoma Ntoso XML (**Show the XML**, **Copy**, **Save .xml**). It's marked against the Bank first, like the clean copy.
+
+**Working with others.** Turn on Word's Track Changes when you review someone else's draft: what you type and delete is kept as your suggestion, in your name, and Word's comments work as usual. Then:
+
+* The section list shows **suggestions waiting** on a section, and Check lists them.
+* **Mark changes** leaves those sections alone until the suggestions are accepted or rejected (Word's **Review** tab). Accepting a suggestion makes it part of the text; Mark changes then brackets and underlines it against the Bank like any other change.
+* **No clean copy** is made while a suggestion waits: the copy is the bill as it reads, and a suggestion isn't decided yet.
+* **People**, on the Clean copy tab, lists everyone who made a suggestion or a comment. Give each a role (drafter, examiner or proofreader); the roles are saved in the document.
+* **Show the XML** then gives a working copy: the bill with everyone's suggestions and comments, and who made them, for passing on to someone else or to another system.
+
+If you draft with Track Changes on, your own typing is a suggestion too: accept your own changes before Mark changes.
 
 ## Changing a budget bill
 

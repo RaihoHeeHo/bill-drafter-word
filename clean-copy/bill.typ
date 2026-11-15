@@ -45,6 +45,18 @@
 #let part-toc = sys.inputs.at("toc", default: "yes") == "yes"
 #let earlier-pages = json(bytes(sys.inputs.at("agency-pages", default: "{}")))
 #let root = source.filter(n => type(n) == dictionary and n.tag != "").first()
+// A working copy (AKN-NY 0.4 draft) can carry suggested changes that no one has settled yet. The clean copy is
+// the bill as it reads, so it is not made while any is pending; comment anchors only print their words.
+#let pending-suggestions(n) = if type(n) != dictionary { 0 } else {
+  let here = if n.attrs.keys().any(k => k.ends-with("suggest")) { 1 } else { 0 }
+  here + n.children.map(pending-suggestions).sum(default: 0)
+}
+#{
+  let n = pending-suggestions(root)
+  if n > 0 {
+    panic("This working copy has " + str(n) + " suggested change" + if n == 1 { "" } else { "s" } + " that no one has accepted or rejected yet. Settle them before making the clean copy.")
+  }
+}
 
 #let is-el(n, tag: none) = type(n) == dictionary and n.tag != "" and (tag == none or n.tag == tag)
 #let kids(n, tag) = n.children.filter(c => is-el(c, tag: tag))

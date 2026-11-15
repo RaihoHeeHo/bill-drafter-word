@@ -623,4 +623,73 @@
       <assert test="re:test(@href, '^/akn/us-ny/bill/[0-9]{4}/[sa][0-9]+/eng@[a-z]?/~.*__(appropriation|reappropriation)_[0-9]+$')">A vetoed item is cited by the bill print and the item's eId (…/eng@d/~…__appropriation_1, or __reappropriation_1: most vetoes are of reappropriations).</assert>
     </rule>
   </pattern>
+  <!-- Working copies (0.4 draft, 2026-11-15). Inside the Commission a draft carries who has it, the people working
+       on it, their suggested changes, comment threads and review steps. A published print carries none of it. -->
+  <pattern id="working-copy">
+    <rule context="/a:akomaNtoso/*[1]">
+      <let name="review" value="a:meta/a:workflow[@source = '#lbdc-review']"/>
+      <let name="last" value="string(($review/a:step[@refersTo = '#sentToExamination' or @refersTo = '#sentToProofreading' or @refersTo = '#returnedToExaminer' or @refersTo = '#returnedToDrafter'])[last()]/@refersTo)"/>
+      <let name="status" value="string($info/l:working/@status)"/>
+      <assert test="$info/l:working or not(.//a:span[@l:suggest or @l:comment] or $review)">This document has suggested changes, comment anchors or review steps but is not marked as a working copy (lbdc:working). A published print or a clean copy must have none of them: settle the suggestions and take out the comments first.</assert>
+      <assert test="count($review) &lt;= 1">A working copy has one review workflow (source="#lbdc-review").</assert>
+      <assert test="not($info/l:working) or ($status = 'drafting' and ($last = '' or $last = '#returnedToDrafter')) or ($status = 'examination' and $last = '#sentToExamination') or ($status = 'proofreading' and $last = '#sentToProofreading') or ($status = 'returned' and $last = '#returnedToExaminer')">The working copy says it is in <value-of select="$status"/>, but its last hand-off was <value-of select="substring-after($last, '#')"/><value-of select="substring('none', 1, 4 * ($last = ''))"/>. The status follows the last hand-off: sent to examination, sent to proofreading, returned to the examiner, returned to the drafter.</assert>
+      <assert test="not($review) or $review/../a:references/a:TLCOrganization[@eId = 'lbdc-review']">The review workflow's source, #lbdc-review, must be a TLCOrganization in &lt;references&gt;.</assert>
+    </rule>
+
+    <rule context="a:span[@l:suggest or @l:comment]">
+      <let name="who" value="key('eid', substring-after(@l:by, '#'))[self::a:TLCPerson]"/>
+      <assert test="not(@l:suggest) or @l:suggest = 'insert' or @l:suggest = 'delete'">A suggested change is lbdc:suggest="insert" or "delete", not "<value-of select="@l:suggest"/>".</assert>
+      <assert test="not(@l:suggest) or $who[@l:role]">A suggested change names the person who made it, lbdc:by="#…", a TLCPerson in &lt;references&gt; with a review role.</assert>
+      <assert test="not(@l:suggest) or re:test(@l:at, '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})$')">A suggested change records when it was made, lbdc:at, as a date and time ("2026-11-15T14:02:00Z").</assert>
+      <assert test="not(@l:suggest) or normalize-space(.) != ''">A suggested change has words in it.</assert>
+      <assert test="not(@l:suggest) or not(ancestor::a:span[@l:suggest])">A suggested change cannot sit inside another one; split them.</assert>
+      <assert test="not(@l:suggest) or not(.//a:ins or .//a:del)">A suggested change holds words, not new or old matter: a suggestion goes inside ins or del, never around them. The brackets and underscoring are worked out again, against the law, when the suggestion is settled.</assert>
+      <assert test="not(@l:comment) or $info/l:working/l:comment[@id = current()/@l:comment]">This text is marked for comment "<value-of select="@l:comment"/>", but the working copy has no comment with that id.</assert>
+      <assert test="not(@l:by) or @l:suggest">lbdc:by belongs on a suggested change only.</assert>
+    </rule>
+
+    <rule context="l:comment">
+      <let name="who" value="key('eid', substring-after(@by, '#'))[self::a:TLCPerson]"/>
+      <let name="closer" value="key('eid', substring-after(@resolvedBy, '#'))[self::a:TLCPerson]"/>
+      <let name="as" value="normalize-space(@assignees)"/>
+      <assert test="count(../l:comment[@id = current()/@id]) = 1">Two comments have the id "<value-of select="@id"/>".</assert>
+      <assert test="$who[@l:role]">A comment names its author, by="#…", a TLCPerson in &lt;references&gt; with a review role.</assert>
+      <assert test="not(@resolvedBy) or $closer[@l:role]">resolvedBy names a person in &lt;references&gt; with a review role. (It is left out where the editor does not record who resolved a comment, as Word does not.)</assert>
+      <assert test="not(@resolvedBy) or @resolved = 'true' or @resolved = '1'">resolvedBy belongs on a resolved comment only.</assert>
+      <assert test="not($closer/@l:role = '#proofreader') or $who/@l:role = '#proofreader'">A proofreader can resolve only a proofreader's comment.</assert>
+      <assert test="$as = '' or count(/a:akomaNtoso/*[1]/a:meta/a:references/a:TLCPerson[contains(concat(' ', $as, ' '), concat(' #', @eId, ' '))]) = string-length($as) - string-length(translate($as, ' ', '')) + 1">Everyone a comment is assigned to (assignees) must be a person in &lt;references&gt;.</assert>
+    </rule>
+
+    <rule context="l:reply">
+      <assert test="key('eid', substring-after(@by, '#'))[self::a:TLCPerson][@l:role]">A reply names its author, by="#…", a person in &lt;references&gt; with a review role.</assert>
+    </rule>
+
+    <rule context="a:workflow[@source = '#lbdc-review']/a:step">
+      <let name="who" value="key('eid', substring-after(@by, '#'))[self::a:TLCPerson]"/>
+      <let name="prev" value="string(preceding-sibling::a:step[@refersTo = '#sentToExamination' or @refersTo = '#sentToProofreading' or @refersTo = '#returnedToExaminer' or @refersTo = '#returnedToDrafter'][1]/@refersTo)"/>
+      <let name="author" value="key('eid', substring-after(@l:suggestionBy, '#'))[self::a:TLCPerson]"/>
+      <let name="r" value="string(@refersTo)"/>
+      <assert test="$who[@l:role]">A review step is taken by a person (by="#…", a TLCPerson with a review role), not by a house or a unit.</assert>
+      <assert test="not($who) or @as = $who/@l:role">The step's role (as) must be the role of the person who took it, <value-of select="$who/@l:role"/>.</assert>
+      <assert test="$r = '#sentToExamination' or $r = '#sentToProofreading' or $r = '#returnedToExaminer' or $r = '#returnedToDrafter' or $r = '#signedOff' or $r = '#signoffWithdrawn' or $r = '#proofread' or $r = '#accepted' or $r = '#rejected'">A review step is one of: sentToExamination, sentToProofreading, returnedToExaminer, returnedToDrafter, signedOff, signoffWithdrawn, proofread, accepted, rejected (not "<value-of select="substring-after($r, '#')"/>").</assert>
+      <assert test="not($r = '#sentToExamination') or @as = '#drafter'">Only the drafter sends a draft to examination.</assert>
+      <assert test="not($r = '#sentToProofreading') or @as = '#examiner'">Only an examiner sends a draft to proofreading.</assert>
+      <assert test="not($r = '#returnedToExaminer') or @as = '#proofreader'">Only a proofreader sends a draft back to the examiner.</assert>
+      <assert test="not($r = '#returnedToDrafter') or @as = '#examiner'">Only an examiner sends a draft back to the drafter.</assert>
+      <assert test="not(@refersTo = '#sentToExamination' or @refersTo = '#sentToProofreading' or @refersTo = '#returnedToExaminer' or @refersTo = '#returnedToDrafter') or ($r = '#sentToExamination' and ($prev = '' or $prev = '#returnedToDrafter')) or ($r = '#sentToProofreading' and $prev = '#sentToExamination') or ($r = '#returnedToExaminer' and $prev = '#sentToProofreading') or ($r = '#returnedToDrafter' and $prev = '#returnedToExaminer')">The review goes drafter, examiner, proofreader, examiner, drafter: <value-of select="substring-after($r, '#')"/> cannot follow <value-of select="substring-after($prev, '#')"/><value-of select="substring('the start', 1, 9 * ($prev = ''))"/>.</assert>
+      <assert test="not(preceding-sibling::a:step) or number(translate(@date, '-', '')) &gt;= number(translate(preceding-sibling::a:step[1]/@date, '-', ''))">Review steps are in the order they happened: this one is dated before the step above it.</assert>
+      <assert test="not($r = '#accepted' or $r = '#rejected') or @as != '#proofreader'">Proofreaders do not accept or reject suggested changes.</assert>
+      <assert test="not($r = '#accepted' or $r = '#rejected') or $author">An accepted or rejected suggestion names whose it was, lbdc:suggestionBy="#…".</assert>
+      <assert test="not($r = '#accepted' or $r = '#rejected') or not(@as = '#examiner' and $author/@l:role = '#drafter')">An examiner cannot accept or reject a drafter's suggested change.</assert>
+      <assert test="not($r = '#signedOff' or $r = '#signoffWithdrawn' or @l:section) or key('eid', @l:section)[self::a:section][not(ancestor::a:quotedStructure)]">A sign-off or proofreading step names a bill section of this document, lbdc:section="sec_…".</assert>
+      <assert test="not($r = '#signedOff' or $r = '#signoffWithdrawn') or @l:section">A sign-off names the section it is for, lbdc:section="sec_…".</assert>
+      <assert test="not($r = '#signedOff') or re:test(@l:hash, '^[0-9a-f]{64}$')">A sign-off records the SHA-256 of the section as it was signed off, lbdc:hash (64 hexadecimal digits), so the sign-off can be seen to go stale when the section changes.</assert>
+    </rule>
+
+    <rule context="a:TLCPerson[@l:role]">
+      <let name="r" value="string(@l:role)"/>
+      <assert test="$r = '#drafter' or $r = '#examiner' or $r = '#proofreader'">A person's review role (lbdc:role) is #drafter, #examiner or #proofreader.</assert>
+      <assert test="not($r = '#drafter' or $r = '#examiner' or $r = '#proofreader') or ../a:TLCRole[@eId = substring-after($r, '#')][@href = concat('/akn/ontology/role/us-ny/lbdc.', substring-after($r, '#'))]">The role <value-of select="$r"/> must be a TLCRole in &lt;references&gt; with href /akn/ontology/role/us-ny/lbdc.<value-of select="substring-after($r, '#')"/>.</assert>
+    </rule>
+  </pattern>
 </schema>

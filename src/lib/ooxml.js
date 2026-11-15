@@ -131,6 +131,13 @@
   const attr = (n, name) => n.getAttributeNS ? (n.getAttributeNS(W, name) || n.getAttribute('w:' + name)) : n.getAttribute('w:' + name);
   const child = (n, name) => kids(n).find(c => ln(c) === name);
 
+  // Two runs carry the same suggestion and the same comments.
+  const sugKey = r => r.sug ? r.sug.kind + '|' + r.sug.by + '|' + r.sug.at : '';
+  const sameMarks = (a, b) => sugKey(a) === sugKey(b) && (a.cm || '') === (b.cm || '');
+  // The words as the draft reads while its suggestions wait: a suggested insertion is not in yet, a suggested
+  // deletion is still there.
+  const pendingRuns = rs => rs.filter(r => !(r.sug && r.sug.kind === 'insert'));
+
   // The w:body of document XML, a flat OPC package, or a w:document.
   function bodyOf(doc) {
     const all = doc.getElementsByTagNameNS ? doc.getElementsByTagNameNS(W, 'body') : doc.getElementsByTagName('w:body');
@@ -140,7 +147,12 @@
     const pr = child(n, 'sdtPr'), tag = pr && child(pr, 'tag'), alias = pr && child(pr, 'alias');
     return { tag: tag ? attr(tag, 'val') : '', alias: alias ? attr(alias, 'val') : '', content: child(n, 'sdtContent') };
   }
-  // A run's text and kind ('' plain, ins, del, num, heading); Word's own tracked changes count too.
+  // Comment ranges open at this point of the document (commentRangeStart … commentRangeEnd), in reading order.
+  let openComments = new Set();
+  // A run's text and kind ('' plain, ins, del, num, heading). Word's own tracked changes are suggestions (who
+  // suggested what, waiting to be accepted or rejected), never new or old matter: r.sug = {kind, by, at}. New and
+  // old matter come only from Bill Insert / Bill Delete, typed brackets and plain underlining or strike-through.
+  // r.cm lists the comments whose range covers the run ("3 7").
   function runOf(r, ctx) {
     const pr = child(r, 'rPr');
     let k = '';
@@ -150,7 +162,6 @@
       else if (u && attr(u, 'val') !== 'none') k = 'ins';
       else if (strike && attr(strike, 'val') !== '0' && attr(strike, 'val') !== 'false') k = 'del';
     }
-    if (ctx.rev) k = ctx.rev;
     let t = '';
     for (const c of kids(r)) {
       const n = ln(c);
@@ -159,7 +170,10 @@
       else if (n === 'br' || n === 'cr') t += '\n';
       else if (n === 'noBreakHyphen') t += '-';
     }
-    return { t, k, cc: ctx.cc || '', rev: !!ctx.rev, part: ctx.part || null };
+    const out = { t, k, cc: ctx.cc || '', part: ctx.part || null };
+    if (ctx.sug) out.sug = ctx.sug;
+    if (openComments.size) out.cm = [...openComments].join(' ');
+    return out;
   }
   // Runs of a paragraph (or of an inline content control), with the inline control they sit in.
   function runsIn(n, ctx, out) {
@@ -173,13 +187,15 @@
         if (PART_OR_QUOTED.test(tag.name)) runsIn(s.content, ctx.part ? ctx : { ...ctx, part: { tag, alias: s.alias } }, out);
         else runsIn(s.content, { ...ctx, cc: tag.name || ctx.cc }, out);
       }
-      else if (name === 'ins' || name === 'moveTo') runsIn(c, { ...ctx, rev: 'ins' }, out);
-      else if (name === 'del' || name === 'moveFrom') runsIn(c, { ...ctx, rev: 'del' }, out);
+      else if (name === 'ins' || name === 'moveTo' || name === 'del' || name === 'moveFrom')
+        runsIn(c, { ...ctx, sug: { kind: name === 'ins' || name === 'moveTo' ? 'insert' : 'delete', by: attr(c, 'author') || '', at: attr(c, 'date') || '' } }, out);
+      else if (name === 'commentRangeStart') openComments.add(attr(c, 'id'));
+      else if (name === 'commentRangeEnd') openComments.delete(attr(c, 'id'));
       else if (name === 'hyperlink' || name === 'smartTag' || name === 'fldSimple' || name === 'customXml') runsIn(c, ctx, out);
     }
     // Merge neighbours of the same kind.
     const m = [];
-    for (const r of out) { const l = m[m.length - 1]; if (l && l.k === r.k && l.cc === r.cc && l.rev === r.rev && l.part === r.part) l.t += r.t; else m.push({ ...r }); }
+    for (const r of out) { const l = m[m.length - 1]; if (l && l.k === r.k && l.cc === r.cc && sameMarks(l, r) && l.part === r.part) l.t += r.t; else m.push({ ...r }); }
     out.length = 0; out.push(...m); return out;
   }
   // Paragraphs inside a block: [{runs, style, el}], and nested block controls in order.
@@ -187,6 +203,8 @@
     const out = [];
     for (const c of kids(n)) {
       const name = ln(c);
+      if (name === 'commentRangeStart') { openComments.add(attr(c, 'id')); continue; }
+      if (name === 'commentRangeEnd') { openComments.delete(attr(c, 'id')); continue; }
       if (name === 'p') {
         const pPr = child(c, 'pPr'), ps = pPr && child(pPr, 'pStyle');
         const style = ps ? attr(ps, 'val') : '', rs = runsIn(c, {}, []);
@@ -212,7 +230,7 @@
     }
     return out;
   }
-  const textOf = rs => rs.map(r => r.t).join('');
+  const textOf = rs => pendingRuns(rs).map(r => r.t).join('');
   // A Word table -> a table item (tables.js). Paragraphs in a cell are its lines.
   function tableOf(tbl) {
     const rows = [];
@@ -243,7 +261,8 @@
     const doc = typeof xml === 'string' ? new (DOMParserImpl || root.DOMParser)().parseFromString(xml, 'application/xml') : xml;
     const body = bodyOf(doc);
     if (!body) throw new Error('No document body found.');
-    const model = { title: null, enacting: null, sections: [], loose: [] };
+    openComments = new Set();
+    const model = { title: null, enacting: null, sections: [], loose: [], comments: commentsOf(doc) };
     const visit = blocks => {
       for (const b of blocks) {
         if (b.type === 'p') { const t = textOf(b.runs).trim(); if (t) model.loose.push(t); continue; }
@@ -267,6 +286,7 @@
     };
     visit(blocksIn(body));
     model.sections.forEach((s, i) => { s.index = i; });
+    model.suggestions = suggestionsOf(model);
     return model;
   }
   const PART = /^akn:(section|longTitle|enactingFormula)$/, PART_OR_QUOTED = /^akn:(section|longTitle|enactingFormula|quoted)$/;
@@ -282,7 +302,7 @@
     let open = false;
     const one = rs => {
       const out = [];
-      const add = (t, k, r) => { const l = out[out.length - 1]; if (l && l.k === k) l.t += t; else out.push({ ...r, t, k }); };
+      const add = (t, k, r) => { const l = out[out.length - 1]; if (l && l.k === k && sameMarks(l, r)) l.t += t; else out.push({ ...r, t, k }); };
       for (const r of rs) {
         if (r.k !== '' ) { if (r.k === 'del') { open = !/\]\s*$/.test(r.t) && (open || /\[/.test(r.t)); } add(r.t, r.k, r); continue; }
         for (const ch of r.t) {
@@ -334,6 +354,7 @@
       }
     }
     s.text = s.paras.map(textOf).join('\n');
+    s.allRuns = b.blocks.filter(x => !(x.type === 'cc' && (x.tag.name === 'akn:quoted' || PART.test(x.tag.name)))).flatMap(x => (x.type === 'p' ? [x] : ownParas(x.blocks)).filter(y => y.type !== 'tbl').flatMap(y => y.runs));
     return s;
   }
   function trimStart(rs, n) { while (n > 0 && rs.length) { const r = rs[0]; if (r.t.length <= n) { n -= r.t.length; rs.shift(); } else { r.t = r.t.slice(n); n = 0; } } }
@@ -347,11 +368,46 @@
   function parasOf(xml, DOMParserImpl) {
     const doc = typeof xml === 'string' ? new (DOMParserImpl || root.DOMParser)().parseFromString(xml, 'application/xml') : xml;
     const body = bodyOf(doc); if (!body) return [];
+    openComments = new Set();
     const out = [];
     const visit = bs => { for (const b of bs) { if (b.type === 'p') { if (BD.textOf(b.runs).trim()) out.push(b.runs); } else visit(b.blocks); } };
     visit(blocksIn(body));
     return bracketize(out);
   }
-  Object.assign(BD, { tableXml, parasOf, W_NS: W, STYLES, stylesXml, run, runs, para, sdt, tagOf, parseTag, sectionXml, quotedInner, titleXml, enactingXml, pkg, readBill, textOf, esc });
+
+  /* ---------- several people: suggestions and comments ---------- */
+  // Word's comments, from the package's comments part (and commentsExtended for replies and "resolved").
+  // [{id, by, at, text, resolved, replies: [{by, at, text}]}] in the order Word lists them.
+  const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml', W15 = 'http://schemas.microsoft.com/office/word/2012/wordml';
+  const byTag = (doc, ns, name, prefix) => { const l = doc.getElementsByTagNameNS ? doc.getElementsByTagNameNS(ns, name) : doc.getElementsByTagName(prefix + ':' + name); return Array.from(l || []); };
+  const nsAttr = (n, ns, name, prefix) => (n.getAttributeNS && n.getAttributeNS(ns, name)) || n.getAttribute(prefix + ':' + name) || '';
+  function commentsOf(doc) {
+    const cs = byTag(doc, W, 'comment', 'w');
+    if (!cs.length) return [];
+    const ex = new Map(byTag(doc, W15, 'commentEx', 'w15').map(e => [nsAttr(e, W15, 'paraId', 'w15'), { parent: nsAttr(e, W15, 'paraIdParent', 'w15'), done: nsAttr(e, W15, 'done', 'w15') === '1' }]));
+    const all = cs.map(c => {
+      const ps = byTag(c, W, 'p', 'w'), last = ps[ps.length - 1];
+      const paraId = last ? nsAttr(last, W14, 'paraId', 'w14') : '';
+      const text = ps.map(p => byTag(p, W, 't', 'w').map(t => t.textContent).join('')).join('\n').trim();
+      const e = ex.get(paraId) || {};
+      return { id: attr(c, 'id'), ids: [attr(c, 'id')], by: attr(c, 'author') || '', at: attr(c, 'date') || '', text, paraId, parent: e.parent || '', resolved: !!e.done, replies: [] };
+    });
+    const byPara = new Map(all.filter(c => c.paraId).map(c => [c.paraId, c]));
+    const top = [];
+    for (const c of all) { const p = c.parent && byPara.get(c.parent); if (p) { p.replies.push({ by: c.by, at: c.at, text: c.text }); p.ids.push(c.id); } else top.push(c); }
+    return top.map(({ paraId, parent, ...c }) => c);
+  }
+  // The suggestions waiting in each section, and everyone who made one or commented: {total, bySection: [n…], people: [name…]}.
+  function suggestionsOf(model) {
+    const people = new Set(), bySection = [];
+    const count = rs => { let n = 0, lastKey = ''; for (const r of rs) { if (r.sug) { people.add(r.sug.by); const k = sugKey(r); if (k !== lastKey) n++; lastKey = k; } else lastKey = ''; } return n; };
+    const runsOfParas = ps => (ps || []).flatMap(p => BD.isTable && BD.isTable(p) ? p.rows.flatMap(row => row.cells.flatMap(c => Array.isArray(c) ? c : [])) : p);
+    for (const s of model.sections) bySection.push(count([...(s.allRuns || []), ...runsOfParas(s.quoted && s.quoted.paras)]));
+    const outside = count([...(model.title ? model.title.runs : [])]);
+    for (const c of model.comments || []) { people.add(c.by); for (const r of c.replies) people.add(r.by); }
+    people.delete('');
+    return { total: bySection.reduce((a, b) => a + b, 0) + outside, bySection, outside, people: [...people] };
+  }
+  Object.assign(BD, { pendingRuns, commentsOf, tableXml, parasOf, W_NS: W, STYLES, stylesXml, run, runs, para, sdt, tagOf, parseTag, sectionXml, quotedInner, titleXml, enactingXml, pkg, readBill, textOf, esc });
   if (typeof module !== 'undefined') module.exports = BD;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

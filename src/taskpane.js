@@ -284,14 +284,16 @@ const canon = paras => JSON.stringify(paras.map(p => BD.isTable(p) ? { caption: 
 // Compares each amended text with the Bank and writes the brackets and underlines; returns what it did.
 // quiet: no message (Make the clean copy and the XML export run it first and report themselves).
 async function markChanges(quiet) {
-  let done = 0, checked = 0; const problems = [];
+  let done = 0, checked = 0; const problems = [], waiting = [];
   await word(async ctx => quietly(ctx, async () => {
     const secs = await sectionControls(ctx);
     for (const c of secs) {
       const tag = BD.parseTag(c.tag); if (tag.act !== 'amend' && tag.act !== 'add') continue;
       const ox = c.getOoxml(); await ctx.sync();
-      const inner = BD.readBill(ox.value).sections, s = inner[0];
+      const read = BD.readBill(ox.value), inner = read.sections, s = inner[0];
       if (!s || !s.quoted) continue;
+      // Rewriting the section would throw away Word's tracked changes: someone's suggestions, not yet settled.
+      if (read.suggestions && read.suggestions.bySection[0]) { waiting.push(c.title || s.num || tag.loc); continue; }
       const now = BD.readings(s.quoted.paras).now;
       let out;
       if (tag.act === 'add') out = now.map(t => [{ t, k: 'ins' }]);
@@ -316,10 +318,10 @@ async function markChanges(quiet) {
     }
   }));
   await refresh();
-  const skipped = problems.map(x => x.where + ': ' + x.why).join('; ');
+  const skipped = problems.map(x => x.where + ': ' + x.why).concat(waiting.map(w => w + ': its suggested changes wait to be accepted or rejected')).join('; ');
   if (!quiet) notice(done ? 'Brackets and underlines put in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (skipped ? ' Not marked: ' + skipped : '')
-    : checked ? 'Brackets and underlines were already as the Bank says.' + (skipped ? ' Not marked: ' + skipped : '') : problems.length ? 'Not marked: ' + skipped : 'No amended sections to mark.', !!problems.length);
-  return { done, checked, problems };
+    : checked ? 'Brackets and underlines were already as the Bank says.' + (skipped ? ' Not marked: ' + skipped : '') : problems.length || waiting.length ? 'Not marked: ' + skipped : 'No amended sections to mark.', !!(problems.length || waiting.length));
+  return { done, checked, problems, waiting };
 }
 // Nothing leaves the add-in with unmarked changes. Before a clean copy or the XML is made, every amended text is
 // marked again against the Bank, so the bill can't print the law as other than it stands (words taken out of the
@@ -435,7 +437,7 @@ async function refreshOnce() {
   welcome();
   if (model.title && document.activeElement !== $('subject')) $('subject').value = model.title.subject.replace(/^_+$/, '');
   $('subject').classList.toggle('need', found.some(f => f.fix === 'subject'));
-  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model);
+  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model); drawPeople(model);
   const errs = found.filter(f => f.level === 'error').length;
   $('check-count').textContent = String(errs); $('check-count').hidden = !errs || !hasBill;
   return model;
@@ -451,8 +453,10 @@ function drawOutline(model, found) {
     const chip = (text, cls, title, fn) => { const b = el('button', { className: 'chip ' + cls, textContent: text, title }); b.onclick = e => { e.stopPropagation(); busy(b, fn); }; chips.append(b); };
     const mark = mine.find(f => f.fix === 'mark'), hist = mine.find(f => f.fix === 'history');
     const others = mine.filter(f => f.level === 'error' && f.fix !== 'mark' && f.fix !== 'renumber');
-    if (mark) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', () => markChanges());
+    if (mark && !(model.suggestions && model.suggestions.bySection[i])) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', () => markChanges());
     if (others.length) chip(others.length === 1 ? (SHORT[others[0].rule] || others[0].rule) : others.length + ' to fix', 'err', others.map(f => f.text).join('\n'), async () => showTab('checks', i));
+    const waitN = model.suggestions ? model.suggestions.bySection[i] : 0;
+    if (waitN) chip(plural(waitN, 'suggestion') + ' waiting', 'warn', 'Word\'s tracked changes: accept or reject them in Word (Review). Mark changes leaves this section alone until then.', async () => goTo(i));
     if (hist) chip('Add history', 'warn', 'The amending clause should cite the last amendment. The Bank does not have it: type it in.', async () => { openRow = openRow === i ? null : i; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); });
     if (!mine.some(f => f.level === 'error' || f.fix === 'history') && (s.act === 'amend' || s.act === 'add' || s.act === 'repeal')) chips.append(el('span', { className: 'ok', textContent: '✓', title: 'Nothing to fix' }));
     const li = el('li', { className: openRow === i ? 'open' : '' }, el('div', { className: 'line' }, main, chips));
@@ -705,13 +709,55 @@ function infoSummary() {
     sum.append(' ', b, '.');
   }
 }
+/* ---------- several people (profile 0.4 working copies) ----------
+   Word's Track Changes are suggestions: who suggested what. They are settled in Word (Review > Accept or Reject);
+   Mark changes leaves a section alone until they are, and no clean copy is made while any wait. Everyone who made
+   a suggestion or a comment has a review role, kept in the document (custom property "Bill Drafter review roles"). */
+const ROLE_PROP = 'Bill Drafter review roles';
+let reviewRoles = {};
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const waitingText = m => 'Not made: ' + plural(m.suggestions.total, 'suggested change') + ' (Word\'s tracked changes) ' + (m.suggestions.total === 1 ? 'waits' : 'wait') + ' to be accepted or rejected. Settle ' + (m.suggestions.total === 1 ? 'it' : 'them') + ' in Word (Review > Accept or Reject), then make the clean copy.';
+const needRoles = m => ((m.suggestions && m.suggestions.people) || []).filter(n => !['drafter', 'examiner', 'proofreader'].includes(reviewRoles[n]));
+async function loadRoles() {
+  if (!inWord || !Office.context.requirements.isSetSupported('WordApi', '1.3')) return;
+  await Word.run(async ctx => {
+    const cp = ctx.document.properties.customProperties; cp.load('items/key,items/value'); await ctx.sync();
+    const p = cp.items.find(x => x.key === ROLE_PROP);
+    try { reviewRoles = p ? JSON.parse(String(p.value)) || {} : {}; } catch (e) { reviewRoles = {}; }
+  });
+}
+async function saveRoles() {
+  if (!inWord) return;
+  await word(async ctx => { ctx.document.properties.customProperties.add(ROLE_PROP, JSON.stringify(reviewRoles)); await ctx.sync(); });
+}
+function drawPeople(model) {
+  const card = $('people-card'); if (!card) return;
+  const sg = model.suggestions || { total: 0, people: [] }, n = (model.comments || []).length;
+  card.hidden = !sg.people.length;
+  if (card.hidden) return;
+  $('people-summary').textContent = plural(sg.total, 'suggested change') + ' and ' + plural(n, 'comment') + ' in the document.' +
+    (sg.total ? ' Mark changes leaves sections with suggestions alone, and no clean copy is made, until they are accepted or rejected.' : '');
+  const ul = $('people'); ul.innerHTML = '';
+  for (const name of sg.people) {
+    const sel = el('select'); sel.setAttribute('aria-label', 'Review role of ' + name);
+    for (const [v, t] of [['', 'Choose a role'], ['drafter', 'Drafter'], ['examiner', 'Examiner'], ['proofreader', 'Proofreader']]) sel.append(el('option', { value: v, textContent: t }));
+    sel.value = reviewRoles[name] || '';
+    sel.classList.toggle('need', !sel.value);
+    sel.onchange = () => busy(null, async () => { reviewRoles[name] = sel.value; sel.classList.toggle('need', !sel.value); await saveRoles(); });
+    ul.append(el('li', {}, el('b', { textContent: name }), ' ', sel));
+  }
+}
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
-async function toAkn() {
+async function toAkn(forPrint) {
   const { model, found, marked } = await markedForExport();
-  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws };
+  if (forPrint && model.suggestions && model.suggestions.total) throw new Error(waitingText(model));
+  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: forPrint ? null : { roles: reviewRoles } };
+  if (forPrint) { model.comments = []; } // comments are not printed; the clean copy is made from the bill alone
+  if (!forPrint) { const missing = needRoles(model); if (missing.length) { drawPeople(model); throw new Error('Not made: give a review role to ' + missing.join(', ') + ' (People, above). Everyone who made a suggestion or a comment needs one.'); } }
   if (!info.year && info.date) info.year = info.date.slice(0, 4);
   aknText = BD.toAkn(model, info);
+  if (!forPrint && model.suggestions && (model.suggestions.total || model.comments.length)) notice('A working copy: the XML carries ' + plural(model.suggestions.total, 'suggested change') + ' and ' + plural(model.comments.length, 'comment') + ', with who made them. A published print carries none.');
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   return { errs: found.filter(f => f.level === 'error').length, marked };
 }
@@ -724,7 +770,8 @@ function saveAkn() {
 let pdfUrl = null;
 async function toPdf() {
   $('pdf-actions').hidden = true; $('pdf-status').textContent = 'Checking the brackets and underlines against the Bank…';
-  const { errs, marked } = await toAkn();
+  { const m = await word(readModel); if (m.suggestions && m.suggestions.total) { $('pdf-status').textContent = waitingText(m); throw new Error(waitingText(m)); } }
+  const { errs, marked } = await toAkn(true);
   const status = t => { $('pdf-status').textContent = t; };
   const t0 = Date.now();
   const pdf = await BD.cleanCopyPdf(aknText, status);
@@ -869,6 +916,7 @@ async function start(host) {
   if (!inWord) notice('This pane works inside Word. Here you can still load the Bank.', false);
   await showBank(); await fillLaws();
   if (inWord) {
+    await loadRoles().catch(() => {});
     await busy(null, refresh);
     const info = await loadInfo().catch(() => ({}));
     for (const [id] of INFO) if (info[id]) $(id).value = info[id];
