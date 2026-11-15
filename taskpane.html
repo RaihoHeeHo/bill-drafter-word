@@ -156,7 +156,9 @@
     <h2 id="b-title">Budget bill</h2>
     <p id="b-summary" class="summary"></p>
     <div id="b-fixes"></div>
-    <div class="head-row outline-head"><h3>Schedules</h3><span class="hint">Click one to go to it</span></div>
+    <div class="row small"><button id="b-window" class="link">Open the bill window</button><span class="hint">the whole bill, to browse and search</span></div>
+    <div class="head-row outline-head"><h3>Schedules</h3><span class="hint" id="b-outline-hint">Click one to go to it</span></div>
+    <div class="row" id="b-filter-row" hidden><input id="b-filter" placeholder="Find a schedule: labor, health…" autocomplete="off" aria-label="Find a schedule"></div>
     <ol id="b-outline" class="outline boutline"></ol>
   </div>
   <div class="card" id="b-item" hidden>
@@ -301,6 +303,8 @@
 <script src="src/lib/akn.js"></script>
 <script src="src/lib/budget.js"></script>
 <script src="src/lib/budgetword.js"></script>
+<script src="src/lib/windowstore.js"></script>
+<script src="vendor/pdf-lib/pdf-lib.min.js"></script>
 <script src="src/cleancopy.js"></script>
 <script src="src/taskpane.js"></script>
 <script src="src/budgetpane.js"></script>
