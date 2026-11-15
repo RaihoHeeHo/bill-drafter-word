@@ -59,6 +59,7 @@ tools/docx2akn.cjs    command-line converter (same code)
 clean-copy/           Typst clean-copy template (from LBDC's demo) for the exported XML
 profile/              the AKN-NY profile's validator: schemas and Schematron rules (python3 profile/validate.py x.xml)
 tests/unit.cjs        unit tests, including the profile validator on the add-in's output   (npm install && npm test)
+tests/cleancopy.mjs   makes clean copies with the pane's own code and compiler   (node tests/cleancopy.mjs [bill.akn.xml ...])
 tests/flow.cjs        whole flow in Chromium against a Word stand-in (tests/word-mock.js):
                       python3 -m http.server 8123 & node tests/flow.cjs tests/bank-fixture out/
 tests/bank-fixture/   three small Bank files for the flow (tests/make-bank-fixture.cjs)
