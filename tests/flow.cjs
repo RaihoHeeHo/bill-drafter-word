@@ -4,7 +4,7 @@ const { chromium } = require('playwright'); const fs = require('fs'); const path
 const BANK = process.argv[2], OUT = process.argv[3] || '.';
 (async () => {
   const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 380, height: 900 } });
-  const errors = []; p.on('pageerror', e => errors.push(e.message)); p.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  const errors = []; p.on('pageerror', e => errors.push(e.message)); p.on('console', m => { if (m.type() === 'error' && !/Not made:/.test(m.text())) errors.push(m.text()); });
   await p.route('https://appsforoffice.microsoft.com/**', r => r.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, 'word-mock.js'), 'utf8') }));
   await p.goto('http://localhost:8123/taskpane.html');
   await p.waitForTimeout(300); await p.screenshot({ path: OUT + '/0-start.png' });
@@ -103,6 +103,16 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   });
   await p.screenshot({ path: OUT + '/5-export.png', fullPage: true });
   fs.writeFileSync(OUT + '/document.xml', await p.evaluate(() => __docXml()));
+  // Nothing leaves unmarked: words taken out of the law in the document, without Mark changes, still come out
+  // bracketed in the clean copy's XML.
+  await p.click('[data-tab=draft]');
+  console.log('typed unmarked:', await p.evaluate(() => __typeInLaw('the acknowledgment of deeds in this state', 'the acknowledgment of deeds')));
+  await p.click('[data-tab=export]');
+  await step('clean copy after an unmarked edit', async () => { await p.click('#to-pdf'); await p.waitForFunction(() => /ready|Not made/.test(document.querySelector('#pdf-status').textContent + document.querySelector('#notice').textContent), null, { timeout: 120000 }); });
+  console.log('pdf status:', await p.textContent('#pdf-status'));
+  const xml2 = await p.inputValue('#akn-out');
+  if (!/<del>[^<]*in this state[^<]*<\/del>/.test(xml2)) throw new Error('the clean copy left an unmarked change: ' + (xml2.match(/.{80}acknowledgment of deeds.{60}/) || [''])[0]);
+  console.log('marked before the clean copy:', (xml2.match(/.{30}<del>[^<]*in this state[^<]*<\/del>.{10}/) || [''])[0]);
   // The drafter deletes a section in the document: back in the pane, the list offers to renumber.
   await p.click('[data-tab=draft]');
   await p.evaluate(() => { const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -114,6 +124,11 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   await p.screenshot({ path: OUT + '/6-renumber.png' });
   await step('renumber', () => p.click('#bill-fixes button:has-text("Renumber")')); await p.waitForTimeout(300);
   console.log('after renumbering:', JSON.stringify(await p.textContent('#bill-fixes')), await p.$$eval('#outline .n', l => l.map(x => x.textContent).join(' ')));
+  // A section whose law isn't in the Bank can't be checked, so no clean copy is made.
+  await p.click('#bank-btn'); await p.click('#bank-clear'); await p.click('#bank-clear'); await p.waitForTimeout(300);
+  await p.click('[data-tab=export]'); await p.click('#to-pdf'); await p.waitForTimeout(800);
+  const refused = await p.textContent('#notice'); console.log('without the Bank:', refused.slice(0, 220));
+  if (!/Not made/.test(refused)) throw new Error('a clean copy was made with sections that cannot be checked against the Bank');
   console.log('ops', await p.evaluate(() => __ops.join(', ')));
   console.log('errors', errors);
   await b.close();

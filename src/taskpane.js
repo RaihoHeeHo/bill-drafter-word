@@ -276,8 +276,13 @@ async function insertAmendment() {
   notice(o.act === 'repeal' ? 'Repeal inserted.' : o.act === 'add' ? 'New ' + (o.unit ? 'unit' : 'section') + ' inserted, all underlined. Type over the ____ in the document.' : 'Section inserted with the law\'s text. Edit it in the document as you would any text, then press Mark changes.');
 }
 // Brackets and underlines from comparing each amended text with the Bank.
-async function markChanges() {
-  let done = 0; const problems = [];
+// The marking as one string, to tell whether marking again would change anything (tables always count as changed).
+const canonRuns = rs => { if (typeof rs === 'string') rs = [{ t: rs, k: '' }]; const m = []; for (const r of rs) { const t = String(r.t).replace(/\s+/g, ' '), l = m[m.length - 1]; if (l && l.k === (r.k || '')) l.t += t; else m.push({ k: r.k || '', t }); } return m.map(x => x.k + '\u0001' + x.t.trim()).filter(x => x.length > 2); };
+const canon = paras => JSON.stringify(paras.map(p => BD.isTable(p) ? { caption: canonRuns(p.caption || ''), rows: p.rows.map(r => [r.kind || '', ...r.cells.map(canonRuns)]) } : canonRuns(p)));
+// Compares each amended text with the Bank and writes the brackets and underlines; returns what it did.
+// quiet: no message (Make the clean copy and the XML export run it first and report themselves).
+async function markChanges(quiet) {
+  let done = 0, checked = 0; const problems = [];
   await word(async ctx => quietly(ctx, async () => {
     const secs = await sectionControls(ctx);
     for (const c of secs) {
@@ -290,9 +295,12 @@ async function markChanges() {
       if (tag.act === 'add') out = now.map(t => [{ t, k: 'ins' }]);
       else {
         const law = await getLaw(tag.law), want = law && BD.lawTextFor(law, { loc: tag.loc, unit: tag.unit });
-        if (!want) { problems.push((c.title || tag.loc) + ': the law is not in the Bank on this computer'); continue; }
+        if (!want) { problems.push({ where: (c.title || tag.loc), why: law ? 'the provision it amends is not in the Bank as cited' : 'the ' + tag.law + ' law is not in the Bank on this computer' }); continue; }
         out = BD.markChanges(want, now);
       }
+      checked++;
+      const was = canon(s.quoted.paras), will = canon(out);
+      if (was === will) continue; // already marked as the Bank says
       if (inner.length === 1) {
         // The whole section is written again (number, heading, clause, marked text), so it comes out right
         // even where Word made a part of it an inline control.
@@ -306,7 +314,25 @@ async function markChanges() {
     }
   }));
   await refresh();
-  notice(done ? 'Brackets and underlines put in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (problems.length ? ' Skipped: ' + problems.join('; ') : '') : 'No amended sections to mark.' + (problems.length ? ' ' + problems.join('; ') : ''), !!problems.length && !done);
+  const skipped = problems.map(x => x.where + ': ' + x.why).join('; ');
+  if (!quiet) notice(done ? 'Brackets and underlines put in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (skipped ? ' Not marked: ' + skipped : '')
+    : checked ? 'Brackets and underlines were already as the Bank says.' + (skipped ? ' Not marked: ' + skipped : '') : problems.length ? 'Not marked: ' + skipped : 'No amended sections to mark.', !!problems.length);
+  return { done, checked, problems };
+}
+// Nothing leaves the add-in with unmarked changes. Before a clean copy or the XML is made, every amended text is
+// marked again against the Bank, so the bill can't print the law as other than it stands (words taken out of the
+// law silently, or words shown as law that aren't). A section that can't be checked against the Bank stops it.
+async function markedForExport() {
+  const r = await markChanges(true);
+  const model = await word(readModel), found = await BD.check(model, getLaw);
+  const stop = found.filter(f => f.sec != null && f.level === 'error' && (f.rule === 'Marking' || f.rule === 'Citation' || f.rule === 'Structure' && /text of the law/.test(f.text)) || f.rule === 'Bank' && f.sec != null);
+  // one line per section: what marking found, else what Check found
+  const numOf_ = t => (/^(Section \d+|§ \d+)/.exec(t) || [t])[0];
+  const lines = new Map(r.problems.map(x => [numOf_(x.where), x.where.replace(/\.$/, '') + ' (' + x.why + ')']));
+  for (const f of stop) { const n = numOf_(model.sections[f.sec].num || ''); if (!lines.has(n)) lines.set(n, n + ' (' + f.text.replace(/\.$/, '') + ')'); }
+  const where = [...lines.values()];
+  if (where.length) throw new Error('Not made: the brackets and underlines of ' + (where.length === 1 ? 'this section' : 'these sections') + ' can\'t be checked against the Bank, so the copy could show the law as other than it stands. ' + where.join('; ') + '. Load the Bank, or fix the citation, and try again.');
+  return { model, found, marked: r.done };
 }
 
 // "As amended by …": what the drafter typed, as the clause will cite it.
@@ -422,7 +448,7 @@ function drawOutline(model, found) {
     const chip = (text, cls, title, fn) => { const b = el('button', { className: 'chip ' + cls, textContent: text, title }); b.onclick = e => { e.stopPropagation(); busy(b, fn); }; chips.append(b); };
     const mark = mine.find(f => f.fix === 'mark'), hist = mine.find(f => f.fix === 'history');
     const others = mine.filter(f => f.level === 'error' && f.fix !== 'mark' && f.fix !== 'renumber');
-    if (mark) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', markChanges);
+    if (mark) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', () => markChanges());
     if (others.length) chip(others.length === 1 ? (SHORT[others[0].rule] || others[0].rule) : others.length + ' to fix', 'err', others.map(f => f.text).join('\n'), async () => showTab('checks', i));
     if (hist) chip('Add history', 'warn', 'The amending clause should cite the last amendment. The Bank does not have it: type it in.', async () => { openRow = openRow === i ? null : i; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); });
     if (!mine.some(f => f.level === 'error' || f.fix === 'history') && (s.act === 'amend' || s.act === 'add' || s.act === 'repeal')) chips.append(el('span', { className: 'ok', textContent: '✓', title: 'Nothing to fix' }));
@@ -507,7 +533,7 @@ async function runChecks(focusSec) {
   sum.className = 'summary ' + (errs ? 'bad' : warns ? 'meh' : 'good');
   sum.textContent = !found.length ? 'No problems found. The bill is ready for its clean copy.' : [errs && pl(errs, 'error') + ' to fix', warns && pl(warns, 'warning'), notes && pl(notes, 'note')].filter(Boolean).join(', ') + '.';
   if (!found.length) return;
-  const FIX = { history: ['Add history', async f => { showTab('draft'); openRow = f.sec; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); $('outline').children[f.sec].scrollIntoView({ block: 'center' }); }], renumber: ['Renumber', () => renumber()], title: ['Rebuild the title', () => updateTitle(null)], mark: ['Mark changes', markChanges], effective: ['Add effective date', setEffective], subject: ['Go to the title', async () => { showTab('draft'); $('subject').focus(); }] };
+  const FIX = { history: ['Add history', async f => { showTab('draft'); openRow = f.sec; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); $('outline').children[f.sec].scrollIntoView({ block: 'center' }); }], renumber: ['Renumber', () => renumber()], title: ['Rebuild the title', () => updateTitle(null)], mark: ['Mark changes', () => markChanges()], effective: ['Add effective date', setEffective], subject: ['Go to the title', async () => { showTab('draft'); $('subject').focus(); }] };
   for (const f of found) {
     const li = el('li', { className: f.level }, el('span', { className: 'rule', textContent: f.rule + ':' }), f.text);
     if (f.sec != null) li.dataset.sec = String(f.sec);
@@ -679,13 +705,12 @@ function infoSummary() {
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
 async function toAkn() {
-  const model = await word(readModel);
+  const { model, found, marked } = await markedForExport();
   const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws };
   if (!info.year && info.date) info.year = info.date.slice(0, 4);
   aknText = BD.toAkn(model, info);
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
-  const errs = (await BD.check(model, getLaw)).filter(f => f.level === 'error').length;
-  return errs;
+  return { errs: found.filter(f => f.level === 'error').length, marked };
 }
 function saveAkn() {
   const name = ($('lbd').value.trim() || 'bill') + '.akn.xml';
@@ -695,14 +720,16 @@ function saveAkn() {
 
 let pdfUrl = null;
 async function toPdf() {
-  const errs = await toAkn();
+  $('pdf-actions').hidden = true; $('pdf-status').textContent = 'Checking the brackets and underlines against the Bank…';
+  const { errs, marked } = await toAkn();
   const status = t => { $('pdf-status').textContent = t; };
   const t0 = Date.now();
   const pdf = await BD.cleanCopyPdf(aknText, status);
   if (pdfUrl) URL.revokeObjectURL(pdfUrl);
   pdfUrl = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
   $('pdf-open').disabled = $('pdf-save').disabled = false; $('pdf-actions').hidden = false;
-  status('Clean copy ready (' + Math.max(1, Math.round(pdf.length / 1024)) + ' KB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s).');
+  status('Clean copy ready (' + Math.max(1, Math.round(pdf.length / 1024)) + ' KB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s). ' +
+    (marked ? 'Changes were marked against the Bank first in ' + marked + ' section' + (marked === 1 ? '' : 's') + '.' : 'Brackets and underlines checked against the Bank.'));
   if (errs) {
     const b = el('button', { className: 'link', textContent: 'Show them' }); b.onclick = () => showTab('checks');
     $('pdf-status').append(' Check found ' + errs + ' error' + (errs === 1 ? '' : 's') + ' to fix before it goes out. ', b);
@@ -770,7 +797,7 @@ function wire() {
   // The title follows the subject line: rebuilt when it changes.
   $('subject').onchange = () => busy(null, async () => { await updateTitle(null); notice('Title rebuilt.'); });
   $('subject').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
-  on('insert-amend', insertAmendment); on('mark', markChanges);
+  on('insert-amend', insertAmendment); on('mark', () => markChanges());
   on('dock-check', async () => showTab('checks'));
   on('picked-clear', async () => clearPick());
   // A standard section already in the bill: its button goes to it instead of adding another.
@@ -788,8 +815,8 @@ function wire() {
   on('te-save', saveTable);
   $('te-cancel').onclick = closeEditor; $('te-close').onclick = closeEditor;
   on('to-akn', async () => { await toAkn(); $('akn-card').open = true; });
-  on('akn-copy', async () => { $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
-  on('akn-save', async () => saveAkn());
+  on('akn-copy', async () => { await toAkn(); $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
+  on('akn-save', async () => { await toAkn(); saveAkn(); });
   on('to-pdf', toPdf); on('pdf-save', async () => savePdf());
   on('pdf-open', async () => { if (!window.open(pdfUrl, '_blank')) savePdf(); });
   on('bank-clear', async () => { if (!confirmClear()) return; await BD.bank.clear(); await showBank(); await fillLaws(); notice('The Bank was removed from this computer.'); });
