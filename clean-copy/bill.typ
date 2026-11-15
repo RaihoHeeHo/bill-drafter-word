@@ -796,7 +796,8 @@
 // Reappropriations: an item is "text ... original .... (re. $amount)" across the full line.
 #let render-reitem(c) = {
   let p = find(c, "p")
-  let qs = els(p).filter(x => x.tag == "quantity")
+  // an amount changed by the bill is new matter: "[1,312,000] 1,433,000", the new amount inside <ins>
+  let qs = els(p).map(x => if x.tag == "ins" { els(x) } else { (x,) }).flatten().filter(x => x.tag == "quantity")
   if "noOriginal" in attr(c, "class").split(" ") {
     // no original amount: the words, leaders and "(re. $...)" at the margin, or a line of leaders under the
     // words when it does not fit
@@ -821,7 +822,9 @@
   let orig = text-of(qs.find(q => attr(q, "class") == "originalAmount"))
   let re = text-of(qs.find(q => attr(q, "class") == "reappropriatedAmount"))
   let cs = p.children
-  let k = cs.position(x => is-el(x) and x.tag == "quantity" and attr(x, "class") == "originalAmount")
+  let is-orig = x => is-el(x) and x.tag == "quantity" and attr(x, "class") == "originalAmount"
+  let k = cs.position(x => is-orig(x) or (is-el(x) and x.tag == "ins" and els(x).any(is-orig)))
+  let orig-new = k != none and cs.at(k).tag == "ins"
   let head = cs.slice(0, k)
   // drop the " ... " (or plain space) before the original amount from the words; words after the leader (an
   // amended amount, "[3,900,000]") follow it: "Personal service (50000) ... [3,900,000] 3,867,000 ...."
@@ -836,6 +839,7 @@
   let mid = (if noLeader { nb(1) } else { nb(1) + "..." + nb(1) }) + if aft == none { "" } else { aft }
   let midlen = (if noLeader { 1 } else { 5 }) + aftlen
   let tail = "(re. $" + re + ")"
+  let orig-drawn = if orig-new { under[#orig] } else { orig }
   let lines = wrap2(ws, 70, 68)
   let last = lines.last()
   let lastcol = if lines.len() == 1 { 2 } else { 4 }
@@ -844,7 +848,7 @@
   let used = lastcol + line-len(last) + midlen + orig.len() + 1 + 1 + 1 + tail.len()
   if used <= 72 {
     let dots = 72 - (lastcol + line-len(last) + midlen + orig.len() + 2 + tail.len())
-    out.push(a-line(lastcol, draw-line(last) + mid + orig + nb(1) + leaders(dots) + nb(1) + tail))
+    out.push(a-line(lastcol, draw-line(last) + mid + orig-drawn + nb(1) + leaders(dots) + nb(1) + tail))
   } else {
     // the amounts go on the next line, under a line of leaders; where fewer than three leaders would fit, the
     // words line is justified to the margin and the amounts line begins with the leader ("... 59,000,000 ....")
@@ -852,7 +856,7 @@
     let lead = if room >= 3 { "" } else { "..." + nb(1) }
     if room >= 3 { out.push(a-line(lastcol, draw-line(last) + nb(1) + leaders(room))) }
     else { out.push(a-line(lastcol, draw-just(last, 72 - lastcol, lines.len() - 1))) }
-    out.push(a-line(4, lead + (if aft == none { "" } else { aft }) + orig + nb(1) + leaders(72 - 4 - (if room >= 3 { 0 } else { 4 }) - aftlen - orig.len() - 2 - tail.len()) + nb(1) + tail))
+    out.push(a-line(4, lead + (if aft == none { "" } else { aft }) + orig-drawn + nb(1) + leaders(72 - 4 - (if room >= 3 { 0 } else { 4 }) - aftlen - orig.len() - 2 - tail.len()) + nb(1) + tail))
   }
   out
 }

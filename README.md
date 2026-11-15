@@ -8,11 +8,15 @@ A Word add-in that brings parts of the bill drafter into Word:
 4. **Drafting checks.** Title and enacting clause, section numbers, order of the standard sections, effective date last, amending clause form and history, every amended text checked against the Bank (unmarked changes, nothing amended), added sections fully underlined and not already in the law, blanks left in, and style in new matter (gendered words, "said", "must", session-law citations, sums of money, "§" in text, stray brackets).
 5. **Akoma Ntoso in LBDC's profile.** Every part that means something is a tagged content control or a Bill Insert / Bill Delete run, so the .docx converts without guessing to Akoma Ntoso 3.0 XML in the shape of LBDC's **AKN-NY profile, version 0.3**: classed front matter and LBDC metadata, laws addressed by their Bank ID alone (`/akn/us-ny/act/consolidated/gcn/~sec_12`), the whole lead-in inside the `mod` with the history linked, New York's unit names (subdivision, or subsection for the Tax and Insurance Laws), renumbered and struck units, and bracket pairs split across units. The output passes the profile's validator. See [FORMAT.md](FORMAT.md). Get it from the pane (**Clean copy > For other systems**), or `node tools/docx2akn.cjs bill.docx`.
 
+6. **Budget mode.** Changes to an appropriation bill, with every check of LBDC's budget tools (below).
+
 It does **not** try to look like a printed bill: no line numbers, no bill spacing or fonts.
 
 Nothing is installed on the computer and there is no .exe: Word loads the add-in from this site, and the laws stay on the computer.
 
 ## Clean copy
+
+Nothing leaves the add-in with unmarked changes: **Make the clean copy**, **Show the XML**, **Copy** and **Save .xml** first run Mark changes against the Bank, so a copy can't show the law as other than it stands (words taken out of the law silently, or words passed off as law). A section that can't be checked against the Bank (its law not loaded, the provision not in the law as cited, its text missing) stops the export and is named.
 
 **Clean copy > Make the clean copy (PDF)** typesets the bill right in the pane with LBDC's clean-copy template (`clean-copy/bill.typ`, profile 0.3), the one that matches the public PDFs line for line: bold front matter, the enacting clause underscored (its printed form, not new matter), 72-character lines, 56 lines a page, and words divided only where real prints divide them (`clean-copy/hyphenation.json`). It uses the Typst compiler built for the browser (`vendor/typst`, Typst 0.15.1, the same version as LBDC's desktop demo, so the pane's PDF and the desktop's are identical); nothing is installed and the bill never leaves the computer. See [clean-copy/](clean-copy/README.md); `examples/Example bill - clean copy.pdf` is the example bill printed that way.
 
@@ -54,6 +58,16 @@ The section list under **This bill** shows what each section does and what it st
 
 Click a section to go to it in the document; the section holding the cursor is highlighted. If the numbers or the title stop matching the sections (after deleting one in the document, say), a note above the list offers to renumber or rebuild the title. The bar at the bottom says whether the brackets and underlines are up to date. Standard sections already in the bill offer to go to them instead of adding another, and the effective date says whether it adds one or replaces the one in the bill.
 
+## Budget mode
+
+Switch the pane to **Budget** at the top. It works on an appropriation bill as LBDC changes one for an amended print:
+
+- **Open a budget bill.** The bill is laid out in the document from its Akoma Ntoso XML, which is kept in the document (a custom XML part), so the document carries the record with it. Two demo bills come with the add-in, converted from the 2025 prints (`samples/budget/`): **S.3003-D**, Aid to Localities, Department of Labor and SUNY, with last year's chapter and the 2025 line vetoes; and **S.3000-D**, State Operations, Department of Public Service and CUNY, with the C print before it. Or open any appropriation bill's XML.
+- **Make changes in the document**, then **Mark changes**. A *reappropriation* continues existing law: changed words and original amounts are put in [brackets] and underlined, the way the prints show them ("[(15126)] (60501) ... [1,312,000] 1,433,000 ... (re. $1,433,000)"); the amount reappropriated is this year's figure and is reprinted. An *appropriation* is new money in this bill: it takes the new words and amount. The item at the cursor is shown in the pane, where an appropriation can be added after it or an item taken out.
+- **Totals.** Program totals, subtotals and agency summaries (fund rows and All Funds) are computed from the items; those that no longer add up are listed with a button to update them.
+- **Check** runs the budget tools' checks on the XML, the same way they run in Python: the print-error report's amount checks; reappropriations against **last year's chapter** (by agency, account, program and object, as `prior_check.py`); **changes in this print**, against the bill as opened or another print (`compare_prints.py`); and **line vetoes** placed on the items printed on their lines, each with its line veto memorandum (`line_vetoes.py`). `tests/budget-expected.json` holds what the Python tools find in the samples, and the unit tests check the add-in finds the same.
+- **Clean copy** reads the document's edits back first, refuses if any reappropriation no longer reads as existing law once its brackets and underlines are taken into account, and typesets the bill with the same template.
+
 ## For developers
 
 ```
@@ -64,6 +78,10 @@ src/lib/checks.js     drafting checks
 src/lib/laws.js       the laws the profile can address (Bank ID, consolidated or not, subsections)
 src/lib/tables.js     tables: found in the Bank's fixed-width text, marked row by row and cell by cell
 src/lib/akn.js        model -> Akoma Ntoso 3.0, AKN-NY profile 0.3
+src/lib/budget.js     appropriation bills: item keys, amount checks, last year's chapter, print comparison, line vetoes
+src/lib/budgetword.js an appropriation bill in Word: laid out from its XML, edits read back and marked, totals
+src/budgetpane.js     the pane's budget mode
+samples/budget/       the demo budget bills and what comes with them (tools/make-budget-sample.py makes them)
 src/taskpane.*        the pane (Office.js)
 src/cleancopy.js      clean copy PDF in the pane (Typst in WebAssembly + clean-copy/bill.typ)
 tools/docx2akn.cjs    command-line converter (same code)
@@ -74,6 +92,7 @@ tests/cleancopy.mjs   makes clean copies with the pane's own code and compiler  
 tests/flow.cjs        whole flow in Chromium against a Word stand-in (tests/word-mock.js):
                       python3 -m http.server 8123 & node tests/flow.cjs tests/bank-fixture out/
 tests/bank-fixture/   three small Bank files for the flow (tests/make-bank-fixture.cjs)
+tests/budget-flow.cjs budget mode in Chromium against the Word stand-in   (node tests/budget-flow.cjs out/)
 ```
 
 The libraries have no Office dependency, so they run in Node. To try the pane against a real Word, sideload `manifest.xml` as above; to point it at another host, replace `https://raihoheeho.github.io/bill-drafter-word/` in the manifest.

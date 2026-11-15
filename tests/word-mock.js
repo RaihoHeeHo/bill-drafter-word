@@ -90,9 +90,13 @@
       else if (where === 'After') { let ref = n.nextSibling; kids.forEach(k => n.parentNode.insertBefore(k, ref)); }
     }
   }
+  // A paragraph's text as Word gives it: tabs as tab characters.
+  const textOf = n => { let s = ''; for (const e of n.getElementsByTagNameNS(W, '*')) { if (e.localName === 't') s += e.textContent; else if (e.localName === 'tab' && e.parentNode.localName === 'r') s += '\t'; } return s; };
   class Paras extends Proxy {
     constructor(root) { super(); this.root = root; }
-    get items() { return [...this.root.childNodes].filter(n => n.localName === 'p').map(p => ({ text: p.textContent, delete() { p.parentNode.removeChild(p); } })); }
+    get items() { return [...this.root.childNodes].filter(n => n.localName === 'p').map(p => ({ text: textOf(p), delete() { p.parentNode.removeChild(p); } })); }
+    // an inline control's first paragraph is the one it sits in, as in Word
+    getFirst() { let p = [...this.root.getElementsByTagNameNS(W, 'p')][0]; if (!p) for (let a = this.root.parentNode; a; a = a.parentNode) if (a.localName === 'p') { p = a; break; } return { text: p ? textOf(p) : '', load() { return this; } }; }
   }
   const props = [];
   const document_ = {
@@ -116,7 +120,21 @@
     properties: { customProperties: { load() {}, get items() { return props; }, add(key, value) { const p = props.find(x => x.key === key); if (p) p.value = value; else props.push({ key, value }); } } },
   };
   window.Word = { run: fn => fn({ document: document_, sync: async () => {} }) };
-  window.Office = { HostType: { Word: 'Word' }, context: { requirements: { isSetSupported: () => true } }, onReady: cb => setTimeout(() => cb({ host: 'Word' }), 0) };
+  // Custom XML parts (Office's common API, callback style), kept in memory.
+  const parts = []; let partN = 0;
+  const ok = (cb, value) => cb && setTimeout(() => cb({ status: 'succeeded', value }), 0);
+  const customXmlParts = {
+    addAsync(xml, cb) { const p = { id: 'part' + (++partN), xml, getXmlAsync(c) { ok(c, this.xml); }, deleteAsync(c) { const i = parts.indexOf(this); if (i >= 0) parts.splice(i, 1); ok(c); } }; parts.push(p); ok(cb, p); },
+    getByNamespaceAsync(ns, cb) { ok(cb, parts.filter(p => p.xml.includes('xmlns="' + ns + '"'))); },
+  };
+  window.__parts = parts;
+  window.Office = { HostType: { Word: 'Word' }, AsyncResultStatus: { Succeeded: 'succeeded' }, EventType: { DocumentSelectionChanged: 'documentSelectionChanged' },
+    context: { requirements: { isSetSupported: () => true }, document: { customXmlParts, addHandlerAsync(type, fn) { window.__selectionHandler = fn; } } },
+    onReady: cb => setTimeout(() => cb({ host: 'Word' }), 0) };
+  // Test helper: put the cursor in the content control with this tag, as a click would, and tell the pane.
+  window.__selectTag = t => { const n = [...doc.getElementsByTagNameNS(W, 'sdt')].find(s => tagOf(s) === t); if (!n) return false; window.__selectedNode = n; if (window.__selectionHandler) window.__selectionHandler({}); return true; };
+  // Test helper: type into the content control with this tag.
+  window.__typeInTag = (t, find, replace) => { const n = [...doc.getElementsByTagNameNS(W, 'sdt')].find(s => tagOf(s) === t); if (!n) return false; for (const x of n.getElementsByTagNameNS(W, 't')) if (x.textContent.includes(find)) { x.textContent = x.textContent.replace(find, replace); return true; } return false; };
   // Test helper: type into the first quoted block containing `find`, as a person would.
   window.__typeInLaw = (find, replace) => {
     for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(find)) { t.textContent = t.textContent.replace(find, replace); return true; }

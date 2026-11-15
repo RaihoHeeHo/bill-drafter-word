@@ -4,6 +4,8 @@
 const $ = id => document.getElementById(id);
 const el = (tag, props, ...kids) => { const e = Object.assign(document.createElement(tag), props || {}); for (const k of kids) e.append(k); return e; };
 let inWord = false;
+// 'bill': drafting a bill from the Bank. 'budget': an appropriation bill laid out from its XML (src/budgetpane.js).
+let mode = 'bill';
 
 /* ---------- small helpers ---------- */
 // Messages show as a toast just above the buttons at the bottom, where the drafter's eyes are after pressing one.
@@ -408,6 +410,7 @@ let state = { model: null, found: [] }, hasBill = false, refreshing = null, agai
 const numOf = s => (s && s.num || '').replace(/\.$/, '') || 'that section';
 async function refresh() {
   if (!inWord) return;
+  if (mode === 'budget') return BUD.refresh();
   if (refreshing) { again = true; return refreshing; }
   refreshing = (async () => {
     do { again = false; await refreshOnce(); } while (again);
@@ -773,9 +776,19 @@ function showTab(name, focusSec) {
   if (!$('notice').classList.contains('error')) $('notice').hidden = true;
   window.scrollTo(0, 0);
   // Opening a tab brings it up to date: checks run, the clean-copy summary reflects the bill information.
+  if (mode === 'budget') { document.body.classList.toggle('has-dock', name === 'draft' && !$('b-dock').hidden); BUD.onTab(name, focusSec); return; }
   if (name === 'checks' && inWord) busy($('run-checks'), () => runChecks(focusSec));
   if (name === 'export') infoSummary();
   if (name === 'draft' && inWord) busy(null, refresh);
+}
+// Bill or budget: each tab shows the part of itself for that kind of work.
+function setMode(m) {
+  mode = m;
+  for (const b of document.querySelectorAll('.mode button')) b.setAttribute('aria-selected', String(b.dataset.mode === m));
+  for (const d of document.querySelectorAll('[data-mode]:not(button)')) d.hidden = d.dataset.mode !== m;
+  $('bank-btn').hidden = m === 'budget';
+  const cur = document.querySelector('nav button[aria-selected="true"]');
+  showTab(cur ? cur.dataset.tab : 'draft');
 }
 function showSeg(name) {
   for (const b of document.querySelectorAll('.seg button')) b.setAttribute('aria-selected', String(b.dataset.seg === name));
@@ -788,6 +801,7 @@ function effPreview() {
 function wire() {
   for (const b of document.querySelectorAll('nav button')) b.onclick = () => showTab(b.dataset.tab);
   for (const b of document.querySelectorAll('.seg button')) b.onclick = () => showSeg(b.dataset.seg);
+  for (const b of document.querySelectorAll('.mode button')) b.onclick = () => setMode(b.dataset.mode);
   const on = (id, fn) => { const b = $(id); b.onclick = () => busy(b, fn); };
   $('notice-close').onclick = () => { $('notice').hidden = true; };
   on('go-bank', async () => showTab('bank')); on('go-bank2', async () => showTab('bank'));
@@ -849,6 +863,9 @@ function confirmClear() {
 async function start(host) {
   wire();
   inWord = host === 'Word';
+  // A document that holds a budget bill opens in budget mode.
+  const hasBudget = await BUD.init().catch(e => { console.error(e); return false; });
+  if (inWord && hasBudget) setMode('budget');
   if (!inWord) notice('This pane works inside Word. Here you can still load the Bank.', false);
   await showBank(); await fillLaws();
   if (inWord) {
@@ -863,7 +880,7 @@ async function start(host) {
     const back = () => { if (!document.hidden && Date.now() - (state.at || 0) > 1500) busy(null, refresh); };
     window.addEventListener('focus', back); document.addEventListener('visibilitychange', back);
     try {
-      let ct; Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, () => { clearTimeout(ct); ct = setTimeout(findCurrent, 400); });
+      let ct; Office.context.document.addHandlerAsync(Office.EventType.DocumentSelectionChanged, () => { clearTimeout(ct); ct = setTimeout(() => mode === 'budget' ? BUD.cursor() : findCurrent(), 400); });
     } catch (e) { /* not in every host */ }
   }
 }
