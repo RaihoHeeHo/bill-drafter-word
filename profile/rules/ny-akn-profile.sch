@@ -332,7 +332,7 @@
       <assert test="not(@class) or self::a:del">Only old matter (del) is split with span classes; underscoring needs no brackets.</assert>
       <assert test="not(ancestor::a:ins or ancestor::a:del)">ins and del cannot be nested.</assert>
       <assert test="normalize-space(.) != ''">Empty &lt;<value-of select="local-name()"/>&gt;.</assert>
-      <assert test="not(re:test(string(preceding-sibling::node()[1][self::text()]), '[A-Za-z0-9-]$') and re:test(string(.), '^[A-Za-z0-9]')) and not(re:test(string(.), '[A-Za-z0-9]$') and re:test(string(following-sibling::node()[1][self::text()]), '^[A-Za-z0-9-]'))">Only whole words are changed: bracket the entire word or hyphenated word and underscore its replacement ([conditions] condition, not condition[s]).</assert>
+      <assert test="not(re:test(string(preceding-sibling::node()[1][self::text()]), '([A-Za-z0-9]|(^|[^-])-)$') and re:test(string(.), '^[A-Za-z0-9]')) and not(re:test(string(.), '[A-Za-z0-9]$') and re:test(string(following-sibling::node()[1][self::text()]), '^([A-Za-z0-9]|-([^-]|$))'))">Only whole words are changed: bracket the entire word or hyphenated word and underscore its replacement ([conditions] condition, not condition[s]).</assert>
       <assert role="warning" test="not(self::a:ins and (following-sibling::node()[1][self::a:del] or (following-sibling::node()[1][self::text()][normalize-space(.) = ''] and following-sibling::node()[2][self::a:del])))">New matter replacing old matter is inserted after the bracketed text, not before it ([ten] twenty, not twenty [ten]).</assert>
     </rule>
     <rule context="a:mod">
@@ -360,7 +360,7 @@
       <assert test="not(parent::*[local-name() = local-name(current())])">A <value-of select="local-name()"/> cannot be directly inside another <value-of select="local-name()"/>.</assert>
     </rule>
     <rule context="a:hcontainer">
-      <assert test="@name = 'agency' or @name = 'fundSchedule' or @name = 'department' or @name = 'schedule' or @name = 'agencySummary' or @name = 'program' or @name = 'account' or @name = 'purpose' or @name = 'appropriation' or @name = 'objectGroup' or @name = 'subtotal' or @name = 'adjustment' or @name = 'table' or @name = 'tableGroup' or @name = 'tableNote' or @name = 'reappropriationSource' or @name = 'reappropriation' or @name = 'resolution' or @name = 'item' or @name = 'subitem' or @name = 'subarticle' or @name = 'text'">hcontainer name "<value-of select="@name"/>" isn't in the AKN-NY vocabulary.</assert>
+      <assert test="@name = 'agency' or @name = 'fundSchedule' or @name = 'department' or @name = 'schedule' or @name = 'agencySummary' or @name = 'program' or @name = 'account' or @name = 'purpose' or @name = 'appropriation' or @name = 'objectGroup' or @name = 'subtotal' or @name = 'adjustment' or @name = 'table' or @name = 'tableGroup' or @name = 'tableNote' or @name = 'reappropriationSource' or @name = 'reappropriation' or @name = 'resolution' or @name = 'item' or @name = 'subitem' or @name = 'subarticle' or @name = 'text' or @name = 'group' or @name = 'toc'">hcontainer name "<value-of select="@name"/>" isn't in the AKN-NY vocabulary.</assert>
     </rule>
   </pattern>
 

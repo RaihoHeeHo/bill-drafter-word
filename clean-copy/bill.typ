@@ -1143,6 +1143,31 @@
     structure(m)
   } else if n.tag == "hcontainer" and name == "table" {
     render-named-table(n)
+  } else if n.tag == "hcontainer" and name == "group" {
+    // a heading that groups the units under it ("Education:"), on a line of its own; or words that open a
+    // second run of units, as a paragraph
+    let heading = kid(n, "heading")
+    if heading != none { body-par(inline(heading)) }
+    let m = (:..n)
+    m.children = n.children.filter(c => not is-el(c, tag: "heading"))
+    m.attrs = (..n.attrs, name: "group-body")
+    structure(m, lead: lead)
+  } else if n.tag == "hcontainer" and name == "toc" {
+    // the list of sections under a new article's heading: "Section 605. Definitions.", then each number under
+    // the first, an entry that runs on set under its words
+    let ps = kids(kid(n, "content"), "p")
+    let first = if ps.len() > 0 { text-of(ps.at(0)).split(" ") } else { () }
+    let lead = if first.len() > 1 { first.at(0).clusters().len() + 1 } else { 0 }
+    for (i, p) in ps.enumerate() {
+      let words = text-of(p).split(" ")
+      let num = if i == 0 { words.at(1, default: "") } else { words.at(0, default: "") }
+      let hang = num.clusters().len() + 1
+      if i == 0 {
+        par(first-line-indent: 0pt, hanging-indent: (lead + hang) * char, linebreaks: "simple", inline(p))
+      } else {
+        pad(left: lead * char, par(first-line-indent: 0pt, hanging-indent: hang * char, linebreaks: "simple", inline(p)))
+      }
+    }
   } else if n.tag == "hcontainer" and name == "tableGroup" {
     blank-line
     centered-line(inline(kid(n, "heading")), n: plain-len(kid(n, "heading")))
@@ -1155,7 +1180,7 @@
     let mine = lead
     let num = kid(n, "num")
     let heading = kid(n, "heading")
-    if n.tag == "part" or n.tag == "subpart" or name == "table" {
+    if n.tag in ("part", "subpart", "article", "title", "subtitle", "chapter") or name == "table" {
       // Parts and named tables carry their own centered heading lines
       let spaced = name == "table"
       if spaced and (num != none or heading != none) { blank-line }
@@ -1266,7 +1291,13 @@
   par(h(char) + [EXPLANATION\-\-Matter in #under[italics] (underscored) is new; matter in brackets])
   par(h(22 * char) + [\[ \] is old law to be omitted.])
   par(h(1fr) + lbd-no)
-  v(top-margin + body-height - (spec.first-page-end + 0.2 * spec.size), weak: false)
+  // When the title runs on past page 1 (the long budget bills), page 1 holds one more line: the foot sits a line
+  // lower (S.3005-C, S.3006-C).
+  context {
+    let ends = query(<lbdc-title-end>)
+    let longer = ends.len() > 0 and ends.first().location().page() > 1
+    v(top-margin + body-height - (spec.first-page-end + (if longer { spec.pitch } else { 0pt }) + 0.2 * spec.size), weak: false)
+  }
 }
 #place(bottom + left, float: true, clearance: 0pt, first-page-foot)
 
@@ -1329,7 +1360,7 @@
       centered(text-of(p))
       blank-line
     } else if p.tag == "longTitle" {
-      par(justify: true, linebreaks: "simple", hanging-indent: spec.indent * char, inline(kid(p, "p")))
+      par(justify: true, linebreaks: "simple", hanging-indent: spec.indent * char, inline(kid(p, "p")) + [#metadata(none)<lbdc-title-end>])
       blank-line
     }
   }
