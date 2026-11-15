@@ -1049,6 +1049,14 @@
     for k in ks { out += render-flow(k, depth) }
   } else if name == "reappropriationSource" {
     out += render-source(c)
+  } else if name == "text" and "preformatted" in cls {
+    // a table set out as printed (a summary across the budget types): its title centred, its lines as they are
+    out.push(center-text(text-of(kid(c, "heading"))))
+    for r in kids(find(c, "table"), "tr") {
+      let t = text-of(kid(r.children.find(is-el), "p"))
+      let lead = kid(r.children.find(is-el), "p").children.filter(x => type(x) == str).join()
+      out.push(a-line(0, lead.replace(" ", nb(1))))
+    }
   } else if name in ("text", "purpose") {
     let inreapp = c.at("_src", default: false)
     for p in kids(kid(c, "content"), "p") { out += a-par(nodes-words(p.children), first: 0, cont: 2, right: right) }

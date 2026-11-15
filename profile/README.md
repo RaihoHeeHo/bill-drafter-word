@@ -188,6 +188,8 @@ Tools:
   flow of the text (Legislature and Judiciary, Debt Service): funds,
   departments and agencies in the order printed, items with their own schedules,
   object groups, totals and reappropriations.
+* `tools/prior_check.py` checks a bill's reappropriations against last year's
+  chapter (its appropriations and its reappropriations), item by item.
 * `tools/budget_items.py` lists every item with its key (agency, account,
   program, object) and checks a bill's reappropriations against the chapter they
   cite (`--prior`).
