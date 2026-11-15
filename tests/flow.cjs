@@ -76,6 +76,18 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   console.log('pdf status:', await p.textContent('#pdf-status'));
   const b64 = await p.evaluate(async () => { const r = await fetch(pdfUrl); const u = new Uint8Array(await r.arrayBuffer()); let s = ''; for (const c of u) s += String.fromCharCode(c); return btoa(s); });
   fs.writeFileSync(OUT + '/clean-copy.pdf', Buffer.from(b64, 'base64'));
+  await step('save the clean copy', async () => {
+    const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('#pdf-save')]);
+    const f = OUT + '/' + dl.suggestedFilename(); await dl.saveAs(f);
+    const head = fs.readFileSync(f).slice(0, 5).toString();
+    if (head !== '%PDF-') throw new Error('the saved file is not a PDF: ' + f);
+    console.log('saved:', dl.suggestedFilename(), fs.statSync(f).size, 'bytes');
+  });
+  await step('save the XML', async () => {
+    const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 15000 }), p.click('#akn-save')]);
+    const f = OUT + '/' + dl.suggestedFilename(); await dl.saveAs(f);
+    console.log('saved:', dl.suggestedFilename(), fs.statSync(f).size, 'bytes');
+  });
   await p.screenshot({ path: OUT + '/5-export.png', fullPage: true });
   fs.writeFileSync(OUT + '/document.xml', await p.evaluate(() => __docXml()));
   console.log('ops', await p.evaluate(() => __ops.join(', ')));
