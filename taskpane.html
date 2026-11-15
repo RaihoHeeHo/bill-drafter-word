@@ -9,28 +9,27 @@
 </head>
 <body>
 <header>
-  <div class="brand"><img src="assets/icon-32.png" alt="" width="20" height="20"> Bill Drafter <span class="demo">DEMO</span></div>
+  <div class="brand"><img src="assets/icon-32.png" alt="" width="20" height="20"> Bill Drafter <span class="demo">DEMO</span>
+    <div class="mode" role="tablist" aria-label="What you are drafting"><button role="tab" data-mode="bill" aria-selected="true">Bill</button><button role="tab" data-mode="budget" aria-selected="false">Budget</button></div>
+    <button id="bank-btn" class="bank-btn" title="The laws this computer drafts from">Bank</button></div>
   <nav role="tablist">
     <button role="tab" data-tab="draft" aria-selected="true">Draft</button>
     <button role="tab" data-tab="checks">Check <span id="check-count" class="count" hidden></span></button>
     <button role="tab" data-tab="export">Clean copy</button>
-    <button role="tab" data-tab="bank">Bank</button>
   </nav>
 </header>
-<div id="notice" class="notice" role="status" aria-live="polite" hidden><span id="notice-text"></span><button id="notice-close" class="x" aria-label="Dismiss">×</button></div>
 
 <main>
 <!-- ============ Draft ============ -->
 <section data-panel="draft">
+<div data-mode="bill">
   <div id="welcome" class="card intro" hidden>
     <h2>Getting started</h2>
     <ol class="steps">
-      <li id="step-bank"><b>Load the Bank.</b> The laws this computer drafts from. <button id="go-bank" class="link">Open the Bank tab</button></li>
+      <li id="step-bank"><b>Load the Bank</b>, the laws this computer drafts from. <button id="go-bank" class="link">Load the Bank</button></li>
       <li id="step-bill"><b>Start a bill</b> below.</li>
-      <li><b>Add sections</b>: amend a law, or add a standard section.</li>
-      <li><b>Edit the law's text</b> in the document as plain text, then <b>Mark changes</b>.</li>
-      <li><b>Check</b> the bill and make the <b>clean copy</b>.</li>
     </ol>
+    <p class="hint">Then add sections, edit the law's text in the document as you would any text, and press <b>Mark changes</b>: brackets and underlines are put in for you.</p>
   </div>
 
   <div id="no-bill" class="card" hidden>
@@ -45,12 +44,13 @@
     <h2>This bill</h2>
     <label for="subject">In relation to</label>
     <input id="subject" placeholder="what the bill is about">
-    <p class="hint">The title ("AN ACT to amend …") is rebuilt for you whenever a section is added, and when you change this line.</p>
+    <p class="hint">The title ("AN ACT to amend …") is written from this line and the sections, and kept up to date for you.</p>
+    <div id="bill-fixes"></div>
+    <div class="head-row outline-head"><h3>Sections</h3><span class="hint" id="outline-hint">Click one to go to it</span></div>
     <ol id="outline" class="outline" aria-label="Sections of the bill"></ol>
-    <div class="row small"><button id="refresh" class="link">Refresh</button><button id="renumber" class="link">Renumber and rebuild the title</button></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="add-card">
     <h2>Add a section</h2>
     <div class="seg" role="tablist" aria-label="Kind of section">
       <button id="seg-amend" role="tab" aria-selected="true" data-seg="amend">Amend a law</button>
@@ -66,7 +66,8 @@
         <div class="picked-head"><b id="picked-title"></b><button id="picked-clear" class="link">Change</button></div>
         <details id="sec-preview-box"><summary>Show the law's text</summary><div id="sec-preview" class="preview"></div></details>
       </div>
-      <fieldset id="action" class="actions" disabled>
+      <p id="sec-help" class="hint">Type the law and the section, then pick it from the list. You can type the law's ID or a word of its name, and a subdivision: <i>GCN 12</i>, <i>executive 296(1)</i>, <i>tax 606(c)</i>.</p>
+      <fieldset id="action" class="actions" hidden>
         <legend>What the bill does</legend>
         <label><input type="radio" name="act" value="amend" checked> Amends the whole section</label>
         <label><input type="radio" name="act" value="amendSub"> Amends <span id="sub-word">subdivision</span> <select id="sub" aria-label="Which one"></select></label>
@@ -76,7 +77,7 @@
         <div id="history-row">
           <label for="history">Last amended by <span class="opt">(optional)</span></label>
           <input id="history" placeholder="e.g. chapter 55 of the laws of 2023" autocomplete="off">
-          <p class="hint">The Bank does not hold a section's history. Left blank, Check will remind you. <button id="history-open" class="link">Add history to a section already in the bill</button></p>
+          <p class="hint">The Bank does not hold a section's history. You can add it later from the section list.</p>
         </div>
         <button id="insert-amend" class="primary wide">Insert section</button>
       </fieldset>
@@ -100,16 +101,16 @@
           <button id="add-eff">Use this effective date</button>
         </div>
       </div>
-      <p class="hint">Each section goes where the Manual puts it, and the sections are renumbered.</p>
+      <p class="hint">Each section goes where the Drafting Manual puts it, and the sections are renumbered.</p>
     </div>
   </div>
 
-  <div class="card" id="tables-card">
-    <h2>Tables</h2>
-    <p class="hint">A table in the law's text is a real Word table. Change it in the document, or here: edit it as the law will read, and Mark changes brackets what you took out and underlines what you added.</p>
+  <details class="card" id="tables-card" hidden>
+    <summary><b>Tables</b> <span id="table-count" class="hint"></span></summary>
+    <p class="hint">A table in the law's text is a real Word table. Change it in the document, or here: edit it as the law will read, and the brackets and underlines are put in when you save.</p>
     <ul id="table-list" class="tlist"></ul>
     <div class="row" id="table-new-row"><select id="table-target" aria-label="Section to add a table to"></select><button id="table-new">New table</button></div>
-  </div>
+  </details>
 
   <div class="card editor" id="table-editor" hidden>
     <div class="head-row"><h2 id="te-title">Table</h2><button id="te-close" class="x" aria-label="Close the table editor">×</button></div>
@@ -128,40 +129,123 @@
     <div class="row"><button id="te-save" class="primary">Save to the bill</button><button id="te-cancel">Cancel</button></div>
   </div>
 
-  <div class="card" id="history-card" hidden>
-    <div class="head-row"><h2>Add history to a section in the bill</h2><button id="history-close" class="x" aria-label="Close">×</button></div>
-    <p class="hint">Click in the section in the document (its amending clause or the law's text), type its last amendment, and put it in.</p>
-    <label for="history-fix">As amended by</label>
-    <input id="history-fix" placeholder="e.g. chapter 55 of the laws of 2023" autocomplete="off">
-    <button id="history-apply" class="primary wide">Put it in that section</button>
-  </div>
-
   <div class="dock" id="dock" hidden>
+    <p id="dock-status" class="dock-status"></p>
     <button id="mark" class="primary" title="Compares each amended text with the Bank: what you took out goes in [brackets], what you added is underlined. Run it again after any edit.">Mark changes</button>
     <button id="dock-check">Check the bill</button>
-    <p class="hint">After editing the law's text: [brackets] and underlines, from the Bank.</p>
   </div>
+</div>
+<div data-mode="budget" hidden>
+  <div class="card" id="b-open" hidden>
+    <h2>Open a budget bill</h2>
+    <p class="hint">The bill is laid out in this document from its Akoma Ntoso XML, which is kept in the document. You make changes in the document; the checks, the totals and the clean copy all work from the XML.</p>
+    <div id="b-samples" class="stdlist"></div>
+    <div class="row"><label class="filebtn">Open a bill's XML… <input id="b-file" type="file" accept=".xml,application/xml" hidden></label></div>
+    <p id="b-notempty" class="callout" hidden>This document already has text, so the budget bill will go after it. Open a blank document first for a clean start.</p>
+  </div>
+  <details class="card" id="b-help" hidden>
+    <summary><b>Making changes</b> <span class="hint">how edits are read</span></summary>
+    <p>Edit an item in the document as you would any text, then press <b>Mark changes</b>.</p>
+    <ul class="rules">
+      <li><b>Reappropriations</b> continue existing law: changed words and original amounts are put in [brackets] and underlined. The amount reappropriated, "(re. $…)", is this year's figure and is just reprinted.</li>
+      <li><b>Appropriations</b> are new money in this bill: they take the new words and amount as typed.</li>
+      <li>Totals and agency summaries that no longer add up are listed above, with a button to update them.</li>
+    </ul>
+  </details>
+  <div class="card" id="b-bill" hidden>
+    <h2 id="b-title">Budget bill</h2>
+    <p id="b-summary" class="summary"></p>
+    <div id="b-fixes"></div>
+    <div class="row small"><button id="b-window" class="link">Open the bill window</button><span class="hint">the whole bill, to browse and search</span></div>
+    <div class="head-row outline-head"><h3>Schedules</h3><span class="hint" id="b-outline-hint">Click one to go to it</span></div>
+    <div class="row" id="b-filter-row" hidden><input id="b-filter" placeholder="Find a schedule: labor, health…" autocomplete="off" aria-label="Find a schedule"></div>
+    <ol id="b-outline" class="outline boutline"></ol>
+  </div>
+  <div class="card" id="b-item" hidden>
+    <div class="head-row"><h2>At the cursor</h2><span id="b-item-kind" class="pill"></span></div>
+    <p id="b-item-what" class="quote"></p>
+    <p id="b-item-rule" class="hint"></p>
+    <details id="b-add-box"><summary>Add an appropriation after it</summary>
+      <label for="b-add-words">Words</label>
+      <textarea id="b-add-words" rows="3" placeholder="For services and expenses of … (12345)"></textarea>
+      <label for="b-add-amount">Amount</label>
+      <div class="row"><input id="b-add-amount" placeholder="1,000,000" inputmode="numeric"><button id="b-add" class="primary">Add it</button></div>
+      <p class="hint">New money in this bill: printed as typed, not underlined. Put the program code in parentheses at the end of the words.</p>
+    </details>
+    <div class="row small"><button id="b-goto" class="link">Go to it</button><button id="b-remove" class="link danger">Remove it from the bill</button></div>
+  </div>
+  <div class="dock" id="b-dock" hidden>
+    <p id="b-dock-status" class="dock-status"></p>
+    <button id="b-mark" class="primary">Mark changes</button>
+    <button id="b-dock-check">Check the bill</button>
+  </div>
+</div>
 </section>
 
 <!-- ============ Checks ============ -->
 <section data-panel="checks" hidden>
+<div data-mode="budget" hidden>
+  <div class="card">
+    <div class="head-row"><h2>Amounts</h2><button id="b-run" class="link">Check again</button></div>
+    <p class="hint">The checks of the print-error report: program totals, subtotals and agency summaries against the items, project schedules against their rows and their item, and reappropriations against their original amounts.</p>
+    <p id="b-amt-summary" class="summary"></p>
+    <ul id="b-amt" class="findings"></ul>
+  </div>
+  <div class="card">
+    <h2>Last year's chapter</h2>
+    <p class="hint">Every reappropriation is looked up in the chapter it continues, by agency, account, program and object: its original amount must be what that chapter appropriated, and the amount reappropriated no more than it.</p>
+    <div id="b-prior"></div>
+    <details id="b-prior-pick"><summary>Use another chapter</summary>
+      <div class="grid"><label>Chapter <input id="b-prior-ch" placeholder="53"></label><label>Of the laws of <input id="b-prior-yr" placeholder="2024"></label></div>
+      <label class="filebtn">Choose the chapter's XML (the bill as passed)… <input id="b-prior-file" type="file" accept=".xml,application/xml" hidden></label>
+    </details>
+  </div>
+  <div class="card">
+    <h2>Changes in this print</h2>
+    <p class="hint">Items added, removed, recoded or reworded, amounts changed, and totals changed, matched by their key.</p>
+    <div class="row"><select id="b-cmp-with" aria-label="Compare with"></select><button id="b-cmp">Compare</button></div>
+    <label class="filebtn">Another print's XML… <input id="b-cmp-file" type="file" accept=".xml,application/xml" hidden></label>
+    <div id="b-cmp-out"></div>
+  </div>
+  <div class="card">
+    <h2>Line vetoes</h2>
+    <p class="hint">The Division of the Budget's list cites each veto by the bill's page and lines. Each is placed on the item printed wholly on those lines, its words and amounts compared, and its line veto memorandum written.</p>
+    <div id="b-vetoes"></div>
+  </div>
+</div>
+<div data-mode="bill">
   <div class="card">
     <div class="head-row"><h2>Check the bill</h2><button id="run-checks" class="link">Check again</button></div>
+    <p class="hint">The title and enacting clause, section numbers and order, each amendment against the Bank (citation, history, marking), and style in new matter.</p>
     <p id="check-summary" class="summary"></p>
     <ul id="findings" class="findings"></ul>
-    <p class="hint">Checks the title and enacting clause, section numbers and order, each amendment against the Bank (citation, history, marking), and style in new matter.</p>
   </div>
+</div>
 </section>
 
 <!-- ============ Clean copy ============ -->
 <section data-panel="export" hidden>
+<div data-mode="budget" hidden>
+  <div class="card">
+    <h2>Clean copy</h2>
+    <p id="b-cc-summary" class="summary"></p>
+    <button id="b-pdf" class="primary wide">Make the clean copy (PDF)</button>
+    <p id="b-pdf-status" class="hint">Edits in the document are read back and marked first, so the copy is the bill as changed. Typeset here with LBDC's clean-copy template.</p>
+    <div class="row" id="b-pdf-actions" hidden><button id="b-pdf-open" class="primary">Open the PDF</button><button id="b-pdf-save">Save .pdf</button></div>
+  </div>
+  <details class="card">
+    <summary><b>For other systems</b> <span class="hint">Akoma Ntoso XML</span></summary>
+    <p class="hint">The bill as structured data in LBDC's AKN-NY profile, with this print's changes.</p>
+    <button id="b-xml-save" class="wide">Save the bill's XML</button>
+  </details>
+</div>
+<div data-mode="bill">
   <div class="card">
     <h2>Clean copy</h2>
     <p id="info-summary" class="summary"></p>
     <button id="to-pdf" class="primary wide">Make the clean copy (PDF)</button>
-    <div class="row" id="pdf-actions" hidden><button id="pdf-open">Open</button><button id="pdf-save">Save .pdf</button></div>
-    <p id="pdf-status" class="hint"></p>
-    <p class="hint">Printed here on this computer with LBDC's clean-copy template, line for line as the public prints. The first time, the typesetter takes a few seconds to load.</p>
+    <p id="pdf-status" class="hint">Typeset here on this computer with LBDC's clean-copy template, line for line as the public prints. The first one takes a few seconds while the typesetter loads.</p>
+    <div class="row" id="pdf-actions" hidden><button id="pdf-open" class="primary">Open the PDF</button><button id="pdf-save">Save .pdf</button></div>
   </div>
 
   <div class="card">
@@ -183,18 +267,19 @@
   </div>
 
   <details class="card" id="akn-card">
-    <summary><b>Akoma Ntoso XML</b> <span class="hint">for Propylon and other systems</span></summary>
+    <summary><b>For other systems</b> <span class="hint">Akoma Ntoso XML</span></summary>
     <p class="hint">The bill as structured data in LBDC's AKN-NY profile (version 0.3), the same XML the clean copy is printed from.</p>
     <button id="to-akn" class="wide">Show the XML</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
     <textarea id="akn-out" rows="12" readonly spellcheck="false" aria-label="Akoma Ntoso XML"></textarea>
   </details>
+</div>
 </section>
 
 <!-- ============ Bank ============ -->
 <section data-panel="bank" hidden>
   <div class="card">
-    <h2>The Bank on this computer</h2>
+    <div class="head-row"><h2>The Bank on this computer</h2><button id="bank-back" class="link">Back to the bill</button></div>
     <p id="bank-status" class="summary"></p>
     <p class="hint">Pick the law files the NYS Law Library downloads (one .json per law, e.g. <i>EDN - Education.json</i>), or the whole folder. They are kept in Word's storage on this computer only; nothing is sent anywhere. Pick them again when the Bank is updated.</p>
     <div class="row">
@@ -207,6 +292,7 @@
   </div>
 </section>
 </main>
+<div id="notice" class="notice" role="status" aria-live="polite" hidden><span id="notice-text"></span><button id="notice-close" class="x" aria-label="Dismiss">×</button></div>
 
 <script src="src/lib/drafting.js"></script>
 <script src="src/lib/laws.js"></script>
@@ -215,7 +301,12 @@
 <script src="src/lib/ooxml.js"></script>
 <script src="src/lib/checks.js"></script>
 <script src="src/lib/akn.js"></script>
+<script src="src/lib/budget.js"></script>
+<script src="src/lib/budgetword.js"></script>
+<script src="src/lib/windowstore.js"></script>
+<script src="vendor/pdf-lib/pdf-lib.min.js"></script>
 <script src="src/cleancopy.js"></script>
 <script src="src/taskpane.js"></script>
+<script src="src/budgetpane.js"></script>
 </body>
 </html>

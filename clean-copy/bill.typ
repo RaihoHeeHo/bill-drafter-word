@@ -36,6 +36,14 @@
 // Reading the XML
 // ---------------------------------------------------------------------------
 #let source = xml(sys.inputs.at("xml", default: "sample-bill.xml"))
+// Printing a long budget bill in parts (the Word add-in prints a few hundred pages at a time and joins them):
+// a part begins on page page-offset + 1, only the first carries the front matter and only the last the table
+// of contents, which takes the pages of the agencies in earlier parts from agency-pages ({eId: page}). Each
+// agency begins on a page of its own, so the parts paginate exactly as the whole bill does.
+#let page-offset = int(sys.inputs.at("page-offset", default: "0"))
+#let part-front = sys.inputs.at("front", default: "yes") == "yes"
+#let part-toc = sys.inputs.at("toc", default: "yes") == "yes"
+#let earlier-pages = json(bytes(sys.inputs.at("agency-pages", default: "{}")))
 #let root = source.filter(n => type(n) == dictionary and n.tag != "").first()
 
 #let is-el(n, tag: none) = type(n) == dictionary and n.tag != "" and (tag == none or n.tag == tag)
@@ -796,7 +804,8 @@
 // Reappropriations: an item is "text ... original .... (re. $amount)" across the full line.
 #let render-reitem(c) = {
   let p = find(c, "p")
-  let qs = els(p).filter(x => x.tag == "quantity")
+  // an amount changed by the bill is new matter: "[1,312,000] 1,433,000", the new amount inside <ins>
+  let qs = els(p).map(x => if x.tag == "ins" { els(x) } else { (x,) }).flatten().filter(x => x.tag == "quantity")
   if "noOriginal" in attr(c, "class").split(" ") {
     // no original amount: the words, leaders and "(re. $...)" at the margin, or a line of leaders under the
     // words when it does not fit
@@ -821,7 +830,9 @@
   let orig = text-of(qs.find(q => attr(q, "class") == "originalAmount"))
   let re = text-of(qs.find(q => attr(q, "class") == "reappropriatedAmount"))
   let cs = p.children
-  let k = cs.position(x => is-el(x) and x.tag == "quantity" and attr(x, "class") == "originalAmount")
+  let is-orig = x => is-el(x) and x.tag == "quantity" and attr(x, "class") == "originalAmount"
+  let k = cs.position(x => is-orig(x) or (is-el(x) and x.tag == "ins" and els(x).any(is-orig)))
+  let orig-new = k != none and cs.at(k).tag == "ins"
   let head = cs.slice(0, k)
   // drop the " ... " (or plain space) before the original amount from the words; words after the leader (an
   // amended amount, "[3,900,000]") follow it: "Personal service (50000) ... [3,900,000] 3,867,000 ...."
@@ -836,6 +847,7 @@
   let mid = (if noLeader { nb(1) } else { nb(1) + "..." + nb(1) }) + if aft == none { "" } else { aft }
   let midlen = (if noLeader { 1 } else { 5 }) + aftlen
   let tail = "(re. $" + re + ")"
+  let orig-drawn = if orig-new { under[#orig] } else { orig }
   let lines = wrap2(ws, 70, 68)
   let last = lines.last()
   let lastcol = if lines.len() == 1 { 2 } else { 4 }
@@ -844,7 +856,7 @@
   let used = lastcol + line-len(last) + midlen + orig.len() + 1 + 1 + 1 + tail.len()
   if used <= 72 {
     let dots = 72 - (lastcol + line-len(last) + midlen + orig.len() + 2 + tail.len())
-    out.push(a-line(lastcol, draw-line(last) + mid + orig + nb(1) + leaders(dots) + nb(1) + tail))
+    out.push(a-line(lastcol, draw-line(last) + mid + orig-drawn + nb(1) + leaders(dots) + nb(1) + tail))
   } else {
     // the amounts go on the next line, under a line of leaders; where fewer than three leaders would fit, the
     // words line is justified to the margin and the amounts line begins with the leader ("... 59,000,000 ....")
@@ -852,7 +864,7 @@
     let lead = if room >= 3 { "" } else { "..." + nb(1) }
     if room >= 3 { out.push(a-line(lastcol, draw-line(last) + nb(1) + leaders(room))) }
     else { out.push(a-line(lastcol, draw-just(last, 72 - lastcol, lines.len() - 1))) }
-    out.push(a-line(4, lead + (if aft == none { "" } else { aft }) + orig + nb(1) + leaders(72 - 4 - (if room >= 3 { 0 } else { 4 }) - aftlen - orig.len() - 2 - tail.len()) + nb(1) + tail))
+    out.push(a-line(4, lead + (if aft == none { "" } else { aft }) + orig-drawn + nb(1) + leaders(72 - 4 - (if room >= 3 { 0 } else { 4 }) - aftlen - orig.len() - 2 - tail.len()) + nb(1) + tail))
   }
   out
 }
@@ -952,8 +964,9 @@
   }
   let tm = spec.first-line - 0.8 * spec.size + ntop * spec.pitch
   page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, {
-    // where the agency begins, for the table of contents
+    // where the agency begins, for the table of contents (and, with its page, for printing in parts)
     [#metadata(attr(n, "eId")) <agency-start>]
+    context [#metadata((eid: attr(n, "eId"), page: here().page() + page-offset)) <agency-page>]
     for (i, b) in blocks.enumerate() {
       if i > 0 { a-blank }
       b.join()
@@ -1263,9 +1276,9 @@
   margin: (left: spec.left, right: 8.5in - spec.left - measure, top: top-margin, bottom: 11in - top-margin - body-height),
   header-ascent: top-margin - (spec.header + 0.2 * spec.size),
   header: context {
-    if here().page() > 1 and approp {
+    if here().page() + page-offset > 1 and approp {
       // appropriation bills: the page number centred, the LBD number (without "LBD") ending at column 72
-      let pg = str(here().page())
+      let pg = str(here().page() + page-offset)
       let lbd = lbd-no.replace("LBD", "")
       par(justify: false, h((36 - calc.floor(pg.len() / 2)) * char) + pg + h((62 - (36 - calc.floor(pg.len() / 2)) - pg.len()) * char) + lbd)
       // the Legislature and Judiciary bill names itself on every page after the first
@@ -1303,7 +1316,7 @@
     v(top-margin + body-height - (spec.first-page-end + (if longer { spec.pitch } else { 0pt }) + 0.2 * spec.size), weak: false)
   }
 }
-#place(bottom + left, float: true, clearance: 0pt, first-page-foot)
+#if part-front { place(bottom + left, float: true, clearance: 0pt, first-page-foot) }
 
 // ---------------------------------------------------------------------------
 // The document
@@ -1313,7 +1326,7 @@
 // told apart by its class, in the order the profile stores them.
 #let big-line(t) = place(top + left, dx: (measure - t.clusters().len() * spec.big * 0.6) / 2 + 0.1 * char,
   text(size: spec.big, weight: "bold", t))
-#{
+#if part-front {
   set par.line(numbering: none)
   set par(justify: false, first-line-indent: 0pt)
   let centered(t) = par(center-pad(t.clusters().len()) + t)
@@ -1392,12 +1405,12 @@
   let tm = spec.first-line - 0.8 * spec.size + 3 * spec.pitch
   page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, context {
     let pages = (:)
-    for m in query(<agency-start>) { if m.value not in pages { pages.insert(m.value, str(m.location().page())) } }
+    for m in query(<agency-start>) { if m.value not in pages { pages.insert(m.value, str(m.location().page() + page-offset)) } }
     let blocks = ()
     for it in kids(toc, "tocItem") {
       let col = (int(attr(it, "level")) - 1) * 2
       let href = attr(it, "href").slice(1)
-      let pg = if href == "sec_1" { "1" } else { pages.at(href, default: "") }
+      let pg = if href == "sec_1" { "1" } else { pages.at(href, default: str(earlier-pages.at(href, default: ""))) }
       let ws = nodes-words(it.children)
       if attr(it, "class") == "noPage" or pg == "" {
         blocks.push(a-par(ws, first: col, cont: col + 2, right: 72, just: false))
@@ -1411,7 +1424,7 @@
     }
   })
 }
-#if approp {
+#if approp and part-toc {
   let c = kid(bill, "conclusions")
   let toc = if c != none { kid(c, "toc") } else { none }
   if toc != none { render-toc(toc) }

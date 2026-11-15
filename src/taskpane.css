@@ -46,8 +46,6 @@ button:disabled { opacity: .5; cursor: default; }
 .preview { max-height: 140px; overflow: auto; font-size: 12px; padding: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); white-space: pre-wrap; }
 .addons label { display: flex; gap: 6px; align-items: center; margin: 3px 0; color: var(--ink); }
 .outline { margin: 0; padding-left: 0; list-style: none; }
-.outline li { padding: 4px 6px; border-radius: 4px; cursor: pointer; display: flex; gap: 6px; }
-.outline li:hover { background: var(--sel); }
 .outline .n { font-weight: 600; min-width: 38px; }
 .outline .k { color: var(--muted); }
 .findings { list-style: none; padding: 0; margin: 8px 0 0; }
@@ -60,8 +58,6 @@ button:disabled { opacity: .5; cursor: default; }
 .findings button { margin-top: 4px; margin-right: 4px; padding: 2px 8px; font-size: 12px; }
 .findings li.ok { border-left-color: var(--accent); }
 textarea { font: 11px/1.35 Consolas, "Cascadia Mono", monospace; white-space: pre; margin-top: 6px; }
-.notice { margin: 8px 10px 0; padding: 8px 10px; border-radius: 4px; background: var(--sel); border: 1px solid var(--accent); }
-.notice.error { background: transparent; border-color: var(--err); color: var(--err); }
 .banklist { list-style: none; padding: 0; max-height: 180px; overflow: auto; font-size: 12px; columns: 2; }
 progress { width: 100%; }
 [hidden] { display: none !important; }
@@ -74,7 +70,6 @@ label[for] { margin-bottom: 0; }
 h3 { font-size: 12px; margin: 12px 0 2px; color: var(--ink); }
 .opt { color: var(--muted); font-weight: normal; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-.notice { display: flex; gap: 8px; align-items: flex-start; }
 .notice #notice-text { flex: 1; }
 button.x { border: 0; background: none; padding: 0 2px; font-size: 16px; line-height: 1; color: inherit; opacity: .7; }
 .intro { border-color: var(--accent); }
@@ -140,3 +135,89 @@ table.te td.tools select { display: block; width: 74px; margin: 0 0 2px; padding
 table.te .mini { padding: 0 4px; font-size: 11px; line-height: 16px; margin: 0 1px 0 0; }
 label.check { display: flex; gap: 6px; align-items: center; color: var(--ink); }
 #te-paste textarea { font: 12px/1.35 Consolas, monospace; white-space: pre; }
+
+/* ---- 15 November: the drafter's view ---- */
+/* Header: the Bank's state at a glance, and the way to it. */
+.brand { justify-content: flex-start; }
+.bank-btn { margin-left: auto; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 10px; color: var(--muted); }
+.bank-btn.warn { color: var(--warn); border-color: var(--warn); }
+.bank-btn.on { border-color: var(--accent); color: var(--ink); }
+
+/* Messages: a toast above the dock, where the drafter just pressed a button. */
+.notice { position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 5; display: flex; gap: 8px; align-items: flex-start;
+  padding: 9px 10px; border-radius: 6px; background: var(--card); border: 1px solid var(--accent); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+body.has-dock .notice { bottom: 74px; }
+.notice.error { border-color: var(--err); color: var(--err); }
+main { padding-bottom: 12px; }
+
+/* The section list: each section with its state and fix. */
+.outline-head { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 6px; }
+.outline-head h3 { margin: 0; }
+.outline-head .hint { margin: 0; font-size: 11px; }
+.outline { margin-top: 2px; border-top: 0; padding-top: 0; }
+.outline li { display: block; padding: 0; border-radius: 4px; }
+.outline .line { display: flex; align-items: center; gap: 4px; }
+.outline .row-main { flex: 1; min-width: 0; display: flex; gap: 6px; align-items: baseline; text-align: left; border: 0; background: none; padding: 5px 6px; border-radius: 4px; }
+.outline .row-main:hover { background: var(--sel); }
+.outline li.current .row-main { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+.outline .n { white-space: nowrap; min-width: 0; }
+.outline .k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chips { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+.chip { font-size: 11px; padding: 1px 7px; border-radius: 10px; line-height: 16px; white-space: nowrap; }
+.chip.err { color: var(--err); border-color: var(--err); }
+.chip.warn { color: var(--warn); border-color: var(--warn); }
+.chips .ok { color: var(--accent); font-size: 12px; padding: 0 6px; }
+.outline li.open { background: var(--bg); }
+.row-edit { padding: 2px 8px 8px 50px; }
+.row-edit label { margin: 2px 0; font-size: 12px; }
+.row-edit .row { margin: 0; flex-wrap: nowrap; }
+.row-edit input { min-width: 0; }
+#bill-fixes .callout { margin: 6px 0 0; }
+input.need { border-color: var(--warn); box-shadow: 0 0 0 1px var(--warn); }
+
+/* The dock: whether the brackets and underlines are up to date. */
+.dock { align-items: center; }
+.dock-status { flex-basis: 100%; margin: 0 0 2px; font-size: 11px; color: var(--muted); }
+.dock-status.need { color: var(--err); font-weight: 600; }
+.dock #mark { flex: 1; }
+
+/* Adding a section. */
+#sec-help { margin-top: 4px; }
+.std button[data-go]:not([data-go=""]) { color: var(--muted); }
+
+/* Check: the finding a chip pointed to. */
+.findings li.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { from { box-shadow: 0 0 0 3px var(--accent); } to { box-shadow: 0 0 0 0 transparent; } }
+.findings .where { display: flex; gap: 4px; flex-wrap: wrap; }
+
+/* Tables, folded away until needed. */
+details#tables-card > summary { color: var(--ink); }
+details#tables-card[open] > summary { margin-bottom: 4px; }
+#pdf-actions .primary { flex: 1; }
+.std > button { white-space: nowrap; flex-shrink: 0; }
+
+/* ---- budget mode ---- */
+.mode { display: flex; margin-left: auto; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.mode button { border: 0; border-radius: 0; padding: 1px 8px; font-size: 11px; background: none; color: var(--muted); }
+.mode button[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.mode + .bank-btn { margin-left: 6px; }
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 10px; background: var(--sel); color: var(--ink); }
+.boutline .k { font-weight: 600; }
+.boutline .n2 { color: var(--muted); font-size: 11px; margin-left: auto; padding-left: 6px; white-space: nowrap; }
+.boutline .row-main { align-items: center; }
+.boutline .programs { list-style: none; margin: 0 0 4px 10px; padding: 0; border-left: 2px solid var(--line); }
+.boutline .row-main.sub { font-size: 12px; color: var(--muted); padding: 2px 8px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+ul.rules { margin: 4px 0; padding-left: 18px; }
+ul.rules li { margin: 4px 0; }
+table.counts { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0; }
+table.counts td { padding: 2px 4px; border-bottom: 1px solid var(--line); }
+table.counts td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+table.counts tr.prob td { color: var(--warn); font-weight: 600; }
+#b-samples .std { align-items: center; }
+#b-samples .std > div { flex: 1; }
+#b-item .quote { max-height: 120px; overflow: auto; }
+#b-add-box textarea { font: inherit; white-space: pre-wrap; }
+.boutline li.opened > .line .row-main { background: var(--sel); }
+.chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+#b-filter-row { margin: 4px 0; }
+#b-bill .row.small .hint { margin: 0; }

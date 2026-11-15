@@ -10,5 +10,7 @@
   "dependencies": {
     "@xmldom/xmldom": "0.9.8"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "pdf-lib": "1.17.1"
+  }
 }

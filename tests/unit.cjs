@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -214,5 +214,89 @@ t('the pane loads every file the clean-copy template reads', () => {
   const read = [...fs.readFileSync(path.join(dir, 'clean-copy', 'bill.typ'), 'utf8').matchAll(/(?:json|read|image|csv|yaml|toml)\("([^"]+)"/g)].map(m => m[1]);
   for (const f of read) assert.ok(listed.includes(f), f + ' is read by bill.typ but not loaded by src/cleancopy.js');
   for (const f of listed) assert.ok(fs.existsSync(path.join(dir, 'clean-copy', f)), 'clean-copy/' + f + ' is missing');
+});
+t('budget: the add-in finds what the Python budget tools find', () => {
+  const B = BD.budget, dir = path.join(__dirname, '..', 'samples', 'budget');
+  const S = f => B.parse(fs.readFileSync(path.join(dir, f), 'utf8'), DOMParser);
+  const exp = JSON.parse(fs.readFileSync(path.join(__dirname, 'budget-expected.json'), 'utf8'));
+  const d = S('S3003D.akn.xml'), p = S('S8303D.akn.xml');
+  // items and their keys (budget_items.py)
+  const its = B.numbered(B.items(d));
+  assert.strictEqual(its.length, exp.items.length);
+  its.forEach((i, k) => assert.deepStrictEqual([i.eId, i.kind, B.key(i), i.n, i.source, i.amount, i.reappropriated], [exp.items[k].eId, exp.items[k].kind, exp.items[k].key, exp.items[k].n, exp.items[k].source, exp.items[k].amount, exp.items[k].reappropriated]));
+  // the print-error report's amount checks (budget_report/findings.py)
+  const F = B.findings(d);
+  for (const k of Object.keys(exp.findings)) assert.strictEqual(F[k].length, exp.findings[k].length, k);
+  const n = s => +String(s).replace(/,/g, '');
+  assert.deepStrictEqual(F.summaries.map(x => [x.printed, x.items]), exp.findings.summaries.map(x => [n(x.printed), n(x.items)]));
+  assert.deepStrictEqual(F.schedules.map(x => [x.printed, x.rows]), exp.findings.schedules.map(x => [n(x.printed), n(x.rows)]));
+  assert.deepStrictEqual(F.schedule_items.map(x => [x.total, x.amount]), exp.findings.schedule_items.map(x => [n(x.total), n(x.item)]));
+  // reappropriations against last year's chapter (prior_check.py)
+  const P = B.priorCheck(d, p, 53, 2024);
+  const got = {}; for (const [k, v] of Object.entries(P.res)) if (v.length) got[k] = v.map(([a, b]) => [a.eId, b ? b.eId : null]).sort();
+  assert.deepStrictEqual(got, exp.prior);
+  assert.deepStrictEqual(P.lapsed.map(l => [l.agency, l.kind, l.count, l.amount]).sort(), exp.prior_not_continued);
+  // one print against another (compare_prints.py)
+  const C = B.compare(S('S3000C.akn.xml'), S('S3000D.akn.xml'));
+  const sig = c => [c.change, c.agency, JSON.stringify(c.was || null), JSON.stringify(c.now || null)].join('|');
+  assert.deepStrictEqual(C.changes.map(sig).sort(), exp.compare.changes.map(sig).sort());
+  assert.deepStrictEqual(C.totals, exp.compare.totals); assert.deepStrictEqual(C.items, exp.compare.items);
+  // line vetoes placed on their items (line_vetoes.py)
+  const V = B.placeVetoes(d, JSON.parse(fs.readFileSync(path.join(dir, 'vetoes-2025.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(dir, 'S3003D.lines.json'), 'utf8')));
+  for (const v of V) { assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number); assert.strictEqual(v.problem, null); }
+  // the memorandum is valid XML naming the item
+  const memo = B.vetoMemo(V[0], d, '2025-05-20');
+  const md = B.parse(memo, DOMParser); assert.ok(md.getElementsByTagName('doc')[0].getAttribute('name') === 'lineVetoMemo');
+  assert.ok(memo.includes('~' + V[0].items[0] + '"'), memo);
+});
+t('budget in Word: laid out, read back, edits marked as the prints mark them, totals updated', () => {
+  const B = BD.budget, BW = BD.budgetWord, { XMLSerializer } = require('@xmldom/xmldom');
+  const d = B.parse(fs.readFileSync(path.join(__dirname, '..', 'samples', 'budget', 'S3003D.akn.xml'), 'utf8'), DOMParser);
+  const W = new DOMParser().parseFromString(BD.pkg(BW.renderBill(d).join('')), 'application/xml');
+  const sdts = [...W.getElementsByTagName('w:sdt')];
+  // every part that can change is tagged, and the tag leads back to its element
+  for (const s of sdts) { const tg = s.getElementsByTagName('w:tag')[0].getAttribute('w:val'); assert.ok(tg.length <= 64, tg); const p = BW.parseTag(tg); assert.ok(p && B._.byEId(d, p.eId), tg); }
+  assert.strictEqual(sdts.filter(s => /k=(appropriation|reappropriation)$/.test(s.getElementsByTagName('w:tag')[0].getAttribute('w:val'))).length, B.items(d).length);
+  // each item reads back as it was written, and applying it unchanged changes nothing
+  for (const s of sdts) {
+    const p = BW.parseTag(s.getElementsByTagName('w:tag')[0].getAttribute('w:val')); if (!/appropriation|purpose/.test(p.kind)) continue;
+    const el = B._.byEId(d, p.eId), rs = BW.wordRuns(BD.pkg(new XMLSerializer().serializeToString(s)), DOMParser);
+    assert.strictEqual(rs.map(r => r.t).join(''), BW.shownText(el), p.eId);
+    assert.strictEqual(BW.applyEdit(el, rs, DOMParser), 'same', p.eId);
+  }
+  const its = B.items(d), ap = its.find(i => i.kind === 'appropriation' && i.amount === 15000000), re = its.find(i => i.kind === 'reappropriation' && i.amount === 15000000 && i.reappropriated === 15000000);
+  // an appropriation is new money: it takes the new amount, unmarked
+  assert.strictEqual(BW.applyEdit(ap.el, BW.shownRuns(ap.el).map(r => ({ ...r, t: r.t.replace('15,000,000', '16,250,000') })), DOMParser), 'replaced');
+  assert.ok(!BW.shownText(ap.el).includes('['));
+  // a reappropriation is law: its code and original amount are marked; "(re. $...)" is reprinted
+  assert.strictEqual(BW.applyEdit(re.el, BW.shownRuns(re.el).map(r => ({ ...r, t: r.t.replace('(34218) ... 15,000,000 (re. $15,000,000)', '(34219) ... 14,000,000 (re. $12,500,000)') })), DOMParser), 'marked');
+  assert.ok(BW.shownText(re.el).endsWith('[(34218)] (34219) ... [15,000,000] 14,000,000 (re. $12,500,000)'), BW.shownText(re.el));
+  const x = new XMLSerializer().serializeToString(re.el);
+  assert.ok(x.includes('<del>15,000,000</del> <ins><quantity class="originalAmount" normalized="14000000"'), x);
+  assert.ok(x.includes('(re. $<quantity class="reappropriatedAmount" normalized="12500000"'), x);
+  const now = B.items(d).find(i => i.eId === re.eId); assert.deepStrictEqual([now.amount, now.reappropriated], [14000000, 12500000]);
+  // the program total and the agency summary follow once updated; the print's own summary errors go too
+  assert.ok(BW.totals(d, false).some(t => /Program total/.test(t.what) && t.now === 16250000));
+  BW.totals(d, true);
+  assert.deepStrictEqual(BW.totals(d, false), []);
+  assert.strictEqual(B.findings(d).summaries.length, 0);
+  // the edited bill is still valid in the profile (the print's schedule errors aside)
+  const out = path.join(require('os').tmpdir(), 'budget-edited.akn.xml'); fs.writeFileSync(out, new XMLSerializer().serializeToString(d));
+  const v = require('child_process').spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), out], { encoding: 'utf8' }).stdout;
+  const errs = v.split('\n').filter(l => /\[(profile|schema|lbdc) error\]/.test(l) && !/project schedule|summary total/i.test(l));
+  assert.deepStrictEqual(errs, []);
+});
+t('budget: the whole of S.3003-D, as the Python tools find it', () => {
+  const B = BD.budget, dir = path.join(__dirname, '..', 'samples', 'budget', 'full');
+  const exp = JSON.parse(fs.readFileSync(path.join(__dirname, 'budget-expected.json'), 'utf8')).full;
+  const S = f => B.parse(fs.readFileSync(path.join(dir, f), 'utf8'), DOMParser);
+  const d = S('S3003D.akn.xml');
+  assert.strictEqual(B.items(d).length, exp.items);
+  const F = B.findings(d); for (const k of Object.keys(exp.findings)) assert.strictEqual(F[k].length, exp.findings[k], k);
+  const P = B.priorCheck(d, S('S8303D.akn.xml'), 53, 2024), got = {};
+  for (const [k, v] of Object.entries(P.res)) if (v.length) got[k] = v.length;
+  assert.deepStrictEqual(got, exp.prior);
+  const V = B.placeVetoes(d, JSON.parse(fs.readFileSync(path.join(dir, 'vetoes-2025.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(dir, 'S3003D.lines.json'), 'utf8')));
+  for (const v of V) assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number);
 });
 console.log(n + ' passed');

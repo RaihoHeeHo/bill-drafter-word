@@ -1,0 +1,5121 @@
+{
+ "items": [
+  {
+   "eId": "sec_1__agency_47__program_1__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "25901",
+    "34218",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 15000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of multi craft apprenticeship"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_2",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of a building trades"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_3",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the cannabis workforce"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 3025000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_4",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the training and"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 125000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_5",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of cornell ilr buffalo"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_6",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of cornell ilr yang"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 300000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_7",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of cornell industrial and"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_8",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the domestic violence"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_9",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the worker institute"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 300000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_10",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "funds made available herein may be used for"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 1215000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_11",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the national domestic"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 100000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_12",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of eastern new york"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_13",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the edward j"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_14",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the freelancers union"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_15",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the cornell ilr"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_16",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the gay mens"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 180000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_17",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the cornell ilr"
+   ],
+   "n": 2,
+   "source": "",
+   "amount": 3000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_18",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of lgbtq black and"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 180000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_19",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the lesbian gay"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 100000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_20",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the long island"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_21",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the manufacturers association"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 750000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_22",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the manufacturers intermediary"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 1000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_23",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the jewish home"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 750000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_24",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the new york"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_25",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of a building trades"
+   ],
+   "n": 2,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_26",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses for the workforce development"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 375000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_27",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of nonprofit westchester"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 100000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_28",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the northeast new"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 85000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_29",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of building trades apprenticeship"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 600000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_30",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the new york"
+   ],
+   "n": 2,
+   "source": "",
+   "amount": 300000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_31",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of multi craft apprenticeship"
+   ],
+   "n": 2,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_32",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of a statewide pre"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 750000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_33",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the teamsters local"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 112000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_34",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the upstate new"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_35",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of safety training administered"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_36",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of a building trades"
+   ],
+   "n": 3,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_37",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the western new"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_38",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the new york"
+   ],
+   "n": 3,
+   "source": "",
+   "amount": 4000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_39",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of a manufacturing initiative"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 2500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_40",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of statewide youthbuild programs"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 2500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_41",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the center for"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_42",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of collective food works"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 120000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_43",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the crenulated company"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_44",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the girls building"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 50000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_45",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the hope program"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_46",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of npower"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 100000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_47",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of path for healing"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 1000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_48",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of real life rosies"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_49",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of solar one"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_50",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of urban league rochester"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 50000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_51",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of youthbuild schenectady"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 75000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_1__appropriation_52",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34747",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 22500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_2__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34780",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 3444000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_2__appropriation_2",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34779",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 185318000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_2__account_2__appropriation_3",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34778",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 20000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_3__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "22152",
+    "34203",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 419000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_4__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "25950",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 26500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_4__account_2__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "50650",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 6000000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_47__program_4__account_3__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "department-of-labor",
+    "50652",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 2500000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_48__program_1__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "25901",
+    "34218",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 15000000,
+   "reappropriated": 15000000
+  },
+  {
+   "eId": "sec_1__agency_48__program_1__account_1__reappropriationSource_2__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "25901",
+    "34218",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 15000000,
+   "reappropriated": 15000000
+  },
+  {
+   "eId": "sec_1__agency_48__program_1__account_1__reappropriationSource_3__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "25901",
+    "34218",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 15000000,
+   "reappropriated": 14995000
+  },
+  {
+   "eId": "sec_1__agency_48__program_1__account_1__reappropriationSource_4__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "25901",
+    "34218",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 15000000,
+   "reappropriated": 14273000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34799",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 1620000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34746",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 750000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34237",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 4000000,
+   "reappropriated": 4000000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34735",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 3025000,
+   "reappropriated": 2847000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34230",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 125000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34718",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34790",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 350000,
+   "reappropriated": 350000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34713",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 125000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34740",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 150000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34749",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 375000,
+   "reappropriated": 375000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34729",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 120000,
+   "reappropriated": 120000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34732",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_13",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34741",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_14",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34733",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 75000,
+   "reappropriated": 75000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_15",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34707",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 50000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_16",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34742",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 50000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_17",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34734",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 3000000,
+   "reappropriated": 2572000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_18",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34205",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_19",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of cornell ilr buffalo"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 150000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_20",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34651",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 300000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_21",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 250000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_22",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34229",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 300000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_23",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34652",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_24",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34653",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_25",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34748",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 500000,
+   "reappropriated": 500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_26",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the gay mens"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 180000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_27",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34654",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_28",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34728",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 180000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_29",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34709",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_30",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_31",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34701",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 750000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_32",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34743",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 1000000,
+   "reappropriated": 1000000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_33",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34750",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 500000,
+   "reappropriated": 500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_34",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34719",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_35",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34700",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_36",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34717",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 85000,
+   "reappropriated": 85000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_37",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34655",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_38",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_39",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34766",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_40",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34762",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 2500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_41",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34727",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 2500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_42",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34730",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_43",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34774",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_44",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34656",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 150000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_45",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34657",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 50000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_46",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34658",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 75000,
+   "reappropriated": 75000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_47",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34659",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_48",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34660",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 50000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_49",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34747",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 22500000,
+   "reappropriated": 22500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "funds made available herein may be used for"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 809000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34717",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 85000,
+   "reappropriated": 85000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34709",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34700",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 49000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34790",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 350000,
+   "reappropriated": 243000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the gay mens"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 180000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34728",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 180000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34205",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 79000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34719",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34766",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 48000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_13",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34748",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 500000,
+   "reappropriated": 234000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_14",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34749",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 375000,
+   "reappropriated": 375000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_15",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34750",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 500000,
+   "reappropriated": 500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_16",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34701",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 631000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_17",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34734",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 2000000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_18",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34743",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 1000000,
+   "reappropriated": 750000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_19",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34237",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 4000000,
+   "reappropriated": 1416000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_20",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34762",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 1353000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_21",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34727",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 1720000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_22",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34735",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 3000000,
+   "reappropriated": 33718
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_23",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34774",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 74000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_24",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34730",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_25",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34729",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 120000,
+   "reappropriated": 120000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_26",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34742",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 50000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_27",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34733",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 75000,
+   "reappropriated": 75000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_28",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34751",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "funds made available herein may be used for"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 146000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34730",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 200000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of collective food works"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 120000,
+   "reappropriated": 120000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34742",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 11000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34719",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 99000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34766",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 101000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34727",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 594000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34735",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 79000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34734",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 800000,
+   "reappropriated": 8000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the gay mens"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 180000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34728",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 180000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_13",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34717",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 85000,
+   "reappropriated": 30000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_14",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 67000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34721",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 50000000,
+   "reappropriated": 10088000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "funds made available herein may be used for"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 268000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the cornell industrial"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 24000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34229",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 9000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 37000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34717",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 85000,
+   "reappropriated": 3000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34709",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 4000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34727",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 2500000,
+   "reappropriated": 583000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34728",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 180000,
+   "reappropriated": 57000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of collective food works"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 120000,
+   "reappropriated": 120000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34735",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 250000,
+   "reappropriated": 8000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "funds made available herein may be used for"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 302000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34790",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 350000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 3000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 40000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34717",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 85000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of laguardia community college"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34709",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 4000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34715",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34764",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2020/53/~sec_1",
+   "amount": 250000,
+   "reappropriated": 250000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34799",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 205000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 6000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34230",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 4000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34790",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 350000,
+   "reappropriated": 32000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 4000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34707",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 7000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 8000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34701",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 13000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34715",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of laguardia community college"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 4000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34709",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 19000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34717",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2019/53/~sec_1",
+   "amount": 85000,
+   "reappropriated": 7000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34799",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 33000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 9000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34230",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 14000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 10000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34707",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 8000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34764",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 400000,
+   "reappropriated": 7000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34701",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the new york"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 140000,
+   "reappropriated": 111000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 980000,
+   "reappropriated": 182000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34217",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 30000,
+   "reappropriated": 30000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the new york"
+   ],
+   "n": 2,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 140000,
+   "reappropriated": 140000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_13",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34214",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 500000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_14",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34783",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 8000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_15",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the cornell industrial"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2018/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 43000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34799",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 1620000,
+   "reappropriated": 90000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 13000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34206",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 400000,
+   "reappropriated": 44000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34229",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34230",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 18000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 48000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34764",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 6000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 6000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 980000,
+   "reappropriated": 77000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34217",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 30000,
+   "reappropriated": 30000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_11",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34709",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_12",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34214",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 500000,
+   "reappropriated": 6000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_13",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34710",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2017/53/~sec_1",
+   "amount": 140000,
+   "reappropriated": 93000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34799",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 975000,
+   "reappropriated": 39000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34233",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 155000,
+   "reappropriated": 9000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34206",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 18000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34230",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 150000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34761",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 350000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34764",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 9000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 9000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 840000,
+   "reappropriated": 11000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_9",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34790",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 350000,
+   "reappropriated": 8000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_10",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34702",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2016/53/~sec_1",
+   "amount": 100000,
+   "reappropriated": 100000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34799",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 1630000,
+   "reappropriated": 84000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34783",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 2000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34206",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 170000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_4",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34764",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 300000,
+   "reappropriated": 5000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_5",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34228",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 23000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_6",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34208",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 310000,
+   "reappropriated": 4000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_7",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34209",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 50000,
+   "reappropriated": 3000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_8",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34217",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 30000,
+   "reappropriated": 6000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_12__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2015/53/~sec_1",
+   "amount": 980000,
+   "reappropriated": 152000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_13__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the building trades"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2014/53/~sec_1",
+   "amount": 200000,
+   "reappropriated": 20000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_13__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services and expenses of the new york"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2014/53/~sec_1",
+   "amount": 155000,
+   "reappropriated": 2551
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_14__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2014/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 136000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_15__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "for services related to the continuation of displaced"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2013/53/~sec_1",
+   "amount": 1354456,
+   "reappropriated": 8800
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_16__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2013/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 203000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_17__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2012/53/~sec_1",
+   "amount": 750000,
+   "reappropriated": 170000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_18__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "nys afl cio workforce development institute for state"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2007/53/~sec_2",
+   "amount": 1283270,
+   "reappropriated": 18060
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_19__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34235",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2007/53/~sec_1",
+   "amount": 789705,
+   "reappropriated": 67000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_20__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "34216",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2006/53/~sec_1",
+   "amount": 1800000,
+   "reappropriated": 46000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_1__reappropriationSource_21__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "10000",
+    "",
+    "34215"
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2006/53/~sec_1",
+   "amount": 805500,
+   "reappropriated": 29000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34780",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 3585000,
+   "reappropriated": 3585000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_1__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34779",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 191020000,
+   "reappropriated": 188435000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_1__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34778",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 20000000,
+   "reappropriated": 20000000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_2__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34780",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 3678000,
+   "reappropriated": 3214000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_2__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34779",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 198380000,
+   "reappropriated": 87194000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_2__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34778",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 20000000,
+   "reappropriated": 19754000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_3__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34780",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 3498000,
+   "reappropriated": 3498000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_3__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34779",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 190555000,
+   "reappropriated": 12423000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_3__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34778",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 20000000,
+   "reappropriated": 19992000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_4__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34780",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 2570000,
+   "reappropriated": 2570000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_4__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34779",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 147616000,
+   "reappropriated": 11152000
+  },
+  {
+   "eId": "sec_1__agency_48__program_2__account_2__reappropriationSource_4__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "26001",
+    "34778",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2021/53/~sec_1",
+   "amount": 20000000,
+   "reappropriated": 11689000
+  },
+  {
+   "eId": "sec_1__agency_48__program_3__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "22152",
+    "34203",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 419000,
+   "reappropriated": 407000
+  },
+  {
+   "eId": "sec_1__agency_48__program_4__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "25950",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 26500000,
+   "reappropriated": 26500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_4__account_1__reappropriationSource_2__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "25950",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 26500000,
+   "reappropriated": 26500000
+  },
+  {
+   "eId": "sec_1__agency_48__program_4__account_2__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "50650",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 6000000000,
+   "reappropriated": 6000000000
+  },
+  {
+   "eId": "sec_1__agency_48__program_4__account_3__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "department-of-labor",
+    "50652",
+    "34787",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 2000000,
+   "reappropriated": 1435000
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50958",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 416703000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_2",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50823",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 8000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_3",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "",
+    "for further additional operating services and expenses of"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 6000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_4",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50400",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 3000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_5",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50957",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 11579000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_6",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50956",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 1880000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_7",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50955",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 1692000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_8",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50954",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 2099000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_9",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50953",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 940000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_10",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50910",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 3000000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_11",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50438",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 100000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_12",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50896",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 50000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_13",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "",
+    "for services and expenses of the dutchess community"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 300000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_1__account_1__appropriation_14",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "",
+    "for services and expenses of the suny schenectady"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 200000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_2__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "",
+    "notwithstanding any inconsistent provision of law subject to"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 21150000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_3__account_1__appropriation_1",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50952",
+    ""
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 4420000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_71__program_3__account_1__appropriation_2",
+   "kind": "appropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "",
+    "for additional services and expenses of the county"
+   ],
+   "n": 1,
+   "source": "",
+   "amount": 1700000,
+   "reappropriated": null
+  },
+  {
+   "eId": "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50400",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 3000000,
+   "reappropriated": 3000000
+  },
+  {
+   "eId": "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50956",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 1880000,
+   "reappropriated": 1880000
+  },
+  {
+   "eId": "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_3",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50955",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2024/53/~sec_1",
+   "amount": 1692000,
+   "reappropriated": 1692000
+  },
+  {
+   "eId": "sec_1__agency_72__program_1__account_1__reappropriationSource_2__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50956",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/53/~sec_1",
+   "amount": 1880000,
+   "reappropriated": 1182000
+  },
+  {
+   "eId": "sec_1__agency_72__program_1__account_1__reappropriationSource_3__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50899",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2022/53/~sec_1",
+   "amount": 5400000,
+   "reappropriated": 2580000
+  },
+  {
+   "eId": "sec_1__agency_72__program_2__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50851",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/50/~sec_1",
+   "amount": 500000000,
+   "reappropriated": 424362000
+  },
+  {
+   "eId": "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_1",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50952",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/50/~sec_1",
+   "amount": 4420000,
+   "reappropriated": 1302000
+  },
+  {
+   "eId": "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_2",
+   "kind": "reappropriation",
+   "key": [
+    "state-university-of-new-york",
+    "10000",
+    "50894",
+    ""
+   ],
+   "n": 1,
+   "source": "/akn/us-ny/act/2023/50/~sec_1",
+   "amount": 1700000,
+   "reappropriated": 246000
+  }
+ ],
+ "prior": {
+  "new: as appropriated": [
+   [
+    "sec_1__agency_48__program_1__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_1__account_1__appropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_19",
+    "sec_1__agency_48__program_2__account_1__appropriation_19"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_26",
+    "sec_1__agency_48__program_2__account_1__appropriation_26"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_49",
+    "sec_1__agency_48__program_2__account_1__appropriation_49"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_2__account_2__appropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_1__reappropriation_2",
+    "sec_1__agency_48__program_2__account_2__appropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_1__reappropriation_3",
+    "sec_1__agency_48__program_2__account_2__appropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_3__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_3__account_1__appropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_4__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_4__account_1__appropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_4__account_2__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_4__account_2__appropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_4__account_3__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_4__account_3__appropriation_1"
+   ],
+   [
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_71__program_1__account_1__appropriation_3"
+   ],
+   [
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_2",
+    "sec_1__agency_71__program_1__account_1__appropriation_5"
+   ],
+   [
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_3",
+    "sec_1__agency_71__program_1__account_1__appropriation_6"
+   ]
+  ],
+  "old: continued": [
+   [
+    "sec_1__agency_48__program_1__account_1__reappropriationSource_2__reappropriation_1",
+    "sec_1__agency_49__program_1__account_1__reappropriationSource_1__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_1__account_1__reappropriationSource_3__reappropriation_1",
+    "sec_1__agency_49__program_1__account_1__reappropriationSource_2__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_1__account_1__reappropriationSource_4__reappropriation_1",
+    "sec_1__agency_49__program_1__account_1__reappropriationSource_3__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_10"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_8"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_10__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_9__reappropriation_9"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_11__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_10__reappropriation_8"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_12__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_11__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_13__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_12__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_13__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_12__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_14__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_13__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_15__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_14__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_16__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_15__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_17__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_16__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_18__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_17__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_19__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_18__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_20__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_19__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_21__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_20__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_15"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_11",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_16"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_12",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_17"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_13",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_18"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_14",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_19"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_15",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_21"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_16",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_22"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_17",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_23"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_18",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_24"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_19",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_25"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_20",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_26"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_21",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_27"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_22",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_28"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_23",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_29"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_24",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_30"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_25",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_31"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_26",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_38"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_27",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_40"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_28",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_41"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_12"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_13"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_2__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_14"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_19"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_11",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_21"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_12",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_22"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_13",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_23"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_14",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_24"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_9"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_10"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_14"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_3__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_2__reappropriation_18"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_13"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_11",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_14"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_12",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_16"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_9"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_4__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_3__mod_1__qstr__reappropriation_12"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_4__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_4__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_4__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_4__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_4__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_5__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_4__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_5__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_5__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_5__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_10"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_11",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_12",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_12"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_8"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_7__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_6__reappropriation_9"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_9"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_11",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_10"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_13",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_12"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_14",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_13"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_15",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_14"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_8"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_7__reappropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_10",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_10"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_11",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_12",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_12"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_13",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_13"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_2",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_3",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_4",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_5",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_6",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_7",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_8",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_8"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_9__reappropriation_9",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_8__reappropriation_9"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_2__reappropriation_1",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_1__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_2__reappropriation_2",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_1__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_2__reappropriation_3",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_1__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_3__reappropriation_1",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_2__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_3__reappropriation_2",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_2__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_3__reappropriation_3",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_2__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_4__reappropriation_1",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_3__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_4__reappropriation_2",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_3__reappropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_2__reappropriationSource_4__reappropriation_3",
+    "sec_1__agency_49__program_2__account_2__reappropriationSource_3__reappropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_4__account_1__reappropriationSource_2__reappropriation_1",
+    "sec_1__agency_49__program_3__account_1__reappropriationSource_1__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_2__reappropriation_1",
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_1__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_3__reappropriation_1",
+    "sec_1__agency_72__program_1__account_1__reappropriationSource_3__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_72__program_2__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_72__program_2__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_1"
+   ],
+   [
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_1"
+   ]
+  ],
+  "new: found by account and amount only (codes or words differ)": [
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_1",
+    "sec_1__agency_48__program_2__account_1__appropriation_1"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_10",
+    "sec_1__agency_48__program_2__account_1__appropriation_10"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_11",
+    "sec_1__agency_48__program_2__account_1__appropriation_11"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_12",
+    "sec_1__agency_48__program_2__account_1__appropriation_12"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_13",
+    "sec_1__agency_48__program_2__account_1__appropriation_13"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_14",
+    "sec_1__agency_48__program_2__account_1__appropriation_14"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_15",
+    "sec_1__agency_48__program_2__account_1__appropriation_15"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_16",
+    "sec_1__agency_48__program_2__account_1__appropriation_16"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_17",
+    "sec_1__agency_48__program_2__account_1__appropriation_17"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_18",
+    "sec_1__agency_48__program_2__account_1__appropriation_18"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_2",
+    "sec_1__agency_48__program_2__account_1__appropriation_2"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_20",
+    "sec_1__agency_48__program_2__account_1__appropriation_20"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_21",
+    "sec_1__agency_48__program_2__account_1__appropriation_21"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_22",
+    "sec_1__agency_48__program_2__account_1__appropriation_22"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_23",
+    "sec_1__agency_48__program_2__account_1__appropriation_23"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_24",
+    "sec_1__agency_48__program_2__account_1__appropriation_24"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_25",
+    "sec_1__agency_48__program_2__account_1__appropriation_25"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_27",
+    "sec_1__agency_48__program_2__account_1__appropriation_27"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_28",
+    "sec_1__agency_48__program_2__account_1__appropriation_28"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_29",
+    "sec_1__agency_48__program_2__account_1__appropriation_29"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_3",
+    "sec_1__agency_48__program_2__account_1__appropriation_3"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_30",
+    "sec_1__agency_48__program_2__account_1__appropriation_30"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_31",
+    "sec_1__agency_48__program_2__account_1__appropriation_31"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_32",
+    "sec_1__agency_48__program_2__account_1__appropriation_32"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_33",
+    "sec_1__agency_48__program_2__account_1__appropriation_33"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_34",
+    "sec_1__agency_48__program_2__account_1__appropriation_34"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_35",
+    "sec_1__agency_48__program_2__account_1__appropriation_35"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_36",
+    "sec_1__agency_48__program_2__account_1__appropriation_36"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_37",
+    "sec_1__agency_48__program_2__account_1__appropriation_37"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_38",
+    "sec_1__agency_48__program_2__account_1__appropriation_38"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_39",
+    "sec_1__agency_48__program_2__account_1__appropriation_39"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_4",
+    "sec_1__agency_48__program_2__account_1__appropriation_4"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_40",
+    "sec_1__agency_48__program_2__account_1__appropriation_40"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_41",
+    "sec_1__agency_48__program_2__account_1__appropriation_41"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_42",
+    "sec_1__agency_48__program_2__account_1__appropriation_42"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_43",
+    "sec_1__agency_48__program_2__account_1__appropriation_43"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_44",
+    "sec_1__agency_48__program_2__account_1__appropriation_44"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_45",
+    "sec_1__agency_48__program_2__account_1__appropriation_45"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_46",
+    "sec_1__agency_48__program_2__account_1__appropriation_46"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_47",
+    "sec_1__agency_48__program_2__account_1__appropriation_47"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_48",
+    "sec_1__agency_48__program_2__account_1__appropriation_48"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_5",
+    "sec_1__agency_48__program_2__account_1__appropriation_5"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_6",
+    "sec_1__agency_48__program_2__account_1__appropriation_6"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_7",
+    "sec_1__agency_48__program_2__account_1__appropriation_7"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_8",
+    "sec_1__agency_48__program_2__account_1__appropriation_8"
+   ],
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_1__reappropriation_9",
+    "sec_1__agency_48__program_2__account_1__appropriation_9"
+   ]
+  ],
+  "old: found by account and amount only (codes or words differ)": [
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_6__reappropriation_1",
+    "sec_1__agency_49__program_2__account_1__reappropriationSource_5__reappropriation_2"
+   ]
+  ],
+  "old: not among last year's reappropriations": [
+   [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_12",
+    null
+   ]
+  ],
+  "old: more reappropriated than last year": [
+   [
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_2",
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__mod_1__qstr__reappropriation_2"
+   ]
+  ]
+ },
+ "prior_not_continued": [
+  [
+   "department-of-labor",
+   "reappropriations",
+   39,
+   6110274000
+  ],
+  [
+   "state-university-of-new-york",
+   "appropriations",
+   12,
+   447028000
+  ],
+  [
+   "state-university-of-new-york",
+   "reappropriations",
+   2,
+   1912000
+  ]
+ ],
+ "compare": {
+  "changes": [
+   {
+    "agency": "city-university-of-new-york",
+    "change": "added",
+    "now": [
+     40000000,
+     36667000
+    ]
+   },
+   {
+    "agency": "department-of-public-service",
+    "change": "added",
+    "now": [
+     1000000,
+     1000000
+    ]
+   }
+  ],
+  "totals": [],
+  "items": [
+   116,
+   118
+  ]
+ },
+ "vetoes": {
+  "21": [
+   "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_12"
+  ],
+  "22": [
+   "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_1"
+  ],
+  "23": [
+   "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_2"
+  ]
+ },
+ "findings": {
+  "headings": [],
+  "summaries": [
+   {
+    "where": "1160:8",
+    "agency": "Department of Labor",
+    "column": "reappropriations",
+    "printed": "6,568,711,000",
+    "items": "6,572,198,129",
+    "diff": "-3,487,129",
+    "cpf": false,
+    "page": 1160
+   },
+   {
+    "where": "1347:5",
+    "agency": "State University of New York",
+    "column": "reappropriations",
+    "printed": "434,696,000",
+    "items": "436,244,000",
+    "diff": "-1,548,000",
+    "cpf": false,
+    "page": 1347
+   }
+  ],
+  "totals": [],
+  "schedules": [
+   {
+    "where": "1183:34",
+    "agency": "Department of Labor (reappropriations)",
+    "code": "34235",
+    "printed": "789,705",
+    "rows": "732,278",
+    "diff": "57,427",
+    "n": 7,
+    "thousands": false,
+    "page": 1183
+   }
+  ],
+  "schedule_items": [
+   {
+    "where": "1181:34",
+    "agency": "Department of Labor (reappropriations)",
+    "code": "34235",
+    "total": "749,980",
+    "item": "750,000",
+    "reapprop": true,
+    "page": 1181
+   },
+   {
+    "where": "1182:23",
+    "agency": "Department of Labor (reappropriations)",
+    "code": "34235",
+    "total": "749,980",
+    "item": "750,000",
+    "reapprop": true,
+    "page": 1182
+   },
+   {
+    "where": "1182:44",
+    "agency": "Department of Labor (reappropriations)",
+    "code": "34235",
+    "total": "749,980",
+    "item": "750,000",
+    "reapprop": true,
+    "page": 1182
+   }
+  ],
+  "reapprop_over": [],
+  "no_original": []
+ },
+ "full": {
+  "prior": {
+   "new: as appropriated": 839,
+   "new: found by account and amount only (codes or words differ)": 427,
+   "old: continued": 5101,
+   "old: found by account and amount only (codes or words differ)": 148,
+   "old: more reappropriated than last year": 31,
+   "new: found under another program code": 44,
+   "new: not found among last year's appropriations": 63,
+   "old: not among last year's reappropriations": 23,
+   "old: original amount differs from last year's": 5,
+   "new: original amount is not last year's appropriation": 4,
+   "amended by this bill (old amount struck)": 12,
+   "new: not appropriated last year, where transfers may add to it": 22,
+   "old: more reappropriated than last year, where transfers may add to it": 1
+  },
+  "items": 8497,
+  "findings": {
+   "headings": 11,
+   "summaries": 23,
+   "totals": 0,
+   "schedules": 3,
+   "schedule_items": 3,
+   "reapprop_over": 1,
+   "no_original": 0
+  },
+  "vetoes": {
+   "1": [
+    "sec_1__agency_2__program_1__account_1__reappropriationSource_1__reappropriation_56"
+   ],
+   "2": [
+    "sec_1__agency_19__program_3__account_1__reappropriationSource_1__reappropriation_2"
+   ],
+   "3": [
+    "sec_1__agency_19__program_3__account_1__reappropriationSource_2__reappropriation_10"
+   ],
+   "4": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_3__reappropriation_45"
+   ],
+   "5": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_3__reappropriation_54"
+   ],
+   "6": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_5__reappropriation_36"
+   ],
+   "7": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_8__reappropriation_31"
+   ],
+   "8": [
+    "sec_1__agency_25__program_2__account_1__reappropriationSource_6__reappropriation_24"
+   ],
+   "9": [
+    "sec_1__agency_27__program_3__account_3__reappropriationSource_2__reappropriation_6"
+   ],
+   "10": [
+    "sec_1__agency_27__program_3__account_3__reappropriationSource_3__reappropriation_4"
+   ],
+   "11": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_1__reappropriation_102"
+   ],
+   "12": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_2__reappropriation_49"
+   ],
+   "13": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_2__reappropriation_59"
+   ],
+   "14": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_3__reappropriation_56"
+   ],
+   "15": [
+    "sec_1__agency_33__program_8__account_1__reappropriationSource_2__reappropriation_15"
+   ],
+   "16": [
+    "sec_1__agency_33__program_8__account_1__reappropriationSource_2__reappropriation_16"
+   ],
+   "17": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_3"
+   ],
+   "18": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_7"
+   ],
+   "19": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_8"
+   ],
+   "20": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_9"
+   ],
+   "21": [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_12"
+   ],
+   "22": [
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_1"
+   ],
+   "23": [
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_2"
+   ],
+   "24": [
+    "sec_1__agency_79__program_2__account_1__reappropriationSource_3__reappropriation_2"
+   ]
+  }
+ }
+}

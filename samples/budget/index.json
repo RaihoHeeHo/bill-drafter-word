@@ -1,0 +1,47 @@
+{
+ "bills": [
+  {
+   "id": "S3003D",
+   "title": "S.3003-D Aid to Localities (2025): Department of Labor, State University of New York",
+   "file": "S3003D.akn.xml",
+   "prior": {
+    "file": "S8303D.akn.xml",
+    "chapter": 53,
+    "year": 2024,
+    "title": "chapter 53 of the laws of 2024 (S.8303-D)"
+   },
+   "vetoes": {
+    "file": "vetoes-2025.json",
+    "lines": "S3003D.lines.json",
+    "date": "2025-05-20",
+    "title": "the Governor's line vetoes of May 20, 2025"
+   }
+  },
+  {
+   "id": "S3003D-full",
+   "title": "S.3003-D Aid to Localities (2025), the whole bill: 98 schedules, 8,497 items, 1,518 pages",
+   "file": "full/S3003D.akn.xml",
+   "prior": {
+    "file": "full/S8303D.akn.xml",
+    "chapter": 53,
+    "year": 2024,
+    "title": "chapter 53 of the laws of 2024 (S.8303-D)"
+   },
+   "vetoes": {
+    "file": "full/vetoes-2025.json",
+    "lines": "full/S3003D.lines.json",
+    "date": "2025-05-20",
+    "title": "the Governor's line vetoes of May 20, 2025"
+   }
+  },
+  {
+   "id": "S3000D",
+   "title": "S.3000-D State Operations (2025): Department of Public Service, City University of New York",
+   "file": "S3000D.akn.xml",
+   "earlier": {
+    "file": "S3000C.akn.xml",
+    "title": "S.3000-C"
+   }
+  }
+ ]
+}
