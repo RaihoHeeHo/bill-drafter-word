@@ -613,7 +613,7 @@
       <assert test=".//a:ref[@class = 'vetoedItem']">A line veto memo must cite the vetoed items (ref class="vetoedItem").</assert>
     </rule>
     <rule context="a:ref[@class = 'vetoedItem']">
-      <assert test="re:test(@href, '^/akn/us-ny/bill/[0-9]{4}/[sa][0-9]+/eng@[a-z]?/~.*appropriation_[0-9]+$')">A vetoed item is cited by the bill print and the item's eId (…/eng@d/~…__appropriation_1).</assert>
+      <assert test="re:test(@href, '^/akn/us-ny/bill/[0-9]{4}/[sa][0-9]+/eng@[a-z]?/~.*__(appropriation|reappropriation)_[0-9]+$')">A vetoed item is cited by the bill print and the item's eId (…/eng@d/~…__appropriation_1, or __reappropriation_1: most vetoes are of reappropriations).</assert>
     </rule>
   </pattern>
 </schema>

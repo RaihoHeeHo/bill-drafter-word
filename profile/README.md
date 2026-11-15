@@ -188,6 +188,10 @@ Tools:
   flow of the text (Legislature and Judiciary, Debt Service): funds,
   departments and agencies in the order printed, items with their own schedules,
   object groups, totals and reappropriations.
+* `tools/print_lines.py` finds the page and lines where each purpose, item and
+  reappropriation of a converted bill is printed.
+* `tools/line_vetoes.py` ties the Governor's line vetoes (cited by page and line)
+  to the vetoed items and writes them as line veto memoranda.
 * `tools/prior_check.py` checks a bill's reappropriations against last year's
   chapter (its appropriations and its reappropriations), item by item.
 * `tools/budget_items.py` lists every item with its key (agency, account,
