@@ -10,7 +10,9 @@ A Word add-in that brings parts of the bill drafter into Word:
 
 6. **Budget mode.** Changes to an appropriation bill, with every check of LBDC's budget tools (below).
 
-It does **not** try to look like a printed bill: no line numbers, no bill spacing or fonts.
+A bill being drafted does **not** try to look like a printed bill: no line numbers, no bill spacing or fonts (the clean copy is the printed form). A budget bill is laid out as the print reads, with amounts at the margin.
+
+**Guides:** [PIPELINE.md](PIPELINE.md), Part 2, is the plain-language guide to everything in the pane, step by step; Part 1 is how it works. [FORMAT.md](FORMAT.md) is the document's structure and its Akoma Ntoso mapping.
 
 Nothing is installed on the computer and there is no .exe: Word loads the add-in from this site, and the laws stay on the computer.
 

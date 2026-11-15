@@ -14,7 +14,7 @@ ol li,ul li{margin:4px 0} code{font-family:Consolas,monospace;font-size:14px}
 .note{color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:32px;padding-top:12px}
 </style></head><body><main>
 <h1><img src="assets/icon-64.png" width="40" height="40" alt="">Bill Drafter for Word</h1>
-<p class="sub">A demo Word add-in: amendments from your own copy of the laws, standard sections, drafting checks, and Akoma Ntoso export.</p>
+<p class="sub">A demo Word add-in: amendments from your own copy of the laws, standard sections, drafting checks, clean copies, Akoma Ntoso export, and changes to budget bills with LBDC's budget checks.</p>
 <p><a class="btn" href="manifest.xml" download>Download manifest.xml</a></p>
 <h2>Add it to Word for Windows</h2>
 <ol>
@@ -23,12 +23,20 @@ ol li,ul li{margin:4px 0} code{font-family:Consolas,monospace;font-size:14px}
 <li><b>Home &gt; Add-ins &gt; More Add-ins &gt; Shared Folder &gt; Bill Drafter (demo) &gt; Add</b>.</li>
 </ol>
 <p>Word on the web: <b>Home &gt; Add-ins &gt; More Add-ins &gt; My Add-ins &gt; Upload My Add-in</b>, then pick <code>manifest.xml</code>.</p>
-<h2>First use</h2>
+<h2>Drafting a bill</h2>
 <ol>
-<li>Open <b>Home &gt; Bill Drafter</b>, go to the <b>Bank</b> tab and choose the folder with the law files. They stay on this computer.</li>
-<li>On <b>Draft</b>, start a new bill, then amend sections, add standard sections and run <b>Checks</b>.</li>
-<li><b>Export</b> converts the bill to Akoma Ntoso XML.</li>
+<li>Open <b>Home &gt; Bill Drafter</b>. Click <b>Load the Bank</b> at the top right and choose the folder with the law files. They stay on this computer.</li>
+<li>On <b>Draft</b>, type what the bill is in relation to and click <b>Start the bill</b>. Add sections: type the law and section in one box (<code>GCN 12</code>, <code>tax 606(c)</code>), choose what the bill does, insert it.</li>
+<li>Edit the law's text in the document, then click <b>Mark changes</b>: brackets and underlines are put in against the Bank. The section list shows what each section still needs.</li>
+<li>On <b>Clean copy</b>, click <b>Make the clean copy (PDF)</b>. Changes are always marked against the Bank first.</li>
 </ol>
+<h2>Changing a budget bill</h2>
+<ol>
+<li>Click <b>Budget</b> at the top right and open a demo bill (the 2025 Aid to Localities bill, whole or in part, or State Operations).</li>
+<li>Edit items in the document and click <b>Mark changes</b>: reappropriations are bracketed and underlined against the law, appropriations take the new amount. Totals that no longer add up can be updated.</li>
+<li><b>Check</b> runs LBDC's budget checks on the whole bill: amounts, last year's chapter, changes in this print, line vetoes. <b>Open the bill window</b> browses and searches the whole bill.</li>
+</ol>
+<p><a href="https://github.com/RaihoHeeHo/bill-drafter-word/blob/main/PIPELINE.md#part-2-the-plain-language-guide">The plain-language guide</a>: everything in the pane, step by step.</p>
 <p>Details: <a href="https://github.com/RaihoHeeHo/bill-drafter-word#readme">README</a> · <a href="https://github.com/RaihoHeeHo/bill-drafter-word/blob/main/FORMAT.md">the .docx format and its Akoma Ntoso mapping</a> · <a href="examples/Example%20bill.docx">example bill (.docx)</a> · <a href="examples/Example%20bill.akn.xml">its Akoma Ntoso</a></p>
 <p class="note">A demo by an individual, not an official product of any state agency. Nothing is installed on the computer; the add-in's code loads from this site and the laws never leave the computer.</p>
 </main></body></html>

@@ -114,7 +114,7 @@ The output validates against the OASIS Akoma Ntoso 3.0 schema, LBDC's extension 
 
 ## Converting a saved .docx
 
-The task pane converts the open document (**Clean copy > Akoma Ntoso XML**). For a saved file:
+The task pane converts the open document (**Clean copy > For other systems**; Mark changes runs first, so the XML is always marked against the Bank). For a saved file:
 
 ```
 npm install
@@ -122,6 +122,45 @@ node tools/docx2akn.cjs "My bill.docx" "My bill.akn.xml"
 ```
 
 Both use the same code (`src/lib/ooxml.js` reads the .docx, `src/lib/akn.js` writes Akoma Ntoso).
+
+## Budget bills
+
+In budget mode the document doesn't hold the bill's meaning: the bill's **Akoma Ntoso XML** does, and Word shows it laid out as the print reads.
+
+**The XML in the document.** Two custom XML parts, namespace `urn:x-lbdc:bill-drafter`:
+
+| Part | Holds |
+|---|---|
+| `<budget role="current" …>` | The bill as changed: the record the checks, the clean copy and the XML export use |
+| `<budget role="opened" …>` | The bill as it was opened: "changes since it was opened", and the check that every reappropriation still reads as the law as opened |
+
+Each holds the whole AKN-NY XML, gzip-compressed and base64-encoded where the browser can (`encoding="gzip-base64"`), otherwise as CDATA. A demo bill also records `sample="S3003D"`, so its companions (last year's chapter, the vetoes) are found again when the document is reopened.
+
+**Content controls.** Tag `akn:b;e=<short eId>;k=<kind>`. The short eId drops `sec_` and abbreviates each level (`agency` a, `program` p, `account` c, `reappropriationSource` s, `reappropriation` r, `appropriation` i, `purpose` u, `subtotal` t, `agencySummary` m, `table` b), joined with dots: `1.a48.p2.c1.s19.r1` is `sec_1__agency_48__program_2__account_1__reappropriationSource_19__reappropriation_1`.
+
+| `k=` | Holds |
+|---|---|
+| `front` | The title block and section 1's opening paragraphs |
+| `schedule` | A whole agency schedule, as laid out (a large bill shows only the schedules opened) |
+| `agency` | The agency's heading and subheading |
+| `summary` | The agency summary: its words and its table |
+| `program` | A program's heading and total |
+| `purpose` | A purpose's words |
+| `appropriation`, `reappropriation` | An item: its words and amounts, and any project schedule under it |
+| `subtotal` | A program account subtotal |
+
+Account headings and reappropriation source lines ("By chapter 53, section 1, of the laws of 2024:") are plain paragraphs: they aren't edited here.
+
+**An item edited in Word** is read back from its first paragraph (Bill Insert, Bill Delete, typed brackets and tracked changes, as for bills) and written into the XML:
+
+| Item | In the XML after Mark changes |
+|---|---|
+| Reappropriation, words or original amount changed | The change marked against the law as it stands: `<del>(34218)</del> <ins>(34219)</ins> ... <del>15,000,000</del> <ins><quantity class="originalAmount" normalized="14000000">14,000,000</quantity></ins>`. Struck matter is plain words in `del`, as the converter reads the prints; the current amount is the `quantity`. The amount reappropriated is reprinted: `(re. $<quantity class="reappropriatedAmount" …>12,500,000</quantity>)`. |
+| Appropriation | The new words and amount, unmarked, with `programCode` / `objectCode` and `quantity class="amount"` tagged again |
+| Deleted in an open schedule | Taken out |
+| Added in the pane | A new `hcontainer name="appropriation"` after the item at the cursor, numbered after the account's last |
+
+Totals updated in the pane set the `quantity` of a `programTotal`, a `subtotal`, or an agency summary's `summaryAppropriations` / `summaryReappropriations`, unmarked.
 
 ## Known limits of the mapping
 
