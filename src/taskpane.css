@@ -226,3 +226,13 @@ table.counts tr.prob td { color: var(--warn); font-weight: 600; }
 .people { list-style: none; margin: 6px 0 0; padding: 0; }
 .people li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line, #e3e6ea); }
 .people select.need { outline: 2px solid #d97706; }
+
+/* Review */
+.rv-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.rv-list li { padding: 6px 0; border-top: 1px solid var(--line, #e3e6ea); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.rv-list li .n { font-weight: 600; min-width: 4.5em; }
+.rv-list li .what { flex: 1; }
+.rv-list li .chips { margin-left: auto; display: flex; gap: 4px; }
+.rv-list li.stale .what { color: #b45309; }
+.rv-history { margin: 6px 0 0; padding-left: 1.2em; font-size: 12px; }
+button.mini:disabled { opacity: .45; }

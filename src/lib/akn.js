@@ -335,16 +335,18 @@
   const ROLES = ['drafter', 'examiner', 'proofreader'];
   function workingCopy(model, info) {
     const sg = model.suggestions || { total: 0, people: [] }, comments = model.comments || [];
-    if (!sg.total && !comments.length) return null;
-    const roles = (info.review && info.review.roles) || {}, missing = sg.people.filter(n => !ROLES.includes(roles[n]));
+    const steps = (info.review && info.review.steps) || [];
+    if (!sg.total && !comments.length && !steps.length) return null;
+    const R = BD.review, people = [...new Set([...sg.people, ...(R ? R.stepPeople(steps) : [])])];
+    const roles = (info.review && info.review.roles) || {}, missing = people.filter(n => !ROLES.includes(roles[n]));
     if (missing.length) { const e = new Error('Give a review role (drafter, examiner or proofreader) to ' + missing.join(', ') + ': ' + (missing.length === 1 ? 'they' : 'they each') + ' made suggestions or comments in this draft.'); e.missingRoles = missing; throw e; }
     const now = (info.now || new Date().toISOString()).replace(/\.\d+Z$/, 'Z');
-    const ids = new Map(); for (const n of sg.people) { let id = 'staff-' + (slugName(n) || 'person'); while ([...ids.values()].includes(id)) id += '-2'; ids.set(n, id); }
+    const ids = new Map(); for (const n of people) { let id = 'staff-' + (slugName(n) || 'person'); while ([...ids.values()].includes(id)) id += '-2'; ids.set(n, id); }
     const anchors = new Map(); comments.forEach((c, i) => { for (const id of c.ids || [c.id]) anchors.set(String(id), 'c' + (i + 1)); });
     const when = d => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(d || '') ? d : /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d || '') ? d + 'Z' : now;
-    // Who has the draft follows the review's hand-offs, which the pane does not record yet: until it does, the drafter.
-    const status = 'drafting';
-    return { people: sg.people, roles, comments, status, personId: n => ids.get(n) || 'staff-unknown', anchor: id => anchors.get(String(id)), when };
+    // Who has the draft follows the review's hand-offs.
+    const status = R ? R.statusOf(steps) : 'drafting';
+    return { people, roles, comments, status, steps, personId: n => ids.get(n) || 'staff-unknown', anchor: id => anchors.get(String(id)), when };
   }
   function workingRefs(w) {
     if (!w) return '';
@@ -434,9 +436,10 @@
       '<FRBRExpression><FRBRthis value="' + expr + '/!main"/><FRBRuri value="' + expr + '"/><FRBRdate date="' + exprDate + '" name="' + (letter ? 'amended' : digits ? 'introduced' : 'drafted') + '"/><FRBRauthor href="#' + (digits ? house : 'lbdc') + '"/>' + (letter ? '<FRBRversionNumber value="' + letter + '"/>' : digits ? '' : '<FRBRversionNumber value="' + lbdVer + '"/>') + '<FRBRlanguage language="eng"/></FRBRExpression>' +
       '<FRBRManifestation><FRBRthis value="' + expr + '/!main.xml"/><FRBRuri value="' + expr + '.akn"/><FRBRdate date="' + new Date().toISOString().slice(0, 10) + '" name="markup"/><FRBRauthor href="#lbdc"/></FRBRManifestation>' +
       '</identification>' +
+      (work_ && BD.review ? BD.review.workflowXml(work_.steps, work_.personId) : '') +
       (mods.length ? '<analysis source="#lbdc"><activeModifications>' + mods.map((m, k) =>
         '<textualMod eId="amod_' + (k + 1) + '" type="' + m.type + '"><source href="#' + m.source + '"/><destination href="' + m.dest + '"/></textualMod>').join('') + '</activeModifications></analysis>' : '') +
-      '<references source="#lbdc">' + refs.join('') + workingRefs(work_) + '</references>' +
+      '<references source="#lbdc">' + refs.join('') + workingRefs(work_) + (work_ && BD.review ? BD.review.workflowRefs(work_.steps) : '') + '</references>' +
       '<proprietary source="#lbdc"><lbdc:documentInfo><lbdc:profile name="AKN-NY" version="' + PROFILE_VERSION + '"/><lbdc:house>' + house + '</lbdc:house><lbdc:session>' + session + '</lbdc:session>' +
       (printNo ? '<lbdc:printNumber>' + printNo + '</lbdc:printNumber>' : '') + (lbd ? '<lbdc:lbdNumber>LBD' + x(lbd) + '</lbdc:lbdNumber>' : '') + workingInfo(work_) + '</lbdc:documentInfo></proprietary></meta>' +
       '<preface><p class="authority"><docAuthority>STATE OF NEW YORK</docAuthority></p>' +

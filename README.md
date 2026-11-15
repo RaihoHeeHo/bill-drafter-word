@@ -66,8 +66,9 @@ Word's **Track Changes** are suggestions: what a reviewer types or deletes with 
 
 - A section with suggestions shows **suggestions waiting**. **Mark changes** leaves it alone until they are accepted or rejected, then brackets and underlines the accepted ones against the Bank like any other change.
 - **No clean copy** is made while a suggestion waits.
-- **People** (Clean copy tab) lists everyone who made a suggestion or a comment; give each a role (drafter, examiner or proofreader). The roles are saved in the document.
-- **Show the XML** then gives a *working copy* in the profile's terms: the bill with the suggestions and comments, who made them, and their roles.
+- **Review** tab: say who you are (name and role, kept on this computer). **Where the draft is** sends it on, drafter → examiner → proofreader → examiner → drafter, by whoever's turn it is. **Suggested changes** can be accepted or rejected there, keeping to the rules (proofreaders don't decide; an examiner doesn't decide a drafter's), and each decision is recorded. Examiners **sign off** sections and proofreaders mark them **proofread**; a sign-off shows as stale when its section changes afterwards.
+- **People** (Review tab) lists everyone who made a suggestion or a comment or took a step; give each a role (drafter, examiner or proofreader). The roles and the review are saved in the document.
+- **Show the XML** then gives a *working copy* in the profile's terms: the bill with the suggestions, comments and review steps, who made them, and their roles.
 
 ## Budget mode
 

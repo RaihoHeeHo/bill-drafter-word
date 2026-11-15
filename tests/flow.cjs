@@ -113,29 +113,48 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   const xml2 = await p.inputValue('#akn-out');
   if (!/<del>[^<]*in this state[^<]*<\/del>/.test(xml2)) throw new Error('the clean copy left an unmarked change: ' + (xml2.match(/.{80}acknowledgment of deeds.{60}/) || [''])[0]);
   console.log('marked before the clean copy:', (xml2.match(/.{30}<del>[^<]*in this state[^<]*<\/del>.{10}/) || [''])[0]);
-  // Several people: an examiner's tracked change is a suggestion. Mark changes leaves its section alone, no clean
-  // copy is made while it waits, and the XML (a working copy) needs everyone's review role.
-  await p.click('[data-tab=draft]');
+  // Several people and the review. Kim, the drafter, sends the draft to examination; Lee, an examiner, signs off § 2
+  // and then suggests a change in it with Track Changes on: the sign-off goes stale, Mark changes leaves the section
+  // alone, no clean copy is made, and Ana (a proofreader) may not decide it; Kim accepts it. The working copy carries
+  // the steps, and the profile's checker accepts it.
+  const who = async (name, role) => { await p.fill('#me-name', name); await p.dispatchEvent('#me-name', 'change'); await p.selectOption('#me-role', role); await p.waitForTimeout(400); };
+  await p.click('[data-tab=review]'); await p.waitForTimeout(600);
+  await who('Kim Lo', 'drafter');
+  console.log('review:', await p.textContent('#rv-status'), '|', await p.textContent('#rv-send'));
+  await step('send to examination', () => p.click('#rv-send')); await p.waitForTimeout(300);
+  if (!/in examination/.test(await p.textContent('#rv-status'))) throw new Error('not in examination: ' + await p.textContent('#rv-status'));
+  if (!(await p.isDisabled('#rv-send'))) throw new Error('the drafter can send the draft on while it is in examination');
+  await who('Lee Smith', 'examiner');
+  await step('sign off § 2', async () => { await p.click('#rv-secs li:nth-child(2) button:has-text("Sign off")'); await p.waitForFunction(() => /Signed off/.test(document.querySelector('#rv-secs li:nth-child(2)').textContent) || /Not|first|error/i.test(document.querySelector('#notice').textContent), null, { timeout: 20000 }).catch(() => {}); });
+  console.log('sections:', await p.$$eval('#rv-secs li', l => l.slice(0, 3).map(x => x.textContent.replace(/\s+/g, ' ').trim())));
+  if (!/Signed off by Lee Smith/.test(await p.textContent('#rv-secs li:nth-child(2)'))) throw new Error('no sign-off on § 2');
   console.log('suggested:', await p.evaluate(() => __suggestInLaw('When an affidavit is authorized', 'commissioner of deeds or ', 'Lee Smith')));
-  await p.evaluate(() => window.dispatchEvent(new Event('focus'))); await p.waitForTimeout(600);
+  await p.click('[data-tab=draft]'); await p.click('[data-tab=review]'); await p.waitForTimeout(800);
+  if (!/stale/.test(await p.textContent('#rv-secs li:nth-child(2)'))) throw new Error('the sign-off did not go stale: ' + await p.textContent('#rv-secs li:nth-child(2)'));
+  console.log('suggestions:', await p.$$eval('#rv-sugs li', l => l.map(x => x.textContent.replace(/\s+/g, ' ').trim())));
+  await p.screenshot({ path: OUT + '/5b-review.png', fullPage: true });
+  await p.click('[data-tab=draft]');
   await step('mark changes with a suggestion waiting', () => p.click('#mark'));
   if (!/suggested changes wait/.test(await notice())) throw new Error('Mark changes did not leave the section with a suggestion alone');
   await p.click('[data-tab=export]');
   await step('clean copy with a suggestion waiting', async () => { await p.click('#to-pdf'); await p.waitForTimeout(800); });
   if (!/Not made: 1 suggested change/.test(await p.textContent('#pdf-status'))) throw new Error('a clean copy was made with a suggestion waiting');
-  if (await p.isHidden('#people-card')) throw new Error('the People card is not shown');
-  await step('XML without a role', () => p.click('#to-akn'));
-  if (!/give a review role to Lee Smith/.test(await notice())) throw new Error('the working copy was made without review roles');
-  await p.selectOption('#people select', 'examiner'); await p.waitForTimeout(300);
-  await step('XML: a working copy', () => p.click('#to-akn'));
+  await p.click('[data-tab=review]'); await p.waitForTimeout(600);
+  await who('Ana Ruiz', 'proofreader');
+  if (!(await p.isDisabled('#rv-sugs li button:has-text("Accept")'))) throw new Error('a proofreader may accept a suggestion');
+  await who('Kim Lo', 'drafter');
+  await step('XML: a working copy', async () => { await p.click('[data-tab=export]'); await p.click('#to-akn'); });
   const wc = await p.inputValue('#akn-out');
-  if (!/<lbdc:working status="drafting">/.test(wc) || !/lbdc:suggest="insert" lbdc:by="#staff-lee-smith"[^>]*>commissioner of deeds or ?<\/span>/.test(wc)) throw new Error('no working copy: ' + (wc.match(/.{60}commissioner.{40}/) || [''])[0]);
+  if (!/<lbdc:working status="examination">/.test(wc) || !/lbdc:suggest="insert" lbdc:by="#staff-lee-smith"[^>]*>commissioner of deeds or ?<\/span>/.test(wc) || !/refersTo="#signedOff" lbdc:section="sec_2" lbdc:hash="[0-9a-f]{64}"/.test(wc)) throw new Error('no working copy: ' + (wc.match(/<workflow.{0,400}/) || [''])[0]);
   fs.writeFileSync(OUT + '/working-copy.akn.xml', wc);
-  await p.screenshot({ path: OUT + '/5b-people.png', fullPage: true });
-  console.log('accepted:', await p.evaluate(() => { __acceptAll(); return true; }));
+  await p.click('[data-tab=review]'); await p.waitForTimeout(600);
+  await step('Kim accepts Lee\'s suggestion', () => p.click('#rv-sugs li button:has-text("Accept")')); await p.waitForTimeout(500);
+  console.log('history:', await p.$$eval('#rv-history li', l => l.map(x => x.textContent)));
+  if (!/accepted by Kim Lo/.test(await p.textContent('#rv-history'))) throw new Error('the acceptance was not recorded');
+  await p.click('[data-tab=export]');
   await step('clean copy once it is accepted', async () => { await p.click('#to-pdf'); await p.waitForFunction(() => /ready|Not made/.test(document.querySelector('#pdf-status').textContent + document.querySelector('#notice').textContent), null, { timeout: 120000 }); });
   console.log('pdf status:', await p.textContent('#pdf-status'));
-  if (!/<ins>[^<]*commissioner of deeds/.test(await p.inputValue('#akn-out')) && !/commissioner of deeds[^<]*<\/ins>/.test(await p.inputValue('#akn-out'))) throw new Error('the accepted suggestion was not marked as new matter: ' + ((await p.inputValue('#akn-out')).match(/.{80}commissioner.{40}/) || [''])[0]);
+  if (!/commissioner of deeds[^<]*<\/ins>|<ins>[^<]*commissioner of deeds/.test(await p.inputValue('#akn-out'))) throw new Error('the accepted suggestion was not marked as new matter: ' + ((await p.inputValue('#akn-out')).match(/.{80}commissioner.{40}/) || [''])[0]);
   // The drafter deletes a section in the document: back in the pane, the list offers to renumber.
   await p.click('[data-tab=draft]');
   await p.evaluate(() => { const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';

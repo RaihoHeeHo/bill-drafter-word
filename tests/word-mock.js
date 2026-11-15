@@ -107,6 +107,19 @@
           text: p.textContent, load() { return this; }, delete() { if (p.parentNode) p.parentNode.removeChild(p); },
           get parentContentControlOrNullObject() { const a = parentSdt(p); return a ? ccFor(a) : NULL_CC; } })) };
       },
+      // Word's tracked changes (WordApi 1.6): accepting an insertion keeps its words, rejecting it takes them out;
+      // accepting a deletion takes the words out, rejecting it puts them back.
+      getTrackedChanges() {
+        const unwrap = n => { while (n.firstChild) n.parentNode.insertBefore(n.firstChild, n); n.parentNode.removeChild(n); };
+        const items = [...body.getElementsByTagNameNS(W, '*')].filter(n => n.localName === 'ins' || n.localName === 'del').map(n => {
+          const ins = n.localName === 'ins';
+          const text = [...n.getElementsByTagNameNS(W, '*')].filter(e => e.localName === 't' || e.localName === 'delText').map(e => e.textContent).join('');
+          return { author: n.getAttribute('w:author'), date: n.getAttribute('w:date'), text, type: ins ? 'Added' : 'Deleted',
+            accept() { window.__ops.push('tc.accept'); if (ins) unwrap(n); else n.parentNode.removeChild(n); },
+            reject() { window.__ops.push('tc.reject'); if (ins) n.parentNode.removeChild(n); else { for (const e of [...n.getElementsByTagNameNS(W, 'delText')]) { const t = doc.createElementNS(W, 'w:t'); t.textContent = e.textContent; e.parentNode.replaceChild(t, e); } unwrap(n); } } };
+        });
+        return { items, load() { return this; } };
+      },
       insertOoxml(x, where) {
         window.__ops.push('body.insertOoxml ' + where);
         const kids = bodyKids(x);

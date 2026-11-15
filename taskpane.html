@@ -15,6 +15,7 @@
   <nav role="tablist">
     <button role="tab" data-tab="draft" aria-selected="true">Draft</button>
     <button role="tab" data-tab="checks">Check <span id="check-count" class="count" hidden></span></button>
+    <button role="tab" data-tab="review">Review</button>
     <button role="tab" data-tab="export">Clean copy</button>
   </nav>
 </header>
@@ -248,13 +249,6 @@
     <div class="row" id="pdf-actions" hidden><button id="pdf-open" class="primary">Open the PDF</button><button id="pdf-save">Save .pdf</button></div>
   </div>
 
-  <div class="card" id="people-card" hidden>
-    <h2>People</h2>
-    <p id="people-summary" class="summary"></p>
-    <p class="hint">Word's Track Changes are suggestions. Everyone who made one, or a comment, takes part in the review as a drafter, examiner or proofreader. The roles are saved in the document.</p>
-    <ul id="people" class="people"></ul>
-  </div>
-
   <div class="card">
     <h2>Bill information</h2>
     <p class="hint">Saved in the document as you type.</p>
@@ -279,6 +273,54 @@
     <button id="to-akn" class="wide">Show the XML</button>
     <div class="row"><button id="akn-copy" disabled>Copy</button><button id="akn-save" disabled>Save .xml</button></div>
     <textarea id="akn-out" rows="12" readonly spellcheck="false" aria-label="Akoma Ntoso XML"></textarea>
+  </details>
+</div>
+</section>
+
+<!-- ============ Review ============ -->
+<section data-panel="review" hidden>
+<div data-mode="budget" hidden>
+  <div class="card"><p class="hint">The review (hand-offs, sign-offs, suggestions) is for bills for now. Switch to Bill.</p></div>
+</div>
+<div data-mode="bill">
+  <div class="card">
+    <h2>You</h2>
+    <p class="hint">Who is working at this computer. It is kept on this computer, not in the document.</p>
+    <div class="grid">
+      <label>Name <input id="me-name" placeholder="As Word knows you (File > Options)"></label>
+      <label>Role <select id="me-role"><option value="">Choose…</option><option value="drafter">Drafter</option><option value="examiner">Examiner</option><option value="proofreader">Proofreader</option></select></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Where the draft is</h2>
+    <p id="rv-status" class="summary"></p>
+    <button id="rv-send" class="primary wide" hidden></button>
+    <p id="rv-send-why" class="hint"></p>
+  </div>
+
+  <div class="card">
+    <h2>Suggested changes</h2>
+    <p class="hint">Word's tracked changes, waiting to be accepted or rejected. Accepting or rejecting here keeps to the rules (proofreaders don't decide; an examiner doesn't decide a drafter's) and is recorded. Word's own Review buttons work too, but aren't recorded.</p>
+    <ul id="rv-sugs" class="rv-list"></ul>
+  </div>
+
+  <div class="card">
+    <h2>Sections</h2>
+    <p class="hint">Examiners sign off sections; proofreaders mark them proofread. A sign-off goes stale when its section changes afterwards.</p>
+    <ul id="rv-secs" class="rv-list"></ul>
+  </div>
+
+  <div class="card" id="people-card">
+    <h2>People</h2>
+    <p id="people-summary" class="summary"></p>
+    <p class="hint">Everyone who made a suggestion or a comment, or took a step in the review, has a role. The roles are saved in the document.</p>
+    <ul id="people" class="people"></ul>
+  </div>
+
+  <details class="card">
+    <summary><b>History</b> <span id="rv-count" class="hint"></span></summary>
+    <ol id="rv-history" class="rv-history"></ol>
   </details>
 </div>
 </section>
@@ -308,6 +350,7 @@
 <script src="src/lib/ooxml.js"></script>
 <script src="src/lib/checks.js"></script>
 <script src="src/lib/akn.js"></script>
+<script src="src/lib/review.js"></script>
 <script src="src/lib/budget.js"></script>
 <script src="src/lib/budgetword.js"></script>
 <script src="src/lib/windowstore.js"></script>

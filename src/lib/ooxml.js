@@ -399,14 +399,25 @@
   }
   // The suggestions waiting in each section, and everyone who made one or commented: {total, bySection: [n…], people: [name…]}.
   function suggestionsOf(model) {
-    const people = new Set(), bySection = [];
-    const count = rs => { let n = 0, lastKey = ''; for (const r of rs) { if (r.sug) { people.add(r.sug.by); const k = sugKey(r); if (k !== lastKey) n++; lastKey = k; } else lastKey = ''; } return n; };
+    const people = new Set(), bySection = [], items = [];
+    // One suggestion is a stretch of runs Word tracked as one change: {sec, kind, by, at, text}.
+    const count = (rs, sec) => {
+      let n = 0, lastKey = '';
+      for (const r of rs) {
+        if (r.sug) {
+          people.add(r.sug.by); const k = sugKey(r);
+          if (k !== lastKey) { n++; items.push({ sec, kind: r.sug.kind, by: r.sug.by, at: r.sug.at, text: r.t }); } else items[items.length - 1].text += r.t;
+          lastKey = k;
+        } else lastKey = '';
+      }
+      return n;
+    };
     const runsOfParas = ps => (ps || []).flatMap(p => BD.isTable && BD.isTable(p) ? p.rows.flatMap(row => row.cells.flatMap(c => Array.isArray(c) ? c : [])) : p);
-    for (const s of model.sections) bySection.push(count([...(s.allRuns || []), ...runsOfParas(s.quoted && s.quoted.paras)]));
-    const outside = count([...(model.title ? model.title.runs : [])]);
+    model.sections.forEach((s, i) => bySection.push(count([...(s.allRuns || []), ...runsOfParas(s.quoted && s.quoted.paras)], i)));
+    const outside = count([...(model.title ? model.title.runs : [])], null);
     for (const c of model.comments || []) { people.add(c.by); for (const r of c.replies) people.add(r.by); }
     people.delete('');
-    return { total: bySection.reduce((a, b) => a + b, 0) + outside, bySection, outside, people: [...people] };
+    return { total: bySection.reduce((a, b) => a + b, 0) + outside, bySection, outside, people: [...people], items };
   }
   Object.assign(BD, { pendingRuns, commentsOf, tableXml, parasOf, W_NS: W, STYLES, stylesXml, run, runs, para, sdt, tagOf, parseTag, sectionXml, quotedInner, titleXml, enactingXml, pkg, readBill, textOf, esc });
   if (typeof module !== 'undefined') module.exports = BD;

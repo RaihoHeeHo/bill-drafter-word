@@ -437,7 +437,7 @@ async function refreshOnce() {
   welcome();
   if (model.title && document.activeElement !== $('subject')) $('subject').value = model.title.subject.replace(/^_+$/, '');
   $('subject').classList.toggle('need', found.some(f => f.fix === 'subject'));
-  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model); drawPeople(model);
+  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model); if (!$('rv-status').closest('[data-panel]').hidden) drawReview(model);
   const errs = found.filter(f => f.level === 'error').length;
   $('check-count').textContent = String(errs); $('check-count').hidden = !errs || !hasBill;
   return model;
@@ -710,54 +710,162 @@ function infoSummary() {
   }
 }
 /* ---------- several people (profile 0.4 working copies) ----------
-   Word's Track Changes are suggestions: who suggested what. They are settled in Word (Review > Accept or Reject);
-   Mark changes leaves a section alone until they are, and no clean copy is made while any wait. Everyone who made
-   a suggestion or a comment has a review role, kept in the document (custom property "Bill Drafter review roles"). */
-const ROLE_PROP = 'Bill Drafter review roles';
-let reviewRoles = {};
+   Word's Track Changes are suggestions: who suggested what. Mark changes leaves a section alone until they are
+   accepted or rejected, and no clean copy is made while any wait. The review (src/lib/review.js) goes drafter,
+   examiner, proofreader, examiner, drafter; its steps and everyone's role are kept in the document, in a custom XML
+   part of their own. Who is at this computer is kept on this computer. */
+const NSR = 'urn:x-lbdc:bill-drafter:review', RV = BD.review;
+let review = { roles: {}, steps: [] }, reviewPart = null;
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
-const waitingText = m => 'Not made: ' + plural(m.suggestions.total, 'suggested change') + ' (Word\'s tracked changes) ' + (m.suggestions.total === 1 ? 'waits' : 'wait') + ' to be accepted or rejected. Settle ' + (m.suggestions.total === 1 ? 'it' : 'them') + ' in Word (Review > Accept or Reject), then make the clean copy.';
-const needRoles = m => ((m.suggestions && m.suggestions.people) || []).filter(n => !['drafter', 'examiner', 'proofreader'].includes(reviewRoles[n]));
-async function loadRoles() {
-  if (!inWord || !Office.context.requirements.isSetSupported('WordApi', '1.3')) return;
-  await Word.run(async ctx => {
-    const cp = ctx.document.properties.customProperties; cp.load('items/key,items/value'); await ctx.sync();
-    const p = cp.items.find(x => x.key === ROLE_PROP);
-    try { reviewRoles = p ? JSON.parse(String(p.value)) || {} : {}; } catch (e) { reviewRoles = {}; }
-  });
+const waitingText = m => 'Not made: ' + plural(m.suggestions.total, 'suggested change') + ' (Word\'s tracked changes) ' + (m.suggestions.total === 1 ? 'waits' : 'wait') + ' to be accepted or rejected. Settle ' + (m.suggestions.total === 1 ? 'it' : 'them') + ' (Review tab), then make the clean copy.';
+const peopleOf = m => [...new Set([...((m && m.suggestions && m.suggestions.people) || []), ...RV.stepPeople(review.steps)])];
+const needRoles = m => peopleOf(m).filter(n => !RV.ROLES.includes(review.roles[n]));
+const me = () => { try { const v = JSON.parse(localStorage.getItem('bill-drafter-me') || 'null'); return v && v.name ? v : null; } catch (e) { return null; } };
+const setMe = v => { try { localStorage.setItem('bill-drafter-me', JSON.stringify(v)); } catch (e) { /* storage off */ } };
+const xcall = (fn, ...a) => new Promise((res, rej) => fn(...a, r => (r.status === 'succeeded' || (Office.AsyncResultStatus && r.status === Office.AsyncResultStatus.Succeeded)) ? res(r.value) : rej(new Error((r.error && r.error.message) || 'Word could not store the review.'))));
+async function loadReview() {
+  if (!inWord || !Office.context.document || !Office.context.document.customXmlParts) return;
+  const cx = Office.context.document.customXmlParts, ps = await xcall(cx.getByNamespaceAsync.bind(cx), NSR);
+  for (const p of ps) {
+    const r = new DOMParser().parseFromString(await xcall(p.getXmlAsync.bind(p)), 'application/xml').documentElement;
+    try { const v = JSON.parse(r.textContent); review = { roles: v.roles || {}, steps: v.steps || [] }; reviewPart = p; } catch (e) { /* not ours */ }
+  }
+  if (!reviewPart && Office.context.requirements.isSetSupported('WordApi', '1.3')) { // roles kept by the earlier version
+    await Word.run(async ctx => {
+      const cp = ctx.document.properties.customProperties; cp.load('items/key,items/value'); await ctx.sync();
+      const old = cp.items.find(x => x.key === 'Bill Drafter review roles');
+      if (old) try { review.roles = JSON.parse(String(old.value)) || {}; } catch (e) { /* ignore */ }
+    });
+  }
 }
-async function saveRoles() {
+async function saveReview() {
   if (!inWord) return;
-  await word(async ctx => { ctx.document.properties.customProperties.add(ROLE_PROP, JSON.stringify(reviewRoles)); await ctx.sync(); });
+  const cx = Office.context.document.customXmlParts;
+  if (reviewPart) { try { await xcall(reviewPart.deleteAsync.bind(reviewPart)); } catch (e) { /* already gone */ } }
+  const text = JSON.stringify(review).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  reviewPart = await xcall(cx.addAsync.bind(cx), '<review xmlns="' + NSR + '">' + text + '</review>');
 }
 function drawPeople(model) {
   const card = $('people-card'); if (!card) return;
-  const sg = model.suggestions || { total: 0, people: [] }, n = (model.comments || []).length;
-  card.hidden = !sg.people.length;
-  if (card.hidden) return;
+  const sg = model.suggestions || { total: 0, people: [] }, n = (model.comments || []).length, people = peopleOf(model), m = me();
+  if (m && !people.includes(m.name)) people.push(m.name);
   $('people-summary').textContent = plural(sg.total, 'suggested change') + ' and ' + plural(n, 'comment') + ' in the document.' +
     (sg.total ? ' Mark changes leaves sections with suggestions alone, and no clean copy is made, until they are accepted or rejected.' : '');
   const ul = $('people'); ul.innerHTML = '';
-  for (const name of sg.people) {
+  if (!people.length) ul.append(el('li', { className: 'hint', textContent: 'No one yet.' }));
+  for (const name of people) {
     const sel = el('select'); sel.setAttribute('aria-label', 'Review role of ' + name);
     for (const [v, t] of [['', 'Choose a role'], ['drafter', 'Drafter'], ['examiner', 'Examiner'], ['proofreader', 'Proofreader']]) sel.append(el('option', { value: v, textContent: t }));
-    sel.value = reviewRoles[name] || '';
+    sel.value = review.roles[name] || '';
     sel.classList.toggle('need', !sel.value);
-    sel.onchange = () => busy(null, async () => { reviewRoles[name] = sel.value; sel.classList.toggle('need', !sel.value); await saveRoles(); });
+    sel.onchange = () => busy(null, async () => { review.roles[name] = sel.value; sel.classList.toggle('need', !sel.value); await saveReview(); drawReview(state.model); });
     ul.append(el('li', {}, el('b', { textContent: name }), ' ', sel));
   }
+}
+// The bill's XML as it stands, with the review: what a sign-off's hash is taken from.
+async function currentXml(model) {
+  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: { roles: review.roles, steps: review.steps } };
+  return BD.toAkn(model, info);
+}
+function step(event, extra) {
+  const m = me(); review.steps.push({ at: new Date().toISOString(), by: m.name, role: m.role, event, ...(extra || {}) });
+}
+const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+let reviewDrawn = 0, drawToken = 0;
+async function drawReview(model) {
+  if (!model || !$('rv-status')) return;
+  const m = me(), steps = review.steps, status = RV.statusOf(steps), sg = model.suggestions || { items: [] };
+  $('me-name').value = m ? m.name : ''; $('me-role').value = m ? m.role : '';
+  $('rv-status').textContent = 'The draft is ' + RV.STATUS[status] + '.' + (steps.length ? ' Last: ' + RV.EVENTS[steps[steps.length - 1].event].toLowerCase() + ' by ' + steps[steps.length - 1].by + ', ' + fmtDate(steps[steps.length - 1].at) + '.' : '');
+  const h = RV.handOff(steps, m), send = $('rv-send');
+  send.hidden = false; send.textContent = h.label || 'Send on'; send.disabled = !h.ok; $('rv-send-why').textContent = h.ok ? '' : h.why;
+  // suggestions
+  const ul = $('rv-sugs'); ul.innerHTML = '';
+  if (!sg.items || !sg.items.length) ul.append(el('li', { className: 'hint', textContent: 'None waiting.' }));
+  for (const it of sg.items || []) {
+    const where = it.sec == null ? 'Title' : (model.sections[it.sec].num || '§ ?');
+    const d = RV.mayDecide(m, review.roles[it.by]);
+    const btn = (label, accept) => { const b = el('button', { className: 'mini', textContent: label, disabled: !d.ok, title: d.ok ? '' : d.why }); b.onclick = () => busy(b, () => decide(it, accept)); return b; };
+    ul.append(el('li', {}, el('span', { className: 'n', textContent: where }), ' ', el('span', { textContent: it.by + (it.kind === 'insert' ? ' adds ' : ' takes out ') + '“' + it.text.trim().slice(0, 80) + (it.text.trim().length > 80 ? '…' : '') + '”' }), ' ', el('span', { className: 'chips' }, btn('Accept', true), btn('Reject', false))));
+  }
+  // sections
+  const so = RV.signoffs(steps), pr = RV.proofread(steps), sl = $('rv-secs'), token = ++drawToken;
+  let xml = null, hashes = {};
+  if (so.size) { try { xml = await currentXml(model); for (const eid of so.keys()) hashes[eid] = await RV.sectionHash(xml, eid); } catch (e) { xml = null; } }
+  if (token !== drawToken) return; // a later drawing has started: it draws the rest
+  sl.innerHTML = '';
+  model.sections.forEach((s, i) => {
+    const eid = 'sec_' + (i + 1), sgo = so.get(eid), p = pr.get(eid);
+    const bits = [];
+    if (sgo) bits.push(xml && hashes[eid] !== sgo.hash ? 'Signed off by ' + sgo.by + ' (' + fmtDate(sgo.at) + '), but changed since: stale' : 'Signed off by ' + sgo.by + ', ' + fmtDate(sgo.at));
+    if (p) bits.push('proofread by ' + p.by + ', ' + fmtDate(p.at));
+    const chips = el('span', { className: 'chips' });
+    if (RV.maySignOff(m)) {
+      const stale = sgo && xml && hashes[eid] !== sgo.hash;
+      const b = el('button', { className: 'mini', textContent: sgo && !stale ? 'Withdraw' : 'Sign off' });
+      b.onclick = () => busy(b, () => sgo && !stale ? withdraw(eid) : signOff(i));
+      chips.append(b);
+    }
+    if (RV.mayProofread(m) && !p) { const b = el('button', { className: 'mini', textContent: 'Proofread' }); b.onclick = () => busy(b, async () => { step('proofread', { section: eid }); await saveReview(); await drawReview(state.model); }); chips.append(b); }
+    const stale = sgo && xml && hashes[eid] !== sgo.hash;
+    sl.append(el('li', { className: stale ? 'stale' : '' }, el('span', { className: 'n', textContent: s.num || '§ ?' }), ' ', el('span', { className: 'what', textContent: bits.join('; ') || 'Not signed off' }), ' ', chips));
+  });
+  drawPeople(model);
+  const ol = $('rv-history'); ol.innerHTML = '';
+  for (const st of steps) ol.append(el('li', { textContent: fmtDate(st.at) + ': ' + RV.EVENTS[st.event] + ' by ' + st.by + ' (' + RV.ROLE_NAME[st.role] + ')' + (st.section ? ', ' + st.section.replace('sec_', '§ ') : '') + (st.suggestionBy ? ', ' + st.suggestionBy + '\'s' : '') }));
+  $('rv-count').textContent = steps.length ? plural(steps.length, 'step') : 'nothing yet';
+  reviewDrawn = Date.now();
+}
+function needMe() {
+  const m = me(); if (!m || !m.role) throw new Error('Say who you are first (You, at the top of the Review tab).');
+  return m;
+}
+async function sendOn() {
+  const h = RV.handOff(review.steps, needMe()); if (!h.ok) throw new Error(h.why);
+  step(h.event); await saveReview(); await drawReview(state.model);
+  notice(RV.EVENTS[h.event] + '. The draft is ' + RV.STATUS[RV.statusOf(review.steps)] + '.');
+}
+async function signOff(i) {
+  const m = needMe(); if (!RV.maySignOff(m)) throw new Error('Examiners sign off sections.');
+  await markChanges(true); // what is signed off is the section as it will be exported, marked against the Bank
+  const model = await word(readModel), missing = needRoles(model);
+  if (missing.length) throw new Error('Give a review role to ' + missing.join(', ') + ' first (People, below).');
+  const eid = 'sec_' + (i + 1), hash = await RV.sectionHash(await currentXml(model), eid);
+  if (!hash) throw new Error('That section is not in the bill any more.');
+  step('signedOff', { section: eid, hash }); await saveReview(); await refresh();
+  notice('Signed off ' + (model.sections[i].num || eid).replace(/\.$/, '') + '.');
+}
+async function withdraw(eid) {
+  needMe(); step('signoffWithdrawn', { section: eid }); await saveReview(); await drawReview(state.model);
+}
+// Accept or reject one suggestion through Word's tracked changes (WordApi 1.6), as the rules allow, and record it.
+async function decide(it, accept) {
+  const m = needMe(), d = RV.mayDecide(m, review.roles[it.by]); if (!d.ok) throw new Error(d.why);
+  if (!Office.context.requirements.isSetSupported('WordApi', '1.6')) throw new Error('This version of Word can\'t accept or reject from the pane: use Word\'s Review tab.');
+  const done = await word(async ctx => {
+    const tcs = ctx.document.body.getTrackedChanges(); tcs.load('items/author,items/date,items/text,items/type'); await ctx.sync();
+    const want = it.text.replace(/\s+/g, ' ').trim(), type = it.kind === 'insert' ? 'Added' : 'Deleted';
+    const same = tc => tc.author === it.by && tc.type === type;
+    const tc = tcs.items.find(tc => same(tc) && tc.text.replace(/\s+/g, ' ').trim() === want) || tcs.items.find(tc => same(tc) && want && tc.text.includes(want));
+    if (!tc) return false;
+    if (accept) tc.accept(); else tc.reject();
+    await ctx.sync(); return true;
+  });
+  if (!done) throw new Error('Word did not find that tracked change; it may have been settled already. Look in Word\'s Review tab.');
+  step(accept ? 'accepted' : 'rejected', { suggestionBy: it.by }); await saveReview(); await refresh();
+  notice((accept ? 'Accepted' : 'Rejected') + ' ' + it.by + '\'s suggestion.' + (accept ? ' Mark changes will bracket and underline it against the Bank.' : ''));
 }
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
 async function toAkn(forPrint) {
   const { model, found, marked } = await markedForExport();
   if (forPrint && model.suggestions && model.suggestions.total) throw new Error(waitingText(model));
-  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: forPrint ? null : { roles: reviewRoles } };
+  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: forPrint ? null : { roles: review.roles, steps: review.steps } };
   if (forPrint) { model.comments = []; } // comments are not printed; the clean copy is made from the bill alone
-  if (!forPrint) { const missing = needRoles(model); if (missing.length) { drawPeople(model); throw new Error('Not made: give a review role to ' + missing.join(', ') + ' (People, above). Everyone who made a suggestion or a comment needs one.'); } }
+  if (!forPrint) { const missing = needRoles(model); if (missing.length) { drawPeople(model); throw new Error('Not made: give a review role to ' + missing.join(', ') + ' (People, on the Review tab). Everyone who made a suggestion or a comment, or took a step in the review, needs one.'); } }
   if (!info.year && info.date) info.year = info.date.slice(0, 4);
   aknText = BD.toAkn(model, info);
-  if (!forPrint && model.suggestions && (model.suggestions.total || model.comments.length)) notice('A working copy: the XML carries ' + plural(model.suggestions.total, 'suggested change') + ' and ' + plural(model.comments.length, 'comment') + ', with who made them. A published print carries none.');
+  if (!forPrint && model.suggestions && (model.suggestions.total || model.comments.length || review.steps.length)) notice('A working copy: the XML carries ' + plural(model.suggestions.total, 'suggested change') + ', ' + plural(model.comments.length, 'comment') + ' and ' + plural(review.steps.length, 'review step') + ', with who made them. A published print carries none.');
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   return { errs: found.filter(f => f.level === 'error').length, marked };
 }
@@ -826,6 +934,7 @@ function showTab(name, focusSec) {
   if (mode === 'budget') { document.body.classList.toggle('has-dock', name === 'draft' && !$('b-dock').hidden); BUD.onTab(name, focusSec); return; }
   if (name === 'checks' && inWord) busy($('run-checks'), () => runChecks(focusSec));
   if (name === 'export') infoSummary();
+  if (name === 'review' && inWord) busy(null, async () => { await refresh(); await drawReview(state.model); });
   if (name === 'draft' && inWord) busy(null, refresh);
 }
 // Bill or budget: each tab shows the part of itself for that kind of work.
@@ -876,6 +985,15 @@ function wire() {
   on('te-save', saveTable);
   $('te-cancel').onclick = closeEditor; $('te-close').onclick = closeEditor;
   on('to-akn', async () => { await toAkn(); $('akn-card').open = true; });
+  $('rv-send').onclick = () => { $('rv-send').disabled = true; busy(null, sendOn).then(() => drawReview(state.model)); };
+  const meChanged = () => busy(null, async () => {
+    const name = $('me-name').value.trim(), role = $('me-role').value, was = me();
+    if (was && was.name === name && was.role === role) return; // no change (a blur after typing): don't redraw under the pointer
+    setMe(name ? { name, role } : null);
+    if (name && role && review.roles[name] !== role) { review.roles[name] = role; await saveReview(); }
+    if (state.model) await drawReview(state.model);
+  });
+  $('me-name').addEventListener('change', meChanged); $('me-role').addEventListener('change', meChanged);
   on('akn-copy', async () => { await toAkn(); $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
   on('akn-save', async () => { await toAkn(); saveAkn(); });
   on('to-pdf', toPdf); on('pdf-save', async () => savePdf());
@@ -916,7 +1034,7 @@ async function start(host) {
   if (!inWord) notice('This pane works inside Word. Here you can still load the Bank.', false);
   await showBank(); await fillLaws();
   if (inWord) {
-    await loadRoles().catch(() => {});
+    await loadReview().catch(e => console.error(e));
     await busy(null, refresh);
     const info = await loadInfo().catch(() => ({}));
     for (const [id] of INFO) if (info[id]) $(id).value = info[id];

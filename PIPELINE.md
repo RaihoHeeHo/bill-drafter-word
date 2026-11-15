@@ -135,7 +135,7 @@ The output passes all three layers of the profile's validator: the OASIS Akoma N
 
 **Nothing leaves unmarked.** Every export (**Make the clean copy**, **Show the XML**, **Copy**, **Save .xml**) first runs Mark changes against the Bank (`markedForExport` in `taskpane.js`), so a clean copy can't show the law as other than it stands: words taken out of the law silently, or words passed off as law. If a section can't be checked against the Bank (its law isn't loaded, the provision isn't in the law as cited, or its text is missing), nothing is made and the sections are named.
 
-**Several people.** Word's Track Changes are suggestions (who suggested what), not new matter. `ooxml.js` reads a tracked run with its author and time (`r.sug`) and the comments whose range covers it (`r.cm`); the readings, the checks and Mark changes all take the text as it stands while suggestions wait (an insertion not yet in, a deletion still there). Mark changes skips a section with suggestions, and the clean copy refuses while any wait. **Show the XML** writes a working copy (AKN-NY 0.4 draft): suggestions as `span lbdc:suggest`, comment anchors as `span lbdc:comment`, the threads in `lbdc:working`, and each person as a `TLCPerson` with their review role. It needs every person's role first (the **People** card). See FORMAT.md.
+**Several people.** Word's Track Changes are suggestions (who suggested what), not new matter. `ooxml.js` reads a tracked run with its author and time (`r.sug`) and the comments whose range covers it (`r.cm`); the readings, the checks and Mark changes all take the text as it stands while suggestions wait (an insertion not yet in, a deletion still there). Mark changes skips a section with suggestions, and the clean copy refuses while any wait. **Show the XML** writes a working copy (AKN-NY 0.4 draft): suggestions as `span lbdc:suggest`, comment anchors as `span lbdc:comment`, the threads in `lbdc:working`, and each person as a `TLCPerson` with their review role. It needs every person's role first (the **People** card). The **Review** tab records the review (`src/lib/review.js`): hand-offs drafter, examiner, proofreader, examiner, drafter, each by the role whose turn it is; examiners' section sign-offs, with the section's hash; proofreaders' marks; and suggestions accepted or rejected through Word's tracked-change API (WordApi 1.6) as the rules allow (proofreaders never; an examiner not a drafter's). The steps go into the working copy as `<workflow source="#lbdc-review">`. See FORMAT.md.
 
 **Before a bill has a number.** At the drafter's desk a bill usually has only an LBD number. The add-in then writes the profile's draft form: the bill is addressed by its LBD route number (`/akn/us-ny/bill/2025/lbd12345`), the LBD version is the Expression (`eng@01`), and the print number, printed bill number and introduction date are left out. The clean copy leaves those lines blank, with everything else in place.
 
@@ -270,6 +270,14 @@ Click a section's name to go to it in the document. The section your cursor is i
 * **Show the XML** then gives a working copy: the bill with everyone's suggestions and comments, and who made them, for passing on to someone else or to another system.
 
 If you draft with Track Changes on, your own typing is a suggestion too: accept your own changes before Mark changes.
+
+**The review.** The **Review** tab follows the draft from the drafter to an examiner, a proofreader, back to the examiner and back to the drafter.
+
+1. Under **You**, type your name (as Word knows you, so your tracked changes match) and choose your role. This stays on your computer.
+2. **Where the draft is** says who has it. The button sends it on (*Send to examination*, *Send to proofreading*, …) and works only for the role whose turn it is.
+3. **Suggested changes** lists Word's tracked changes with **Accept** and **Reject**. The buttons keep to the rules: proofreaders don't decide, and an examiner doesn't decide a drafter's change. What you decide here is recorded; Word's own Review buttons still work, but aren't recorded.
+4. **Sections**: an examiner **signs off** each section; a proofreader marks it **proofread**. If a section changes after it was signed off, the sign-off shows as **stale** and can be signed off again (or withdrawn).
+5. **History** lists every step, with who and when. All of it goes into the working copy's XML.
 
 ## Changing a budget bill
 

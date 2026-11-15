@@ -103,6 +103,8 @@ def stale_signoffs(doc) -> list:
         found = doc.xpath("//a:body//a:section[@eId=$e][not(ancestor::a:quotedStructure)]", e=sec, namespaces=ns)
         if found and st.get(f"{{{LBDC_NS}}}hash") and section_hash(found[0]) != st.get(f"{{{LBDC_NS}}}hash"):
             who = st.get("by", "").lstrip("#")
+            named = doc.xpath("//a:references/a:TLCPerson[@eId=$e]/@showAs", e=who, namespaces=ns)
+            who = named[0] if named else who
             out.append(Problem("profile", "warning", f"line {st.sourceline}",
                                f"The sign-off on {sec} by {who} ({st.get('date')}) is stale: the section has changed since. "
                                "It needs to be looked at and signed off again."))

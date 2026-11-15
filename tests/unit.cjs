@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -258,6 +258,48 @@ t('several people: tracked changes are suggestions, comments are read, the worki
   const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), f], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
 });
+// The review: hand-offs, sign-offs, decisions; the sign-off hash is the one the profile's validate.py works out.
+const pending = [];
+t('review: whose turn it is, who may decide, and a sign-off the profile accepts', () => {
+  const R = BD.review, kim = { name: 'Kim Lo', role: 'drafter' }, lee = { name: 'Lee Smith', role: 'examiner' }, ana = { name: 'Ana Ruiz', role: 'proofreader' };
+  assert.strictEqual(R.statusOf([]), 'drafting');
+  assert.ok(R.handOff([], kim).ok); assert.ok(!R.handOff([], lee).ok);
+  const steps = [{ at: '2026-11-14T10:00:00Z', by: 'Kim Lo', role: 'drafter', event: 'sentToExamination' }];
+  assert.strictEqual(R.statusOf(steps), 'examination'); assert.strictEqual(R.handOff(steps, lee).event, 'sentToProofreading');
+  assert.ok(!R.mayDecide(ana, 'examiner').ok); assert.ok(!R.mayDecide(lee, 'drafter').ok); assert.ok(R.mayDecide(lee, 'proofreader').ok); assert.ok(R.mayDecide(kim, 'drafter').ok);
+  assert.ok(R.maySignOff(lee) && !R.maySignOff(kim)); assert.ok(R.mayProofread(ana) && !R.mayProofread(lee));
+  pending.push((async () => {
+    const m = trackedBill(), roles = { 'Lee Smith': 'examiner', 'Kim Lo': 'drafter', 'Ana Ruiz': 'proofreader' };
+    const before = BD.toAkn(m, info({ review: { roles, steps } }));
+    const hash = await R.sectionHash(before, 'sec_1', DOMParser);
+    assert.ok(/^[0-9a-f]{64}$/.test(hash));
+    const all = steps.concat([
+      { at: '2026-11-14T11:00:00Z', by: 'Lee Smith', role: 'examiner', event: 'signedOff', section: 'sec_1', hash },
+      { at: '2026-11-14T11:05:00Z', by: 'Lee Smith', role: 'examiner', event: 'sentToProofreading' },
+      { at: '2026-11-15T09:30:00Z', by: 'Ana Ruiz', role: 'proofreader', event: 'proofread', section: 'sec_1' },
+      { at: '2026-11-15T09:40:00Z', by: 'Ana Ruiz', role: 'proofreader', event: 'returnedToExaminer' },
+      { at: '2026-11-15T10:00:00Z', by: 'Lee Smith', role: 'examiner', event: 'rejected', suggestionBy: 'Ana Ruiz' }]);
+    const x = BD.toAkn(m, info({ review: { roles, steps: all } }));
+    assert.ok(x.includes('<lbdc:working status="returned">'));
+    assert.ok(x.includes('<workflow source="#lbdc-review"><step date="2026-11-14" by="#staff-kim-lo" as="#drafter" refersTo="#sentToExamination"/>'));
+    assert.strictEqual(await R.sectionHash(x, 'sec_1', DOMParser), hash, 'the hash does not depend on the steps');
+    // Lee's comment and Kim's reply do not make the sign-off stale; a changed word does.
+    const cp = require('child_process'), os = require('os');
+    try { cp.execFileSync('python3', ['-c', 'import lxml'], { stdio: 'ignore' }); } catch (e) { return; }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'akn-')), f = path.join(dir, 'review.xml'), g = path.join(dir, 'stale.xml');
+    fs.writeFileSync(f, x);
+    const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), f], { encoding: 'utf8' });
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    assert.ok(!/stale/.test(res.stdout), res.stdout);
+    const hashPy = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--section-hash', 'sec_1', f], { encoding: 'utf8' }).stdout.trim();
+    assert.strictEqual(hashPy, hash, 'JavaScript and Python give the same sign-off hash');
+    const changed = x.replace('Renumbered text.', 'Renumbered text, changed.');
+    fs.writeFileSync(g, changed);
+    const res2 = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), g], { encoding: 'utf8' });
+    assert.ok(/stale/.test(res2.stdout), 'a changed section makes the sign-off stale: ' + res2.stdout);
+    assert.notStrictEqual(await R.sectionHash(changed, 'sec_1', DOMParser), hash);
+  })());
+});
 t('the pane loads every file the clean-copy template reads', () => {
   // A file the template reads but the pane doesn't map stops the build with "failed to load file (access denied)".
   const dir = path.join(__dirname, '..'), js = fs.readFileSync(path.join(dir, 'src', 'cleancopy.js'), 'utf8');
@@ -350,4 +392,4 @@ t('budget: the whole of S.3003-D, as the Python tools find it', () => {
   const V = B.placeVetoes(d, JSON.parse(fs.readFileSync(path.join(dir, 'vetoes-2025.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(dir, 'S3003D.lines.json'), 'utf8')));
   for (const v of V) assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number);
 });
-console.log(n + ' passed');
+Promise.all(pending).then(() => console.log(n + ' passed'), e => { console.error(e); process.exit(1); });
