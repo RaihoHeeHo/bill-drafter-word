@@ -192,6 +192,9 @@ Tools:
   Legislation's text (PDF or saved HTML): number, sponsor, caption, recitals,
   RESOLVED clauses and an attached report; `resolution.typ` (beside `bill.typ`)
   prints it.
+* `tools/bank_check.py` checks `tools/laws.json` against the Bank's law-tree
+  exports (`laws`), and looks up every provision a bill amends in the Bank
+  (`cites`).
 * `tools/print_dates.py` finds the date each amended print was made from the
   bill's actions (`read`) and writes it into the print's Expression (`set`).
 * `tools/print_lines.py` finds the page and lines where each purpose, item and

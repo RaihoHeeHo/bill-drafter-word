@@ -1187,6 +1187,10 @@
       if num != none { centered-line(inline(num), n: plain-len(num)) }
       if heading != none { centered-line(inline(heading), n: plain-len(heading)) }
       if spaced and (num != none or heading != none) { blank-line }
+    } else if n.tag == "section" and num != none and text-of(num).match(regex("^§ ?\d+\.\d+(-[a-z]+)?$")) != none {
+      // a section of a law numbered by article ("§ 182.10"): its number and heading on a line of their own at
+      // the margin, the text below it
+      flush-line(inline(num) + [ ] + (if heading != none { inline(heading) } else { [] }))
     } else {
       if num != none { mine += inline(num) + [ ] }
       if heading != none { mine += inline(heading) + [ ] }
