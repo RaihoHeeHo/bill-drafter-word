@@ -30,6 +30,11 @@ number on page 1. Words are divided at a line end only at the points in `hyphena
 (`hyphenation-approp.json` for appropriation schedules, which budget prints divide their own way).
 The pane loads both files and compiles with Typst 0.15.1 for the browser, the same Typst as the desktop app.
 
+`resolution.typ` (also the desktop demo's) prints resolutions in the resolution series (an AKN `statement`) as Open
+Legislation sets them: 72 characters a line, no word divided, the spare spaces put in from the left and the right on
+alternate lines. The add-in drafts bills, so the pane uses `bill.typ`; the desktop app picks the template by the
+document.
+
 ## The add-in's XML is profile XML
 
 * Front matter as the profile's classed paragraphs, and `lbdc:documentInfo` (house, session, print number, LBD

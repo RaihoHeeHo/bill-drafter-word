@@ -188,6 +188,10 @@ Tools:
   flow of the text (Legislature and Judiciary, Debt Service): funds,
   departments and agencies in the order printed, items with their own schedules,
   object groups, totals and reappropriations.
+* `tools/res2akn.py` converts a resolution in the resolution series from Open
+  Legislation's text (PDF or saved HTML): number, sponsor, caption, recitals,
+  RESOLVED clauses and an attached report; `resolution.typ` (beside `bill.typ`)
+  prints it.
 * `tools/print_lines.py` finds the page and lines where each purpose, item and
   reappropriation of a converted bill is printed.
 * `tools/line_vetoes.py` ties the Governor's line vetoes (cited by page and line)
