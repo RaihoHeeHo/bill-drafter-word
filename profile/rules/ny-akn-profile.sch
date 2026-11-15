@@ -463,6 +463,9 @@
       <assert role="warning" test="not(contains(concat(' ', @class, ' '), ' noOriginal '))">This reappropriation prints no original amount, only the amount reappropriated.</assert>
       <assert role="warning" test="not(.//a:quantity[@class = 'reappropriatedAmount'] and .//a:quantity[@class = 'originalAmount']) or number(.//a:quantity[@class = 'reappropriatedAmount']/@normalized) &lt;= number(.//a:quantity[@class = 'originalAmount']/@normalized) or ancestor::a:hcontainer[@name = 'reappropriationSource']//a:ref[contains(concat(' ', @class, ' '), ' supplemented ')]">The reappropriated amount is more than the original appropriation (and the source line names no supplement by transfer).</assert>
     </rule>
+    <rule context="a:quantity[@class = 'originalAmount'][not(parent::a:ins)]">
+      <assert test="not(preceding-sibling::node()[normalize-space()][1][self::a:del])">A changed original amount is new matter: the struck amount is old matter (del) and the new amount follows it underscored, inside ins (&lt;del&gt;1,312,000&lt;/del&gt; &lt;ins&gt;&lt;quantity class="originalAmount" ...&gt;1,433,000&lt;/quantity&gt;&lt;/ins&gt;).</assert>
+    </rule>
     <rule context="*[@refersTo = '#legislativeAddition']">
       <assert test="self::a:hcontainer[@name = 'appropriation' or @name = 'program' or @name = 'agency']">Only items, programs or agency schedules can be marked as legislative additions.</assert>
     </rule>
