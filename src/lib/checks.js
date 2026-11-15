@@ -31,6 +31,8 @@
     for (const [re, sug] of GENDERED) { re.lastIndex = 0; const m = re.exec(text); if (m) { out.push({ level: 'info', rule: 'Gender', text: 'Gendered: "' + m[0] + '"; use "' + sug + '" where possible (' + where + ').', sec }); break; } }
     return out;
   }
+  // A quoted text's paragraphs as runs, a table's cells counted as paragraphs (for the style and marking checks).
+  const runsOf = paras => paras.flatMap(p => BD.isTable(p) ? p.rows.flatMap(r => r.cells.map(c => Array.isArray(c) ? c : [{ t: String(c || ''), k: '' }])) : [p]);
   const snippet = (t, i) => t.slice(Math.max(0, i - 20), i + 30).replace(/\s+/g, ' ').trim();
 
   // The law text a quoted block should start from (paragraphs), or null when not in the Bank.
@@ -38,7 +40,7 @@
     const s = BD.findSection(law, q.loc); if (!s) return null;
     const paras = BD.lawParagraphs(s.text);
     if (!q.unit) return paras;
-    const sub = BD.subdivisions(paras).find(x => x.unit.toLowerCase() === String(q.unit).toLowerCase());
+    const sub = BD.subdivisions(paras, BD.usesSubsections(law.info && law.info.lawId)).find(x => x.unit.toLowerCase() === String(q.unit).toLowerCase());
     return sub ? sub.paras : null;
   }
 
@@ -52,7 +54,7 @@
       if (!/^AN ACT\b/.test(model.title.text)) add('error', 'Title', 'The title should begin "AN ACT".', null, 'title');
       if (!model.title.subject || /_{2,}/.test(model.title.subject)) add('error', 'Title', 'Fill in what the bill is "in relation to".', null, 'subject');
       const lawsIn = await Promise.all(S.filter(s => s.law && s.act !== 'new').map(async s => ({ s, name: await nameOf(s.law, getLaw) })));
-      const want = BD.longTitle(lawsIn.map(x => ({ ...x.s, lawName: x.name })), model.title.subject).text;
+      const want = BD.longTitle(lawsIn.map(x => ({ ...x.s, lawName: x.name })).concat(S.filter(s => s.act === 'effective')), model.title.subject).text;
       if (lawsIn.length && want.replace(/\s+/g, ' ') !== model.title.text.replace(/\s+/g, ' ')) add('warning', 'Title', 'The title does not match what the sections do. It would read: "' + want + '".', null, 'title');
     }
     if (!model.enacting) add('error', 'Enacting clause', 'The enacting clause is missing.', null, 'enacting');
@@ -80,7 +82,7 @@
     /* ----- each section ----- */
     const seen = new Map();
     for (const s of S) {
-      const i = s.index, all = [s.heading, s.clause, s.text, ...(s.quoted ? s.quoted.paras.map(BD.textOf) : [])].join(' ');
+      const i = s.index, all = [s.heading, s.clause, s.text, ...(s.quoted ? runsOf(s.quoted.paras).map(BD.textOf) : [])].join(' ');
       if (/_{3,}/.test(all)) add('error', 'Blanks', 'There is a blank (____) to fill in.', i);
       if (s.act === 'new' && !s.text.trim()) add('error', 'Blanks', 'This section is empty: type its text, or remove it and renumber.', i);
       if (s.act === 'amend' || s.act === 'add' || s.act === 'repeal') await checkAmendment(s, getLaw, add);
@@ -92,8 +94,8 @@
       // New matter for the style checks.
       let fresh = '';
       if (s.act === 'new' || s.act === 'findings' || s.act === 'shortTitle') fresh = s.text;
-      if (s.quoted) fresh += ' ' + s.quoted.paras.flatMap(p => p.filter(r => r.k === 'ins').map(r => r.t)).join(' ');
-      if (s.act === 'add' && s.quoted) fresh = s.quoted.paras.map(p => BD.textOf(p).replace(/^\s*(§\s*[\w-]+|\d+[-a-z]*)\.\s*/, '')).join(' ');
+      if (s.quoted) fresh += ' ' + runsOf(s.quoted.paras).flatMap(p => p.filter(r => r.k === 'ins').map(r => r.t)).join(' ');
+      if (s.act === 'add' && s.quoted) fresh = runsOf(s.quoted.paras).map(p => BD.textOf(p).replace(/^\s*(§\s*[\w-]+|\d+[-a-z]*)\.\s*/, '')).join(' ');
       if (fresh.trim()) for (const f of styleFindings(fresh, i, 'new matter')) F.push(f);
     }
     // Sections amending one law go in the order of its section numbers.
@@ -127,9 +129,9 @@
       if (!s.unit && sec) add('error', 'Already in law', 'Section ' + BD.secId(s.loc) + ' is already in ' + BD.lawName(law.info) + '. The next free number is ' + BD.nextFreeSection(law, s.loc) + '.', i);
       if (!/is amended by adding/.test(clause)) add('warning', 'Amending clause', 'Adding a provision reads "… is amended by adding a new section … to read as follows:".', i, 'clause');
       if (s.quoted) {
-        const plain = s.quoted.paras.flatMap(p => p.filter(r => r.k !== 'ins' && r.t.trim())).length;
+        const plain = runsOf(s.quoted.paras).flatMap(p => p.filter(r => r.k !== 'ins' && r.t.trim())).length;
         if (plain) add('error', 'Marking', 'All of an added provision is new matter: underline it (Mark changes).', i, 'mark');
-        if (s.quoted.paras.some(p => p.some(r => r.k === 'del'))) add('error', 'Marking', 'An added provision has nothing to omit, so nothing should be bracketed.', i);
+        if (runsOf(s.quoted.paras).some(p => p.some(r => r.k === 'del'))) add('error', 'Marking', 'An added provision has nothing to omit, so nothing should be bracketed.', i);
       }
       return;
     }
