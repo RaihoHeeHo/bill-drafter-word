@@ -78,7 +78,10 @@
 // list was learned from every line-end hyphen in about 3,800 pages of prints.
 #let hyph = json("hyphenation.json")
 // budget bills divide words only where the budget print does (learned from S.3000-D), else as other bills
-#let hyph-approp = json("hyphenation-approp.json")
+#let hyph-approp0 = json("hyphenation-approp.json")
+// the Legislature and Judiciary and Debt Service prints divide as they do (learned from S.3001 and S.3002)
+#let hyph-flow = json("hyphenation-flow.json")
+#let hyph-approp = { let b = find(meta, "budget"); if b != none and attr(b, "type") in ("legislatureJudiciary", "debtService") { hyph-flow } else { hyph-approp0 } }
 #let soften(s) = s.replace(regex("[A-Za-z]+"), m => {
   let at = hyph.at(lower(m.text), default: none)
   if at == none { m.text } else {
@@ -437,7 +440,7 @@
 // A paragraph laid out by `wrap2`, justified; the last line may end in dot leaders and an amount.
 //   first/cont: columns of the first and following lines; right: the right edge of the words;
 //   tail: (amount string, end column) for a leader line, or none.
-#let a-par(ws, first: 0, cont: 2, right: 44, tail: none, just: true) = {
+#let a-par(ws, first: 0, cont: 2, right: 44, tail: none, just: true, field: 0) = {
   let lines = wrap2(ws, right - first, right - cont)
   if tail != none and lines.len() > 0 {
     // the last line must leave room for " . " and the amount before the end column
@@ -461,7 +464,10 @@
       let (amt, endc) = tail
       let used = col + line-len(l)
       let dots = endc - used - 2 - amt.clusters().len()
-      out.push(a-line(col, draw-line(l) + nb(1) + leaders(dots) + nb(1) + amt))
+      // an amount field (the Debt Service bill: 11 columns): the leaders stop short of it, the amount set right
+      let pad = if field > 0 { calc.max(0, field - 1 - amt.clusters().len()) } else { 0 }
+      dots -= pad
+      out.push(a-line(col, draw-line(l) + nb(1) + leaders(dots) + nb(1 + pad) + amt))
     } else if not lastl and just {
       out.push(a-line(col, draw-just(l, right - col, i)))
     } else {
@@ -955,6 +961,153 @@
   })
 }
 
+// The Legislature and Judiciary bill (S.3001) and the Debt Service bill (S.3002) run on in the flow of the text
+// under centred headings (fund, department, agency, object group), not one agency to a page. An item's words run
+// to column 44 and its amount ends at 58; an item of an agency itself ("For services and expenses ... schedule")
+// and an item directly under a Debt Service fund run to 58 and 72 ("wide" inside a schedule); a schedule is
+// "SCHEDULE" centred (between blank lines in Debt Service); an account is its lines at column 2. Debt Service
+// sets blank lines between its parts, as numbered lines; the Legislature and Judiciary bill sets none.
+#let budget-type = { let b = find(meta, "budget"); if b == none { "" } else { attr(b, "type") } }
+#let flow-bill = budget-type in ("legislatureJudiciary", "debtService")
+#let spaced = budget-type == "debtService"
+// a blank line in the flow is a numbered line, as the original prints number theirs
+#let f-blank = a-line(0, nb(1))
+#let sp() = if spaced { (f-blank,) } else { () }
+#let fund-heading(t, width: 48) = {
+  let ws = t.split(" ")
+  let lines = ()
+  let cur = ""
+  for w in ws {
+    if cur == "" { cur = w } else if (cur + " " + w).clusters().len() <= width { cur += " " + w } else { lines.push(cur); cur = w }
+  }
+  if cur != "" { lines.push(cur) }
+  lines.map(l => center-text(l))
+}
+// a heading set on the lines it was printed on (inline name="line"), or wrapped at 48 characters
+#let heading-lines(h) = {
+  let ls = els(h).filter(c => c.tag == "inline" and attr(c, "name") == "line")
+  if ls.len() > 0 { ls.map(l => center-text(text-of(l))) } else { fund-heading(text-of(h)) }
+}
+#let fund-rule(c, endc) = {
+  let cls = attr(c, "class").split(" ")
+  if "doubleRuleBelow" in cls { (rule-line(endc - 14, ch: "="),) } else if "ruleBelow" in cls { (rule-line(endc - 14),) } else { () }
+}
+#let render-source(src) = {
+  let out = ()
+  let intro = kid(src, "intro")
+  if intro != none { out += a-par(nodes-words(kid(intro, "p").children), first: 0, cont: 4, right: 72) }
+  for k in kids(src, "hcontainer") {
+    if attr(k, "name") == "objectGroup" {
+      out.push(center-text(text-of(kid(k, "heading"))))
+      out += render-reentries(kids(k, "hcontainer"))
+    } else { out += render-reentries((k,)) }
+  }
+  out
+}
+#let render-flow(c, depth) = {
+  let name = attr(c, "name")
+  let cls = attr(c, "class").split(" ")
+  let wide = (depth == 0 and spaced) or "wide" in cls
+  let (right, endc) = if wide { (58, 72) } else { (44, 58) }
+  let out = ()
+  let ks = kids(c, "hcontainer")
+  if name in ("fundSchedule", "department") {
+    out += sp() + heading-lines(kid(c, "heading")) + sp()
+    for (i, k) in ks.enumerate() {
+      out += render-flow(k, 0)
+      if spaced and i < ks.len() - 1 and attr(k, "class").contains("uleBelow") and attr(ks.at(i + 1), "name") != "account" { out.push(f-blank) }
+    }
+  } else if name == "agency" {
+    if "continued" not in cls { out += heading-lines(kid(c, "heading")) }
+    let sub = kid(c, "subheading")
+    if sub != none { out.push(center-text(squeeze(text-of(sub)).replace(regex(" (\d{4}-\d{2})$"), m => "   " + m.captures.at(0)).replace(" ", nb(1)))) }
+    let summary = ks.find(k => attr(k, "name") == "agencySummary")
+    if summary != none { out += render-summary(summary).flatten() }
+    if "scheduleLine" in cls { out.push(center-text("SCHEDULE")) }
+    for k in ks.filter(k => attr(k, "name") != "agencySummary") { out += render-flow(k, 0) }
+  } else if name == "program" {
+    let h = kid(c, "heading")
+    let q = els(h).filter(x => x.tag == "quantity")
+    if q.len() > 0 {
+      out += a-par(words-before-amount(h), first: 0, cont: 2, right: 58, tail: (text-of(q.last()), 72), just: false)
+      out += fund-rule(c, 72)
+    } else if spaced {
+      out.push(a-line(0, text-of(h)))
+    } else {
+      out += a-par(nodes-words(h.children), first: 0, cont: 2, right: 72, just: false)
+    }
+    for k in ks { out += render-flow(k, depth) }
+  } else if name == "account" {
+    let ah = kid(c, "heading")
+    out += sp()
+    // a heading with no parts marked ("All Funds") is printed as it is
+    out += if els(ah).len() == 0 { (a-line(2, text-of(ah)),) } else { render-account-heading(ah, right: 72) }
+    out += sp()
+    for k in ks { out += render-flow(k, depth) }
+  } else if name == "objectGroup" {
+    out.push(center-text(text-of(kid(c, "heading"))))
+    for k in ks { out += render-flow(k, depth) }
+  } else if name == "reappropriationSource" {
+    out += render-source(c)
+  } else if name in ("text", "purpose") {
+    let inreapp = c.at("_src", default: false)
+    for p in kids(kid(c, "content"), "p") { out += a-par(nodes-words(p.children), first: 0, cont: 2, right: right) }
+  } else if name == "subtotal" {
+    let p = find(c, "p")
+    let t = text-of(p)
+    let col = if spaced { 0 } else if t.starts-with("Amount available") { 2 } else { 4 }
+    out += a-par(words-before-amount(p), first: col, cont: col + 2, right: right, tail: (amount-of(p), endc), just: false)
+    out += fund-rule(c, endc)
+  } else if name == "appropriation" {
+    let h = kid(c, "heading")
+    if h != none { out.push(a-line(0, text-of(h))) }
+    let holder = if kid(c, "intro") != none { kid(c, "intro") } else { kid(c, "content") }
+    let p = kid(holder, "p")
+    let sch = ks.find(k => attr(k, "name") == "schedule")
+    // an item of an agency (with a schedule) runs to 58 and 72
+    let (r2, e2) = if not spaced and sch != none { (58, 72) } else { (right, endc) }
+    out += a-par(words-before-amount(p), first: 0, cont: 2, right: r2, tail: (amount-of(p), e2))
+    out += fund-rule(c, e2)
+    // a sub-schedule: centred over 44 columns, rows to 30 and 44, a rule and its total
+    let t = kid(holder, "table")
+    if t != none {
+      out.push(f-blank)
+      out.push(a-line(calc.floor((44 - 12) / 2) + 1, "sub-schedule"))
+      out.push(f-blank)
+      for r in kids(t, "tr") {
+        let cs = els(r)
+        let tot = attr(r, "class") == "totalRow"
+        if tot { out.push(rule-line(30)) }
+        out += a-par(nodes-words(kid(cs.at(0), "p").children), first: if tot { 2 } else { 0 }, cont: if tot { 4 } else { 2 }, right: 30, tail: (text-of(cs.at(1)), 44), just: not tot)
+        if tot { out.push(rule-line(32)) }
+      }
+      out.push(f-blank)
+    }
+    if sch != none {
+      out += sp()
+      if kid(sch, "heading") != none { out.push(center-text("SCHEDULE")) }
+      let sk = kids(sch, "hcontainer")
+      if spaced and sk.len() > 0 and attr(sk.first(), "name") != "account" { out.push(f-blank) }
+      for (i, k) in sk.enumerate() {
+        out += render-flow(k, depth + 1)
+        if not spaced { continue }
+        // a blank line after a rule, except before an account, or between the rule under a group's last item
+        // and the total of the schedule ("Total of schedule"); a total that closes no schedule ("Total of debt
+        // service schedule") always has one above it
+        let nx = sk.at(i + 1, default: none)
+        if nx == none { continue }
+        let ruled = attr(k, "class").contains("uleBelow") or (attr(k, "name") == "account" and kids(k, "hcontainer").len() > 0 and attr(kids(k, "hcontainer").last(), "class").contains("uleBelow"))
+        let nxn = attr(nx, "name")
+        let closing = "scheduleTotal" in attr(nx, "class").split(" ")
+        if nxn == "subtotal" and not closing { out.push(f-blank) }
+        else if nxn == "subtotal" and closing { if attr(k, "name") != "account" and ruled { out.push(f-blank) } }
+        else if ruled and nxn != "account" { out.push(f-blank) }
+      }
+    }
+  }
+  out
+}
+
 // ---------------------------------------------------------------------------
 // Units of text: bill sections, and the quoted law inside them
 // ---------------------------------------------------------------------------
@@ -967,8 +1120,19 @@
 // "§ 327-a. Modification of restrictive covenants. 1. As used in this section"
 #let structure(n, lead: []) = {
   let name = attr(n, "name")
-  if n.tag == "hcontainer" and name == "agency" {
+  if n.tag == "hcontainer" and flow-bill and name in ("fundSchedule", "department", "agency") {
+    render-flow(n, 0).join()
+  } else if n.tag == "hcontainer" and name == "agency" {
     render-agency(n)
+  } else if approp and n.tag == "section" and kid(n, "heading") != none and lead == [] {
+    // a section of an appropriation bill under its own heading ("CONTINGENT AND OTHER APPROPRIATIONS"), centred
+    // between blank lines above the section (Debt Service), or on the line above it ("THE JUDICIARY")
+    if spaced { a-line(0, nb(1)) }
+    fund-heading(text-of(kid(n, "heading"))).join()
+    if spaced { a-line(0, nb(1)) }
+    let m = (:..n)
+    m.children = n.children.filter(c => not is-el(c, tag: "heading"))
+    structure(m)
   } else if n.tag == "hcontainer" and name == "table" {
     render-named-table(n)
   } else if n.tag == "hcontainer" and name == "tableGroup" {
@@ -1067,6 +1231,13 @@
       let pg = str(here().page())
       let lbd = lbd-no.replace("LBD", "")
       par(justify: false, h((36 - calc.floor(pg.len() / 2)) * char) + pg + h((62 - (36 - calc.floor(pg.len() / 2)) - pg.len()) * char) + lbd)
+      // the Legislature and Judiciary bill names itself on every page after the first
+      if budget-type == "legislatureJudiciary" {
+        let fy = attr(find(meta, "budget"), "fiscalYear")
+        let t = "LEGISLATURE AND JUDICIARY" + nb(3) + fy.slice(0, 5) + fy.slice(7)
+        v(spec.pitch - spec.size, weak: false)
+        par(justify: false, h(calc.ceil((spec.chars - t.clusters().len()) / 2) * char) + t.replace(" ", nb(1)))
+      }
     } else if here().page() > 1 {
       // bill number at the left, page number at the 37th character, as printed
       if joint {

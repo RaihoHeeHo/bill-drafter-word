@@ -181,14 +181,21 @@ Tools:
 * `tools/budget_report/` builds the print-error report of a budget bill from its
   XML (`findings.py`, then `build.py` and `report2.typ`).
 * `tools/approp2akn.py` converts an appropriation print to profile XML
-  (`tools/aprint.py` reads the print line by line with its positions).
+  (`tools/aprint.py` reads the print line by line with its positions; it
+  measures each page's line spacing, character width and margin, so an original
+  print set tighter, such as S.3002, is read correctly).
+* `tools/fund2akn.py` converts the bills set out under centred headings in the
+  flow of the text (Legislature and Judiciary, Debt Service): funds,
+  departments and agencies in the order printed, items with their own schedules,
+  object groups, totals and reappropriations.
 * `tools/budget_items.py` lists every item with its key (agency, account,
   program, object) and checks a bill's reappropriations against the chapter they
   cite (`--prior`).
 * `tools/compare_pdf_sequence.py` compares two prints line by line in reading
   order and page by page once aligned, so one page break doesn't hide the rest.
 * `tools/learn_approp_hyphens.py` learns where budget prints divide words, for
-  the template (`hyphenation-approp.json`).
+  the template (`hyphenation-approp.json`; `--out hyphenation-flow.json` for the
+  Legislature and Judiciary and Debt Service prints).
 
 Validation is fast on a whole budget bill now (S.3000-D, 880 pages: about 6
 seconds, from 11 minutes): the rules look identifiers, references and textual

@@ -111,7 +111,9 @@
       <assert test="not($type = 'bill' or $type = 'statement') or (l:house and l:session and (l:printNumber or $draft))">Bills and resolutions need lbdc:house, lbdc:session and lbdc:printNumber.</assert>
       <assert test="not($draft) or not(l:printNumber or l:uniBill)">A draft has no print number (and is not yet a uni-bill print); those come at introduction.</assert>
       <assert test="not($draft) or (substring(l:lbdNumber, string-length(l:lbdNumber) - 9, 5) = substring-after(re:replace($work, '^.*/', '', ''), 'lbd') and substring(l:lbdNumber, string-length(l:lbdNumber) - 3, 2) = substring-after($expr, '/eng@'))">A draft is addressed by its LBD number: the route number (the first five digits) in the Work IRI, the version (the next two) in the Expression IRI. lbdc:lbdNumber "<value-of select="l:lbdNumber"/>" doesn't match <value-of select="$expr"/>.</assert>
-      <assert test="$type != 'bill' or l:lbdNumber">Bills need their LBD number (lbdc:lbdNumber).</assert>
+      <!-- The Governor's budget bills are drafted by the Division of the Budget: the original print has no LBD
+           number (S.3001, S.3002 of 2025); the Commission numbers the amended prints. -->
+      <assert test="$type != 'bill' or l:lbdNumber or (l:budget and not(contains($expr, '/eng@') and string-length(substring-after($expr, '/eng@')) > 0))">Bills need their LBD number (lbdc:lbdNumber).</assert>
       <assert test="$draft or not($type = 'bill' or $type = 'statement') or $pn = concat($fnum, $fver)">lbdc:printNumber "<value-of select="$pn"/>" must equal the Work number plus the amendment letter ("<value-of select="concat($fnum, $fver)"/>").</assert>
       <assert test="$type != 'bill' or substring(l:session, 1, 4) = $year">The session (<value-of select="l:session"/>) must start in the year of the Work IRI (<value-of select="$year"/>).</assert>
       <assert test="$draft or not($type = 'bill' or $type = 'statement') or l:house = 'both' or (l:house = 'senate' and contains('SJBR', substring($pn, 1, 1))) or (l:house = 'assembly' and contains('AEKCL', substring($pn, 1, 1)))">lbdc:house doesn't match the print number prefix (S, J, B and R are Senate; A, E, K, C and L are Assembly).</assert>
@@ -325,7 +327,7 @@
   <pattern id="amendments">
     <title>Amendments</title>
     <rule context="a:ins | a:del">
-      <assert test="ancestor::a:quotedStructure or ancestor::a:quotedText or ancestor::a:hcontainer[@name = 'agency']">New matter (ins) and old matter (del) appear only in quoted text (the law as amended) or in an appropriation schedule.</assert>
+      <assert test="ancestor::a:quotedStructure or ancestor::a:quotedText or ancestor::a:hcontainer[@name = 'agency' or @name = 'fundSchedule']">New matter (ins) and old matter (del) appear only in quoted text (the law as amended) or in an appropriation schedule.</assert>
       <assert test="not(@class) or @class = 'spanStart' or @class = 'spanMiddle' or @class = 'spanEnd'">One printed pair of brackets that crosses from one unit into the next is split into pieces marked class="spanStart", "spanMiddle" and "spanEnd"; no other class is used on ins or del.</assert>
       <assert test="not(@class) or self::a:del">Only old matter (del) is split with span classes; underscoring needs no brackets.</assert>
       <assert test="not(ancestor::a:ins or ancestor::a:del)">ins and del cannot be nested.</assert>
@@ -358,7 +360,7 @@
       <assert test="not(parent::*[local-name() = local-name(current())])">A <value-of select="local-name()"/> cannot be directly inside another <value-of select="local-name()"/>.</assert>
     </rule>
     <rule context="a:hcontainer">
-      <assert test="@name = 'agency' or @name = 'agencySummary' or @name = 'program' or @name = 'account' or @name = 'purpose' or @name = 'appropriation' or @name = 'objectGroup' or @name = 'subtotal' or @name = 'adjustment' or @name = 'table' or @name = 'tableGroup' or @name = 'tableNote' or @name = 'reappropriationSource' or @name = 'reappropriation' or @name = 'resolution' or @name = 'item' or @name = 'subitem' or @name = 'subarticle' or @name = 'text'">hcontainer name "<value-of select="@name"/>" isn't in the AKN-NY vocabulary.</assert>
+      <assert test="@name = 'agency' or @name = 'fundSchedule' or @name = 'department' or @name = 'schedule' or @name = 'agencySummary' or @name = 'program' or @name = 'account' or @name = 'purpose' or @name = 'appropriation' or @name = 'objectGroup' or @name = 'subtotal' or @name = 'adjustment' or @name = 'table' or @name = 'tableGroup' or @name = 'tableNote' or @name = 'reappropriationSource' or @name = 'reappropriation' or @name = 'resolution' or @name = 'item' or @name = 'subitem' or @name = 'subarticle' or @name = 'text'">hcontainer name "<value-of select="@name"/>" isn't in the AKN-NY vocabulary.</assert>
     </rule>
   </pattern>
 
@@ -409,19 +411,42 @@
   <pattern id="appropriations">
     <title>Appropriation schedules</title>
     <rule context="a:hcontainer[@name = 'agency']">
-      <assert test="parent::a:section and (ancestor::a:bill[@name = 'appropriationBill'] or ancestor::a:act[@name = 'chapter'])">An agency schedule belongs directly in a section of an appropriation bill or chapter.</assert>
+      <assert test="(parent::a:section or parent::a:hcontainer[@name = 'fundSchedule' or @name = 'department']) and (ancestor::a:bill[@name = 'appropriationBill'] or ancestor::a:act[@name = 'chapter'])">An agency schedule belongs directly in a section of an appropriation bill or chapter (or under a fund or department heading there).</assert>
       <assert test="@refersTo and a:heading">An agency schedule needs its heading and a refersTo naming the agency.</assert>
     </rule>
+    <!-- The Debt Service bill is set out by fund, not by agency (S.3002 of 2025): "DEBT SERVICE FUND, GENERAL
+         DEBT SERVICE FUND" (printed with a double hyphen) heads a fund schedule, and an item may carry its own schedule ("in accordance with the
+         following schedule" / SCHEDULE), which holds accounts, items (each of which may have a schedule) and totals. -->
+    <rule context="a:hcontainer[@name = 'fundSchedule']">
+      <assert test="(parent::a:section or parent::a:hcontainer[@name = 'department']) and ancestor::a:bill[@name = 'appropriationBill'] and a:heading">A fund schedule belongs directly in a section of an appropriation bill (or under a department heading), under its heading (the fund).</assert>
+    </rule>
+    <!-- The Legislature and Judiciary bill (S.3001 of 2025) sets fund, department and agency headings in the
+         order of each section: fund over department over agency in section 1, department over fund in section 4. -->
+    <rule context="a:hcontainer[@name = 'department']">
+      <assert test="(parent::a:section or parent::a:hcontainer[@name = 'fundSchedule']) and a:heading">A department heading belongs in a section of an appropriation bill (or under a fund heading), over its agencies.</assert>
+    </rule>
+    <rule context="a:hcontainer[@name = 'schedule']">
+      <let name="own" value="sum(.//a:hcontainer[@name = 'appropriation'][generate-id(ancestor::a:hcontainer[@name = 'schedule'][1]) = generate-id(current())]/*[not(self::a:hcontainer)]//a:quantity[@class = 'amount']/@normalized)"/>
+      <let name="item" value="number(../a:intro//a:quantity[@class = 'amount']/@normalized)"/>
+      <assert test="parent::a:hcontainer[@name = 'appropriation'] and ../a:intro">An item's schedule belongs in the item, after its words and amount (intro).</assert>
+      <assert test="not(a:hcontainer[@name = 'subtotal'][contains(concat(' ', @class, ' '), ' scheduleTotal ')][following-sibling::*])">A schedule's total ("Total of schedule", class="scheduleTotal") is the last thing in it.</assert>
+      <!-- its items (directly, in accounts or object groups, not in the schedules of its items) add up to its item -->
+      <assert test="$own = $item">The items of the schedule add up to <value-of select="format-number($own, '#,##0')"/>, not the item's <value-of select="format-number($item, '#,##0')"/>.</assert>
+    </rule>
+    <rule context="a:hcontainer[@name = 'subtotal'][contains(concat(' ', @class, ' '), ' scheduleTotal ')]">
+      <let name="item" value="number(../../a:intro//a:quantity[@class = 'amount']/@normalized)"/>
+      <assert test="number(.//a:quantity[@class = 'subtotal']/@normalized) = $item">The schedule's total <value-of select="normalize-space(.//a:quantity)"/> isn't the amount of its item (<value-of select="format-number($item, '#,##0')"/>).</assert>
+    </rule>
     <rule context="a:hcontainer[@name = 'program']">
-      <assert test="parent::a:hcontainer[@name = 'agency']">A program belongs in an agency schedule.</assert>
+      <assert test="parent::a:hcontainer[@name = 'agency' or @name = 'fundSchedule' or @name = 'department']">A program belongs in an agency schedule (or a fund schedule).</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'account']">
-      <assert test="parent::a:hcontainer[@name = 'program' or @name = 'agency']">An account belongs in a program (or directly in an agency schedule).</assert>
-      <assert test="not(a:heading) or a:heading/a:inline[@name = 'accountCode'] or normalize-space(a:heading) = 'All Funds'">An account heading must mark its account number (inline name="accountCode").</assert>
+      <assert test="parent::a:hcontainer[@name = 'program' or @name = 'agency' or @name = 'fundSchedule' or @name = 'schedule']">An account belongs in a program (or directly in an agency schedule, a fund schedule or an item's schedule).</assert>
+      <assert test="not(a:heading) or a:heading/a:inline[@name = 'accountCode'] or normalize-space(a:heading) = 'All Funds' or (contains(concat(' ', @class, ' '), ' noNumber ') and ancestor::a:bill/a:meta//l:budget[@type = 'legislatureJudiciary'])">An account heading must mark its account number (inline name="accountCode"); only the Legislature and Judiciary bill prints its accounts with none (class="noNumber").</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'appropriation']">
-      <assert test="ancestor::a:hcontainer[@name = 'agency']">An item of appropriation belongs in an agency schedule.</assert>
-      <assert test="count(.//a:quantity[@class = 'amount']) = 1">An item of appropriation has exactly one amount (quantity class="amount").</assert>
+      <assert test="ancestor::a:hcontainer[@name = 'agency' or @name = 'fundSchedule']">An item of appropriation belongs in an agency schedule (or a fund schedule).</assert>
+      <assert test="count(a:*[not(self::a:hcontainer)]//a:quantity[@class = 'amount']) = 1">An item of appropriation has exactly one amount (quantity class="amount"); the items of its schedule have their own.</assert>
     </rule>
     <rule context="a:hcontainer[@name = 'reappropriationSource']">
       <assert test=".//a:ref[re:test(@href, '^/akn/us-ny/act/[0-9]{4}/[0-9]+(/~.+)?$')]">A reappropriation must cite the chapter and section that made the original appropriation (State Finance Law sec. 25).</assert>
@@ -446,8 +471,17 @@
       <assert test="re:test(@normalized, '^[0-9]+$') and translate(normalize-space(.), ',$', '') = @normalized">The printed amount "<value-of select="normalize-space(.)"/>" doesn't match its value (normalized="<value-of select="@normalized"/>").</assert>
       <assert test="@refersTo = '#usd'">Dollar amounts refer to the currency (refersTo="#usd").</assert>
     </rule>
+    <rule context="a:hcontainer[@name = 'subtotal'][parent::a:hcontainer[@name = 'schedule']]">
+      <!-- In an item's schedule a total counts the items of that schedule above it, directly or in its accounts
+           (not the items of their own schedules): "Total of debt service schedule", then "Total of schedules". -->
+      <let name="sum" value="sum((preceding-sibling::a:hcontainer[@name = 'appropriation'] | preceding-sibling::a:hcontainer[@name = 'account']/a:hcontainer[@name = 'appropriation'])/*[not(self::a:hcontainer)]//a:quantity[@class = 'amount']/@normalized)"/>
+      <let name="before" value="sum(preceding-sibling::a:hcontainer[@name = 'subtotal']//a:quantity[@class = 'subtotal']/@normalized)"/>
+      <let name="tot" value="number(.//a:quantity[@class = 'subtotal']/@normalized)"/>
+      <assert test="$tot = $sum or $tot = $sum - $before">The total <value-of select="normalize-space(.//a:quantity[@class = 'subtotal'])"/> doesn't equal the items above it in the schedule (<value-of select="format-number($sum, '#,##0')"/>).</assert>
+    </rule>
     <rule context="a:hcontainer[@name = 'subtotal']">
-      <let name="sum" value="sum(../a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
+      <!-- the items above it: in its group, or in the object groups of its account ("Program account subtotal") -->
+      <let name="sum" value="sum((../a:hcontainer[@name = 'appropriation'] | ../a:hcontainer[@name = 'objectGroup']/a:hcontainer[@name = 'appropriation'])//a:quantity[@class = 'amount']/@normalized)"/>
       <!-- A subtotal is the items above it, or the items less the offsets above it ("Less the amount appropriated
            to ..." in General State Charges, where the offsets keep a sum from being counted twice). -->
       <let name="off" value="sum(preceding-sibling::a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
@@ -480,7 +514,12 @@
       <let name="scope" value="//a:hcontainer[@name = 'agency'][$many and contains($refs, concat(' ', @refersTo, ' '))]"/>
       <let name="appr" value="sum(..//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized) * number(not($many)) + sum($scope//a:hcontainer[@name = 'appropriation']//a:quantity[@class = 'amount']/@normalized)"/>
       <let name="off" value="sum(..//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized) * number(not($many)) + sum($scope//a:hcontainer[@name = 'adjustment']//a:quantity[@class = 'offset']/@normalized)"/>
-      <let name="reappr" value="sum(key('agency', $ag)//a:quantity[@class = 'reappropriatedAmount']/@normalized) * number(not($many)) + sum($scope//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
+      <!-- the reappropriations of the same kind of budget: one bill can hold several (the Judiciary's "STATE
+           OPERATIONS", "AID TO LOCALITIES", "CAPITAL PROJECTS" schedules in S.3001); its reappropriation schedules
+           are named by kind ("AID TO LOCALITIES REAPPROPRIATIONS 2025-26") -->
+      <let name="kind" value="substring-before(concat(normalize-space(../a:subheading), ' 20'), ' 20')"/>
+      <let name="mixed" value="count(//a:hcontainer[@name = 'agency'][@refersTo = $ag][not(contains(a:subheading, 'REAPPROPRIATIONS'))]) > 1"/>
+      <let name="reappr" value="sum(key('agency', $ag)[not($mixed) or starts-with(normalize-space(a:subheading), $kind)]//a:quantity[@class = 'reappropriatedAmount']/@normalized) * number(not($many)) + sum($scope//a:quantity[@class = 'reappropriatedAmount']/@normalized)"/>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']) or (number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryAppropriations']/@normalized) = $appr - $off)">The agency summary's appropriations total doesn't equal the agency's items (<value-of select="format-number($appr, '#,##0')"/>).</assert>
       <assert test="not(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']) or number(.//a:tr[@class = 'totalRow']//a:quantity[@class = 'summaryReappropriations']/@normalized) = $reappr">The agency summary's reappropriations total doesn't equal the agency's reappropriations (<value-of select="format-number($reappr, '#,##0')"/>).</assert>
     </rule>
