@@ -8,6 +8,7 @@
   'use strict';
   const BD = root.BD = root.BD || {};
   let ready = null;
+  const TEMPLATE_FILES = ['hyphenation.json', 'hyphenation-approp.json', 'hyphenation-flow.json'];
   const base = () => new URL('.', document.baseURI).href;
   async function bytes(path) { const r = await fetch(base() + path); if (!r.ok) throw new Error('Could not load ' + path + ' (' + r.status + ').'); return new Uint8Array(await r.arrayBuffer()); }
   async function text(path) { const r = await fetch(base() + path); if (!r.ok) throw new Error('Could not load ' + path + ' (' + r.status + ').'); return r.text(); }
@@ -23,14 +24,21 @@
       for (const f of ['FreeMono.ttf', 'FreeMonoBold.ttf']) await b.add_raw_font(await bytes('clean-copy/fonts/' + f));
       const compiler = await b.build();
       compiler.add_source('/bill.typ', await text('clean-copy/bill.typ'));
-      // Where real prints divide words at a line end; the template divides only there.
-      compiler.map_shadow('/hyphenation.json', await bytes('clean-copy/hyphenation.json'));
-      // ... and where budget prints divide them (appropriation schedules are set by the budget system's rules)
-      compiler.map_shadow('/hyphenation-approp.json', await bytes('clean-copy/hyphenation-approp.json'));
+      // Every file the template reads with json() must be mapped here; one left out stops the build with Typst's
+      // "failed to load file (access denied)". Where real prints divide words at a line end (the template divides
+      // only there), where budget prints divide them, and the divisions learned from running text of long bills.
+      for (const f of TEMPLATE_FILES) compiler.map_shadow('/' + f, await bytes('clean-copy/' + f));
       return compiler;
     })();
     ready.catch(() => { ready = null; });
     return ready;
+  }
+
+  // Typst's diagnostics come back as Rust debug text; keep just the messages.
+  function readable(e) {
+    const t = String(e && e.message || e);
+    const m = [...t.matchAll(/message: "((?:[^"\\]|\\.)*)"/g)].map(x => x[1]);
+    return m.length ? [...new Set(m)].join('; ') : t;
   }
 
   // XML text -> PDF bytes. Throws with Typst's messages when the template can't lay it out.
@@ -38,10 +46,12 @@
     const c = await load(progress);
     progress && progress('Laying out the clean copy…');
     c.map_shadow('/bill.akn.xml', new TextEncoder().encode(xml));
-    const out = c.compile('/bill.typ', [['xml', '/bill.akn.xml'], ['font', 'FreeMono']], 'pdf', 1);
+    let out;
+    try { out = c.compile('/bill.typ', [['xml', '/bill.akn.xml'], ['font', 'FreeMono']], 'pdf', 1); }
+    catch (e) { throw new Error('The clean copy could not be made: ' + readable(e)); }
     const pdf = out && (out.result || out);
     if (!(pdf instanceof Uint8Array) || !pdf.length) {
-      const d = out && out.diagnostics ? out.diagnostics.map(x => x.message || JSON.stringify(x)).join('; ') : 'no output';
+      const d = out && out.diagnostics ? out.diagnostics.map(x => x.message || readable(x)).join('; ') : 'no output';
       throw new Error('The clean copy could not be made: ' + d);
     }
     return pdf;

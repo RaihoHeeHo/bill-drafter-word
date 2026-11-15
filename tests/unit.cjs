@@ -207,4 +207,12 @@ t('output is valid AKN-NY 0.3', () => {
   const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--quiet', ...files], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
 });
+t('the pane loads every file the clean-copy template reads', () => {
+  // A file the template reads but the pane doesn't map stops the build with "failed to load file (access denied)".
+  const dir = path.join(__dirname, '..'), js = fs.readFileSync(path.join(dir, 'src', 'cleancopy.js'), 'utf8');
+  const listed = JSON.parse(js.match(/TEMPLATE_FILES = (\[[^\]]*\])/)[1].replace(/'/g, '"'));
+  const read = [...fs.readFileSync(path.join(dir, 'clean-copy', 'bill.typ'), 'utf8').matchAll(/(?:json|read|image|csv|yaml|toml)\("([^"]+)"/g)].map(m => m[1]);
+  for (const f of read) assert.ok(listed.includes(f), f + ' is read by bill.typ but not loaded by src/cleancopy.js');
+  for (const f of listed) assert.ok(fs.existsSync(path.join(dir, 'clean-copy', f)), 'clean-copy/' + f + ' is missing');
+});
 console.log(n + ' passed');
