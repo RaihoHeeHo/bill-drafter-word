@@ -5016,5 +5016,106 @@
   ],
   "reapprop_over": [],
   "no_original": []
+ },
+ "full": {
+  "prior": {
+   "new: as appropriated": 839,
+   "new: found by account and amount only (codes or words differ)": 427,
+   "old: continued": 5101,
+   "old: found by account and amount only (codes or words differ)": 148,
+   "old: more reappropriated than last year": 31,
+   "new: found under another program code": 44,
+   "new: not found among last year's appropriations": 63,
+   "old: not among last year's reappropriations": 23,
+   "old: original amount differs from last year's": 5,
+   "new: original amount is not last year's appropriation": 4,
+   "amended by this bill (old amount struck)": 12,
+   "new: not appropriated last year, where transfers may add to it": 22,
+   "old: more reappropriated than last year, where transfers may add to it": 1
+  },
+  "items": 8497,
+  "findings": {
+   "headings": 11,
+   "summaries": 23,
+   "totals": 0,
+   "schedules": 3,
+   "schedule_items": 3,
+   "reapprop_over": 1,
+   "no_original": 0
+  },
+  "vetoes": {
+   "1": [
+    "sec_1__agency_2__program_1__account_1__reappropriationSource_1__reappropriation_56"
+   ],
+   "2": [
+    "sec_1__agency_19__program_3__account_1__reappropriationSource_1__reappropriation_2"
+   ],
+   "3": [
+    "sec_1__agency_19__program_3__account_1__reappropriationSource_2__reappropriation_10"
+   ],
+   "4": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_3__reappropriation_45"
+   ],
+   "5": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_3__reappropriation_54"
+   ],
+   "6": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_5__reappropriation_36"
+   ],
+   "7": [
+    "sec_1__agency_19__program_4__account_1__reappropriationSource_8__reappropriation_31"
+   ],
+   "8": [
+    "sec_1__agency_25__program_2__account_1__reappropriationSource_6__reappropriation_24"
+   ],
+   "9": [
+    "sec_1__agency_27__program_3__account_3__reappropriationSource_2__reappropriation_6"
+   ],
+   "10": [
+    "sec_1__agency_27__program_3__account_3__reappropriationSource_3__reappropriation_4"
+   ],
+   "11": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_1__reappropriation_102"
+   ],
+   "12": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_2__reappropriation_49"
+   ],
+   "13": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_2__reappropriation_59"
+   ],
+   "14": [
+    "sec_1__agency_33__program_3__account_1__reappropriationSource_3__reappropriation_56"
+   ],
+   "15": [
+    "sec_1__agency_33__program_8__account_1__reappropriationSource_2__reappropriation_15"
+   ],
+   "16": [
+    "sec_1__agency_33__program_8__account_1__reappropriationSource_2__reappropriation_16"
+   ],
+   "17": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_3"
+   ],
+   "18": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_7"
+   ],
+   "19": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_8"
+   ],
+   "20": [
+    "sec_1__agency_33__program_11__account_1__reappropriationSource_1__reappropriation_9"
+   ],
+   "21": [
+    "sec_1__agency_48__program_2__account_1__reappropriationSource_8__reappropriation_12"
+   ],
+   "22": [
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_1"
+   ],
+   "23": [
+    "sec_1__agency_72__program_3__account_1__reappropriationSource_1__reappropriation_2"
+   ],
+   "24": [
+    "sec_1__agency_79__program_2__account_1__reappropriationSource_3__reappropriation_2"
+   ]
+  }
  }
 }

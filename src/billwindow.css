@@ -1,0 +1,56 @@
+/* The bill window: the whole bill, read as the print lays it out. */
+body.billwindow { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.wbar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--line); }
+.wtitle { display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.wtitle .hint { margin: 0 0 0 6px; }
+.wbar input { flex: 1; min-width: 160px; margin: 0; }
+.wmain { flex: 1; display: flex; min-height: 0; }
+.wmain aside { width: 290px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: var(--card); }
+.wmain aside input { margin: 8px; width: auto; }
+.wlist { list-style: none; margin: 0; padding: 0 6px 8px; overflow: auto; flex: 1; }
+.wlist button { display: flex; flex-wrap: wrap; gap: 2px 6px; width: 100%; text-align: left; border: 0; border-radius: 4px; background: none; padding: 5px 6px; }
+.wlist button:hover { background: var(--sel); }
+.wlist li.sel button { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+.wlist .nm { font-weight: 600; flex-basis: 100%; }
+.wlist .kd { color: var(--muted); font-size: 11px; }
+.badges { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.b { font-size: 10px; padding: 0 6px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); }
+.b.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.b.warn { color: var(--warn); border-color: var(--warn); }
+.b.err { color: var(--err); border-color: var(--err); }
+#w-view { flex: 1; overflow: auto; position: relative; }
+.whead { position: sticky; top: 0; z-index: 2; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 18px; background: var(--card); border-bottom: 1px solid var(--line); }
+.whead h1 { font-size: 15px; margin: 0; }
+.whead .row { margin: 0; flex-wrap: nowrap; }
+.wsched { font: 13px/1.5 "Courier New", FreeMono, monospace; max-width: 74ch; margin: 12px auto 80px; padding: 0 18px; }
+.ln { position: relative; margin: 2px 0; padding: 1px 4px; border-radius: 3px; }
+.ln.prog { font-weight: bold; margin-top: 14px; }
+.ln.acct { margin-top: 10px; color: var(--muted); }
+.ln.src { margin-top: 8px; }
+.ln.item, .ln.purpose { padding-left: 2ch; cursor: pointer; }
+.ln.item:hover, .ln.purpose:hover { background: var(--sel); }
+.ln.sel { background: var(--sel); outline: 2px solid var(--accent); }
+.ln.sub { margin-top: 4px; }
+.ln:has(.lead) { display: flex; align-items: baseline; flex-wrap: wrap; }
+.ln .w { flex: 0 1 auto; }
+.ln .lead { flex: 1 0 3ch; border-bottom: 2px dotted var(--muted); margin: 0 4px; min-width: 3ch; transform: translateY(-4px); }
+.ln .amt { white-space: nowrap; }
+.del { color: var(--err); }
+.tag { display: inline-block; margin-left: 6px; font: 10px/1.6 "Segoe UI", system-ui, sans-serif; padding: 0 6px; border-radius: 8px; border: 1px solid var(--line); }
+.tag.veto { border-color: var(--info); color: var(--info); }
+.tag.err { border-color: var(--err); color: var(--err); }
+.tag.warn { border-color: var(--warn); color: var(--warn); }
+table.wt { border-collapse: collapse; width: 100%; margin: 6px 0; font-size: 12px; }
+table.wt td, table.wt th { padding: 1px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+table.wt .num { text-align: right; }
+table.wt caption { text-align: center; }
+.wsched h2 { text-align: center; }
+#w-results { position: sticky; top: 0; z-index: 3; max-height: 60vh; overflow: auto; background: var(--card); border-bottom: 2px solid var(--accent); box-shadow: 0 4px 10px rgba(0,0,0,.12); padding: 6px 12px; }
+.rhead { display: flex; gap: 8px; align-items: baseline; margin-bottom: 4px; }
+.rhead .link { margin-left: auto; }
+.hit { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 5px 2px; font-size: 12px; }
+.hit:hover { background: var(--sel); }
+.hit .ag { display: block; font-weight: 600; font-size: 11px; color: var(--muted); }
+mark { background: #ffe58a; color: inherit; }
+.wsel { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; gap: 10px; align-items: center; max-width: 80vw; padding: 8px 12px; background: var(--card); border: 1px solid var(--accent); border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+.wsel span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

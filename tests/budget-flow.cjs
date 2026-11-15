@@ -13,6 +13,14 @@ const must = (ok, what) => { if (!ok) throw new Error('FAILED: ' + what); consol
     return p;
   };
   const p = await page();
+  // The bill's XML as stored in the document (compressed where the browser can).
+  const storedXml = pg => pg.evaluate(async () => {
+    const x = window.__parts.find(y => /role="current"/.test(y.xml)).xml;
+    if (!/encoding="gzip-base64"/.test(x)) return x;
+    const b64 = x.replace(/^<budget[^>]*>/, '').replace(/<\/budget>$/, ''), bin = atob(b64), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  });
   const notice = async () => (await p.textContent('#notice')).trim();
   const shot = n => p.screenshot({ path: path.join(OUT, n + '.png') });
   const focusBack = async () => { await p.waitForTimeout(200); await p.evaluate(() => window.dispatchEvent(new Event('focus'))); await p.waitForTimeout(700); };
@@ -60,7 +68,7 @@ const must = (ok, what) => { if (!ok) throw new Error('FAILED: ' + what); consol
   console.log('-', await notice());
   const shown = await p.evaluate(t => { const n = [...__mockDoc.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'sdt')].find(s => s.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'tag')[0].getAttribute('w:val') === t); return n.textContent; }, ids.re);
   must(/\[\(34218\)\] \(34219\) \.\.\. \[15,000,000\] 14,000,000 \(re\. \$12,500,000\)/.test(shown), 'the reappropriation reads "[(34218)] (34219) ... [15,000,000] 14,000,000 (re. $12,500,000)" in the document');
-  const stored = await p.evaluate(() => window.__parts.find(x => /role="current"/.test(x.xml)).xml);
+  const stored = await storedXml(p);
   must(/<del>15,000,000<\/del> <ins><quantity class="originalAmount" normalized="14000000"/.test(stored), 'the stored XML has the old amount struck and the new one as new matter');
   must(/normalized="16250000"/.test(stored) && !/<del>15,000,000<\/del> <ins><quantity class="amount"/.test(stored), 'the appropriation simply has its new amount');
   console.log('fixes:', await p.textContent('#b-fixes'));
@@ -97,7 +105,7 @@ const must = (ok, what) => { if (!ok) throw new Error('FAILED: ' + what); consol
   await p.waitForFunction(() => /ready|Not made/.test(document.querySelector('#b-pdf-status').textContent + document.querySelector('#notice').textContent), null, { timeout: 120000 });
   console.log('pdf:', await p.textContent('#b-pdf-status'));
   must(/marked first/.test(await p.textContent('#b-pdf-status')), 'the clean copy read the edit back and marked it first');
-  const stored2 = await p.evaluate(() => window.__parts.find(x => /role="current"/.test(x.xml)).xml);
+  const stored2 = await storedXml(p);
   must(new RegExp('<del>' + re2.amount + '</del> <ins><quantity class="originalAmount" normalized="1234567"').test(stored2), 'the unmarked edit is in the XML as [old] new');
   const [pdf] = await Promise.all([p.waitForEvent('download'), p.click('#b-pdf-save')]);
   const pf = path.join(OUT, pdf.suggestedFilename()); await pdf.saveAs(pf);
@@ -111,7 +119,7 @@ const must = (ok, what) => { if (!ok) throw new Error('FAILED: ' + what); consol
   // The other demo bill: S.3000-D against the C print
   const q = await page();
   await q.click('.mode button[data-mode=budget]'); await q.waitForTimeout(400);
-  await q.click('#b-samples .std:nth-child(2) button'); await q.waitForFunction(() => /laid out/.test(document.querySelector('#notice').textContent), null, { timeout: 60000 });
+  await q.click('#b-samples .std:nth-child(3) button'); await q.waitForFunction(() => /laid out/.test(document.querySelector('#notice').textContent), null, { timeout: 60000 });
   await q.click('[data-tab=checks]'); await q.waitForFunction(() => document.querySelector('#b-amt-summary').textContent && !document.querySelector('#b-run').disabled, null, { timeout: 30000 });
   await q.selectOption('#b-cmp-with', 'sample'); await q.click('#b-cmp'); await q.waitForSelector('#b-cmp-out .summary', { timeout: 30000 });
   console.log('C to D:', await q.textContent('#b-cmp-out .summary'));

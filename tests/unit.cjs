@@ -286,4 +286,17 @@ t('budget in Word: laid out, read back, edits marked as the prints mark them, to
   const errs = v.split('\n').filter(l => /\[(profile|schema|lbdc) error\]/.test(l) && !/project schedule|summary total/i.test(l));
   assert.deepStrictEqual(errs, []);
 });
+t('budget: the whole of S.3003-D, as the Python tools find it', () => {
+  const B = BD.budget, dir = path.join(__dirname, '..', 'samples', 'budget', 'full');
+  const exp = JSON.parse(fs.readFileSync(path.join(__dirname, 'budget-expected.json'), 'utf8')).full;
+  const S = f => B.parse(fs.readFileSync(path.join(dir, f), 'utf8'), DOMParser);
+  const d = S('S3003D.akn.xml');
+  assert.strictEqual(B.items(d).length, exp.items);
+  const F = B.findings(d); for (const k of Object.keys(exp.findings)) assert.strictEqual(F[k].length, exp.findings[k], k);
+  const P = B.priorCheck(d, S('S8303D.akn.xml'), 53, 2024), got = {};
+  for (const [k, v] of Object.entries(P.res)) if (v.length) got[k] = v.length;
+  assert.deepStrictEqual(got, exp.prior);
+  const V = B.placeVetoes(d, JSON.parse(fs.readFileSync(path.join(dir, 'vetoes-2025.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(dir, 'S3003D.lines.json'), 'utf8')));
+  for (const v of V) assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number);
+});
 console.log(n + ' passed');

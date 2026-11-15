@@ -22,7 +22,7 @@
   const shortId = eId => String(eId).split('__').map((p, i) => { const m = /^([A-Za-z]+)_(.+)$/.exec(p); if (!m) return p; if (i === 0 && m[1] === 'sec') return m[2]; return ABBR[m[1]] ? ABBR[m[1]] + m[2] : p; }).join('.');
   const longId = s => String(s).split('.').map((p, i) => { if (i === 0) return 'sec_' + p; const m = /^([a-z])(\d[\w-]*)$/.exec(p); return m && FULL[m[1]] ? FULL[m[1]] + '_' + m[2] : p; }).join('__');
   const tag = (eId, kind) => 'akn:b;e=' + shortId(eId) + ';k=' + kind;
-  function parseTag(t) { const m = /^akn:b;e=([^;]+);k=(\w+)/.exec(t || ''); return m ? { eId: longId(m[1]), kind: m[2] } : null; }
+  function parseTag(t) { const m = /^akn:b;e=([^;]+);k=(\w+)/.exec(t || ''); return m ? { eId: m[2] === 'front' ? 'front' : longId(m[1]), kind: m[2] } : null; }
 
   /* ---------- writing OOXML ---------- */
   const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -144,6 +144,18 @@
       }
     }
   }
+  // The working set: Word holds the bill's front (a title block and section 1's opening) and the schedules being
+  // worked on, each wrapped in a content control (k=schedule) so it can be taken out again whole. The XML of the
+  // whole bill stays the record.
+  function renderFront(doc) {
+    const R = B._.docEl(doc), body = all(R, e => ln(e) === 'body')[0], sec = kid(body, 'section'), o = B.outline(doc);
+    const head = para({ jc: 'center', after: 0, bold: true }, textRuns(o.bill.replace(/^S(\d+)/, 'S. $1').replace(/^A(\d+)/, 'A. $1').replace(/-/, '--'))) +
+      para({ jc: 'center', after: 240 }, textRuns('Appropriation bill · ' + o.agencies.length + ' agency schedules · laid out from its XML by the Bill Drafter'));
+    const intro = sec && kid(sec, 'intro');
+    const body_ = intro ? kids(intro).filter(e => ln(e) === 'p').map((p, i) => para({ ind: 'w:firstLine="360"', after: 80 }, (i === 0 ? [{ t: norm(text(kid(sec, 'num'))) + ' ', k: '' }] : []).concat(runsOf(p)))).join('') : '';
+    return sdt('akn:b;e=front;k=front', 'The bill', head + body_);
+  }
+  const renderSchedule = ag => sdt(tag(ag.getAttribute('eId'), 'schedule'), 'Schedule: ' + norm(text(kid(ag, 'heading'))) + (cls(ag) === 'reappropriations' ? ' (reappropriations)' : ''), render(ag));
   // The bill's body, in pieces Word can take one at a time: a title block, section 1's opening, then each agency.
   function renderBill(doc) {
     const R = B._.docEl(doc), body = all(R, e => ln(e) === 'body')[0], sec = kid(body, 'section'), o = B.outline(doc);
@@ -346,6 +358,6 @@
   }
   function removeItem(el) { el.parentNode.removeChild(el); }
 
-  BD.budgetWord = { shortId, longId, tag, parseTag, render, renderOwn, renderBill, shownRuns, shownText, wordRuns, readingsOf, isLaw, applyEdit, inlineXml, totals, addItem, removeItem, runsOf };
+  BD.budgetWord = { shortId, longId, tag, parseTag, render, renderOwn, renderBill, renderFront, renderSchedule, shownRuns, shownText, wordRuns, readingsOf, isLaw, applyEdit, inlineXml, totals, addItem, removeItem, runsOf };
   if (typeof module !== 'undefined') module.exports = BD;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

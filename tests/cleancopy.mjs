@@ -6,10 +6,14 @@ const files = process.argv.length > 2 ? process.argv.slice(2) : [path.join(root,
 let failed = 0;
 globalThis.document = { baseURI: pathToFileURL(root + '/taskpane.html').href };
 globalThis.fetch = async (u) => { const p = new URL(u).pathname; try { const b = fs.readFileSync(decodeURIComponent(p)); return new Response(b, { status: 200, headers: { "Content-Type": p.endsWith(".wasm") ? "application/wasm" : "application/octet-stream" } }); } catch { return new Response(null, { status: 404 }); } };
+// The pane's DOM and PDF joiner, for printing long bills in parts.
+import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+const { DOMParser, XMLSerializer } = require('@xmldom/xmldom'); globalThis.DOMParser = DOMParser; globalThis.XMLSerializer = XMLSerializer;
+globalThis.PDFLib = require('pdf-lib');
 (0, eval)(fs.readFileSync(root + '/src/cleancopy.js', 'utf8'));
 for (const f of files) {
   const t0 = Date.now();
-  try { const pdf = await globalThis.BD.cleanCopyPdf(fs.readFileSync(f, 'utf8'), () => {});
+  try { const pdf = await globalThis.BD.cleanCopyPdf(fs.readFileSync(f, 'utf8'), m => { if (process.argv.length > 2) console.log('   ', m); });
         if (process.argv.length > 2) fs.writeFileSync(f.replace(/\.xml$/, '') + '.pane.pdf', pdf);
         console.log('OK  ', path.basename(f), pdf.length, 'bytes', ((Date.now() - t0) / 1000).toFixed(1) + 's'); }
   catch (e) { failed++; console.log('FAIL', path.basename(f), String(e && e.message || e).slice(0, 300)); }

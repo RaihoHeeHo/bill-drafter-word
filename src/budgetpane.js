@@ -4,11 +4,24 @@
 'use strict';
 const BUD = (() => {
   const B = BD.budget, BW = BD.budgetWord, NSX = 'urn:x-lbdc:bill-drafter';
-  const S = { doc: null, opened: null, sample: null, parts: {}, index: null, prior: null, priorInfo: null, vetoes: null, lines: null, vetoDate: null, earlier: {}, pending: { edited: [], missing: [] }, cursor: null, totals: [], pdfUrl: null };
+  const S = { doc: null, opened: null, sample: null, parts: {}, index: null, prior: null, priorInfo: null, vetoes: null, lines: null, vetoDate: null, earlier: {}, pending: { edited: [], missing: [] }, cursor: null, totals: [], pdfUrl: null, version: 0, cache: null, open: [], filter: '' };
+  // A bill this small is laid out whole when opened; a larger one (a whole budget bill) opens with no schedules in
+  // the document, and the drafter opens the ones to work on.
+  const OPEN_ALL_MAX_ITEMS = 1200;
+  // Every change to the XML moves the version on; what is worked out from the XML is kept until it does.
+  const changed = () => { S.version++; };
+  function analysis() {
+    if (S.cache && S.cache.version === S.version) return S.cache;
+    const its = B.items(S.doc);
+    S.cache = { version: S.version, F: B.findings(S.doc), T: BW.totals(S.doc, false), items: its, outline: B.outline(S.doc),
+      vetoes: S.vetoes && S.lines ? B.placeVetoes(S.doc, S.vetoes, S.lines) : null, changes: null };
+    return S.cache;
+  }
+  const changesSinceOpened = () => { const a = analysis(); if (a.changes == null) a.changes = B.compare(S.opened, S.doc).changes.length; return a.changes; };
   const xml = d => new XMLSerializer().serializeToString(d).replace(/^<\?xml[^>]*>\s*/, '');
   const byEId = id => S.doc && B._.byEId(S.doc, id);
   const flat = t => String(t || '').replace(/\s+/g, ' ').trim();
-  const fmt = B.fmt, pl = (n, w, ws) => n + ' ' + (n === 1 ? w : (ws || w + 's'));
+  const fmt = B.fmt, pl = (n, w, ws) => Number(n).toLocaleString('en-US') + ' ' + (n === 1 ? w : (ws || w + 's'));
   const sampleUrl = f => new URL('samples/budget/' + f, document.baseURI).href;
   async function fetchText(f) { const r = await fetch(sampleUrl(f)); if (!r.ok) throw new Error('Could not load ' + f + ' (' + r.status + ').'); return r.text(); }
   const readFile = f => f.text();
@@ -17,9 +30,21 @@ const BUD = (() => {
   const call = (fn, ...a) => new Promise((res, rej) => fn(...a, r => (r.status === 'succeeded' || (Office.AsyncResultStatus && r.status === Office.AsyncResultStatus.Succeeded)) ? res(r.value) : rej(new Error((r.error && r.error.message) || 'Word could not store the bill\'s XML.'))));
   const cxp = () => Office.context.document.customXmlParts;
   const cdata = s => '<![CDATA[' + s.replace(/]]>/g, ']]]]><![CDATA[>') + ']]>';
+  // The XML is kept compressed where the browser can (gzip, base64): a whole budget bill is 8 MB of XML, about 1 MB so.
+  const canZip = typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
+  async function zip(str) {
+    const buf = new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+    let bin = ''; for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+  async function unzip(b64) {
+    const bin = atob(b64.replace(/\s+/g, '')), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    return new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  }
   async function putPart(role, d) {
     if (S.parts[role]) { try { await call(S.parts[role].deleteAsync.bind(S.parts[role])); } catch (e) { /* already gone */ } }
-    S.parts[role] = await call(cxp().addAsync.bind(cxp()), '<budget xmlns="' + NSX + '" role="' + role + '"' + (S.sample ? ' sample="' + S.sample.id + '"' : '') + '>' + cdata(xml(d)) + '</budget>');
+    const body = canZip ? await zip(xml(d)) : cdata(xml(d));
+    S.parts[role] = await call(cxp().addAsync.bind(cxp()), '<budget xmlns="' + NSX + '" role="' + role + '"' + (S.sample ? ' sample="' + S.sample.id + '"' : '') + (canZip ? ' encoding="gzip-base64"' : '') + '>' + body + '</budget>');
   }
   const store = () => putPart('current', S.doc);
   async function load() {
@@ -29,10 +54,12 @@ const BUD = (() => {
     for (const p of ps) {
       const r = new DOMParser().parseFromString(await call(p.getXmlAsync.bind(p)), 'application/xml').documentElement;
       const role = r.getAttribute('role'); S.parts[role] = p; sampleId = r.getAttribute('sample') || sampleId;
-      if (role === 'current') S.doc = B.parse(r.textContent); else if (role === 'opened') S.opened = B.parse(r.textContent);
+      const text = r.getAttribute('encoding') === 'gzip-base64' ? await unzip(r.textContent) : r.textContent;
+      if (role === 'current') S.doc = B.parse(text); else if (role === 'opened') S.opened = B.parse(text);
     }
     if (!S.doc) return false;
     if (!S.opened) S.opened = B.parse(xml(S.doc));
+    changed();
     if (sampleId) { await index(); S.sample = (S.index.bills || []).find(b => b.id === sampleId) || null; await companions(); }
     return true;
   }
@@ -51,8 +78,9 @@ const BUD = (() => {
     if (d.getElementsByTagName('parsererror').length) throw new Error('That file is not well-formed XML.');
     const bill = d.getElementsByTagNameNS(B.A, 'bill')[0];
     if (!bill || !B.items(d).length) throw new Error('That XML is not an appropriation bill: it has no agencies and items.');
-    S.doc = d; S.opened = B.parse(text); S.sample = sample || null; S.prior = null; S.vetoes = null; S.earlier = {};
-    const pieces = BW.renderBill(d);
+    S.doc = d; S.opened = B.parse(text); S.sample = sample || null; S.prior = null; S.vetoes = null; S.earlier = {}; changed();
+    const o = B.outline(d), all = B.items(d).length <= OPEN_ALL_MAX_ITEMS;
+    const pieces = [BW.renderFront(d)].concat(all ? scheduleEls().map(BW.renderSchedule) : []);
     await word(async ctx => quietly(ctx, async () => {
       for (let i = 0; i < pieces.length; i++) {
         notice('Laying out the bill in the document… ' + (i + 1) + ' of ' + pieces.length);
@@ -62,11 +90,43 @@ const BUD = (() => {
       }
       await tidy(ctx);
     }));
+    notice('Storing the bill\'s XML in the document…');
     await putPart('opened', S.opened); await store();
     await companions();
     await refresh();
-    const o = B.outline(d);
-    notice(o.bill + ' laid out: ' + pl(o.agencies.length, 'schedule') + ', ' + B.items(d).length.toLocaleString() + ' items. Edit items in the document, then press Mark changes.');
+    notice(all ? o.bill + ' laid out: ' + pl(o.agencies.length, 'schedule') + ', ' + B.items(d).length.toLocaleString() + ' items. Edit items in the document, then press Mark changes.'
+      : o.bill + ' opened: ' + pl(o.agencies.length, 'schedule') + ', ' + B.items(d).length.toLocaleString() + ' items, all checked. Open the schedules you are working on into the document from the list.');
+  }
+  const scheduleEls = () => B._.all(B._.docEl(S.doc), e => B._.hc('agency')(e) && B._.ln(e.parentNode) === 'section');
+  // The schedules laid out in the document now (read from the document, so a schedule deleted there counts as closed).
+  async function openSchedules(ctx) { return (await ours(ctx)).filter(x => x.t.kind === 'schedule').map(x => x.t.eId); }
+  // Put a schedule into the document, in the bill's order among those there.
+  async function openSchedule(eId) {
+    const ag = byEId(eId); if (!ag) throw new Error('That schedule is not in the bill.');
+    const order = scheduleEls().map(a => a.getAttribute('eId'));
+    let done = false;
+    await word(async ctx => quietly(ctx, async () => {
+      const os = await ours(ctx), map = new Map(os.filter(x => x.t.kind === 'schedule' || x.t.kind === 'front').map(x => [x.t.eId, x.c]));
+      if (map.has(eId)) return;
+      const before = order.slice(0, order.indexOf(eId)).reverse().find(id => map.has(id));
+      const anchor = before ? map.get(before) : map.get('front');
+      const ooxml = padded(BW.renderSchedule(ag));
+      if (anchor) anchor.getRange('Whole').insertOoxml(ooxml, 'After'); else ctx.document.body.insertOoxml(ooxml, 'End');
+      await ctx.sync(); await tidy(ctx); done = true;
+    }));
+    await refresh();
+    if (done) notice('Opened in the document: ' + B.agencyName(ag) + ' (' + pl(B._.all(ag, e => B._.hc('appropriation')(e) || B._.hc('reappropriation')(e)).length, 'item') + ').');
+  }
+  // Take a schedule out of the document: its edits go into the XML first.
+  async function closeSchedule(eId) {
+    await mark(true);
+    await word(async ctx => quietly(ctx, async () => {
+      const x = (await ours(ctx)).find(y => y.t.kind === 'schedule' && y.t.eId === eId);
+      if (x) { x.c.delete(false); await ctx.sync(); await tidy(ctx); }
+    }));
+    if (S.cursor && S.cursor.startsWith(eId)) { S.cursor = null; $('b-item').hidden = true; }
+    await refresh();
+    notice('Closed: ' + B.agencyName(byEId(eId)) + '. Its changes are in the bill\'s XML.');
   }
   async function showOpen() {
     $('b-open').hidden = false; for (const id of ['b-bill', 'b-item', 'b-help', 'b-dock']) $(id).hidden = true;
@@ -93,7 +153,10 @@ const BUD = (() => {
       const firsts = items.map(x => { const p = x.c.paragraphs.getFirst(); p.load('text'); return p; }); await ctx.sync();
       const edited = [], seen = new Set();
       items.forEach((x, i) => { seen.add(x.t.eId); const e = byEId(x.t.eId); if (e && flat(firsts[i].text) !== flat(BW.shownText(e))) edited.push(x.t.eId); });
-      const missing = B.items(S.doc).map(i => i.eId).filter(id => !seen.has(id));
+      // items of a schedule that is in the document but no longer has them were deleted there
+      const open = (await ours(ctx)).filter(x => x.t.kind === 'schedule').map(x => x.t.eId + '__');
+      S.open = open.map(x => x.slice(0, -2));
+      const missing = open.length ? analysis().items.map(i => i.eId).filter(id => !seen.has(id) && open.some(o => id.startsWith(o))) : [];
       return { edited, missing };
     });
   }
@@ -114,7 +177,7 @@ const BUD = (() => {
       }
     }));
     for (const id of pend.missing) { const e = byEId(id); if (e) { BW.removeItem(e); removed++; } }
-    if (marked || replaced || removed) await store();
+    if (marked || replaced || removed) { changed(); await store(); }
     await refresh();
     if (!quiet) notice(marked || replaced || removed ? [marked && pl(marked, 'reappropriation') + ' marked against the law', replaced && pl(replaced, 'appropriation') + ' changed', removed && pl(removed, 'item') + ' taken out'].filter(Boolean).join(', ') + '.' + (S.totals.length ? ' ' + pl(S.totals.length, 'total') + ' no longer add up: update them below.' : '') : 'No edits to mark: the document and the XML agree.');
     return { marked, replaced, removed };
@@ -122,14 +185,15 @@ const BUD = (() => {
   // Totals computed from the items, set where they differ, and laid out again.
   async function updateTotals() {
     await mark(true);
-    const changed = BW.totals(S.doc, true); if (!changed.length) { notice('The totals already add up.'); return; }
-    const ids = [...new Set(changed.map(c => c.eId))];
+    const upd = BW.totals(S.doc, true); if (!upd.length) { notice('The totals already add up.'); return; }
+    changed();
+    const ids = [...new Set(upd.map(c => c.eId))];
     await word(async ctx => quietly(ctx, async () => {
       const map = new Map((await ours(ctx)).map(x => [x.t.eId, x.c]));
       for (const id of ids) { const cc = map.get(id), e = byEId(id); if (cc && e) await replaceControl(ctx, cc, BW.renderOwn(e)); }
     }));
     await store(); await refresh();
-    notice('Updated ' + pl(changed.length, 'total') + ': ' + changed.slice(0, 3).map(c => c.what.replace(/^Agency summary, /, '') + ' ' + fmt(c.was) + ' → ' + fmt(c.now)).join('; ') + (changed.length > 3 ? '; …' : '') + '.');
+    notice('Updated ' + pl(upd.length, 'total') + ': ' + upd.slice(0, 3).map(c => c.what.replace(/^Agency summary, /, '') + ' ' + fmt(c.was) + ' → ' + fmt(c.now)).join('; ') + (upd.length > 3 ? '; …' : '') + (ids.some(id => !S.open.some(x => id.startsWith(x))) ? ' (those in schedules not open in the document are updated in the XML)' : '') + '.');
   }
 
   // The amount problems: the print-error report's findings, and summary rows the totals update would change that
@@ -146,13 +210,13 @@ const BUD = (() => {
     $('b-open').hidden = true; for (const id of ['b-bill', 'b-help', 'b-dock']) $(id).hidden = false;
     document.body.classList.toggle('has-dock', !$('b-dock').closest('[data-panel]').hidden);
     S.pending = await pending();
-    S.totals = BW.totals(S.doc, false);
-    const o = B.outline(S.doc), F = B.findings(S.doc), its = B.items(S.doc);
+    const A = analysis(), o = A.outline, F = A.F, its = A.items;
+    S.totals = A.T;
     $('b-title').textContent = o.bill.replace(/^S(\d+)/, 'S.$1').replace(/^A(\d+)/, 'A.$1') + (S.sample ? ' · ' + (S.sample.title.split(':')[0].replace(/^\S+\s/, '')) : '');
-    const changes = B.compare(S.opened, S.doc).changes.length;
+    const changes = changesSinceOpened(), whole = its.length > OPEN_ALL_MAX_ITEMS;
     $('b-summary').className = 'summary ' + (S.totals.length || S.pending.edited.length ? 'meh' : 'good');
-    $('b-summary').textContent = its.filter(i => i.kind === 'appropriation').length + ' appropriations and ' + its.filter(i => i.kind === 'reappropriation').length + ' reappropriations in ' + pl(o.agencies.length, 'schedule') + '. ' +
-      (changes ? pl(changes, 'change') + ' since it was opened.' : 'No changes yet.');
+    $('b-summary').textContent = its.filter(i => i.kind === 'appropriation').length.toLocaleString() + ' appropriations and ' + its.filter(i => i.kind === 'reappropriation').length.toLocaleString() + ' reappropriations in ' + pl(o.agencies.length, 'schedule') + '. ' +
+      (whole ? S.open.length + ' open in the document. ' : '') + (changes ? pl(changes, 'change') + ' since it was opened.' : 'No changes yet.');
     // totals that no longer add up
     const fx = $('b-fixes'); fx.innerHTML = '';
     if (S.totals.length) {
@@ -161,22 +225,28 @@ const BUD = (() => {
       const places = new Set(S.totals.map(t => t.eId)).size;
       fx.append(el('div', { className: 'callout' }, el('span', { textContent: (places === 1 ? 'A total doesn\'t' : places + ' totals don\'t') + ' add up' + (S.totals.length > places ? ' (' + S.totals.length + ' figures)' : '') + ': ' + S.totals.slice(0, 2).map(t => t.what.replace(/^Agency summary, /, 'summary, ') + ' printed ' + fmt(t.was) + ', the items ' + fmt(t.now)).join('; ') + (S.totals.length > 2 ? '; …' : '') + '. ' }), b));
     }
-    // the schedules, each with what it needs
+    // the schedules, each with what it needs, and whether it is in the document
+    $('b-filter-row').hidden = o.agencies.length <= 12;
+    $('b-outline-hint').textContent = whole ? 'Open the ones you are working on' : 'Click one to go to it';
     const ol = $('b-outline'); ol.innerHTML = '';
-    const vetoed = S.vetoes && S.lines ? new Set(B.placeVetoes(S.doc, S.vetoes, S.lines).flatMap(v => v.items)) : new Set();
+    const vetoed = A.vetoes ? A.vetoes.flatMap(v => v.items) : [];
+    const P = problems(F, S.totals), f = S.filter.toLowerCase();
     for (const a of o.agencies) {
-      const mine = id => id && id.startsWith(a.eId + '__') || id === a.eId;
-      const P = problems(F, S.totals), errs = P.list.filter(f => mine(f.eId)).length + P.extra.filter(t => mine(t.eId)).length;
-      const edited = S.pending.edited.filter(mine).length, v = [...vetoed].filter(mine).length;
-      const main = el('button', { className: 'row-main', title: a.heading + ' ' + a.sub }, el('span', { className: 'k', textContent: a.name.replace(/ \(reappropriations\)$/, '') }), el('span', { className: 'n2', textContent: a.reapp ? 'reapprop.' : 'approp.' }));
+      if (f && !a.name.toLowerCase().includes(f)) continue;
+      const mine = id => id && (id.startsWith(a.eId + '__') || id === a.eId);
+      const isOpen = S.open.includes(a.eId);
+      const errs = P.list.filter(x => mine(x.eId)).length + P.extra.filter(t => mine(t.eId)).length;
+      const edited = S.pending.edited.filter(mine).length, v = vetoed.filter(mine).length;
+      const main = el('button', { className: 'row-main', title: a.heading + ' ' + a.sub + (isOpen ? ': go to it' : ': open it in the document') }, el('span', { className: 'k', textContent: a.name.replace(/ \(reappropriations\)$/, '') }), el('span', { className: 'n2', textContent: a.reapp ? 'reapprop.' : 'approp.' }));
       main.onclick = () => busy(null, () => goTo(a.eId));
       const chips = el('span', { className: 'chips' });
       if (edited) chips.append(el('span', { className: 'chip err', textContent: edited + ' not marked' }));
       if (errs) chips.append(el('span', { className: 'chip warn', textContent: pl(errs, 'amount'), title: 'Amounts that don\'t add up: see Check' }));
       if (v) chips.append(el('span', { className: 'chip', textContent: pl(v, 'veto', 'vetoes') }));
-      if (!edited && !errs) chips.append(el('span', { className: 'ok', textContent: '✓' }));
-      const li = el('li', {}, el('div', { className: 'line' }, main, chips));
-      if (a.programs.length) {
+      if (!edited && !errs && !whole) chips.append(el('span', { className: 'ok', textContent: '✓' }));
+      if (whole) { const b = el('button', { className: 'chip ' + (isOpen ? 'on' : ''), textContent: isOpen ? 'Close' : 'Open', title: isOpen ? 'Take it out of the document (its changes stay in the bill)' : 'Lay it out in the document to work on it' }); b.onclick = e => { e.stopPropagation(); busy(b, () => isOpen ? closeSchedule(a.eId) : openSchedule(a.eId)); }; chips.append(b); }
+      const li = el('li', { className: isOpen && whole ? 'opened' : '' }, el('div', { className: 'line' }, main, chips));
+      if (a.programs.length && (isOpen || !whole)) {
         const sub = el('ol', { className: 'programs' });
         for (const p of a.programs) { const b = el('button', { className: 'row-main sub', textContent: p.heading.replace(/\s+\(CCP\)$/, '') + (p.total != null ? ' · ' + fmt(p.total) : '') + ' · ' + pl(p.items, 'item') }); b.onclick = () => busy(null, () => goTo(p.eId)); sub.append(el('li', {}, b)); }
         li.append(sub);
@@ -186,13 +256,17 @@ const BUD = (() => {
     // the dock
     const st = $('b-dock-status'), n = S.pending.edited.length, m = S.pending.missing.length;
     st.className = 'dock-status' + (n || m ? ' need' : '');
-    st.textContent = n || m ? [n && pl(n, 'item') + ' edited', m && pl(m, 'item') + ' deleted'].filter(Boolean).join(' and ') + ' in the document, not yet in the bill\'s XML.' : 'The document and the bill\'s XML agree.';
+    st.textContent = n || m ? [n && pl(n, 'item') + ' edited', m && pl(m, 'item') + ' deleted'].filter(Boolean).join(' and ') + ' in the document, not yet in the bill\'s XML.' : whole && !S.open.length ? 'No schedules open in the document. Open one from the list to work on it.' : 'The document and the bill\'s XML agree.';
     $('b-mark').classList.toggle('primary', !!(n || m));
-    const errCount = problems(F, S.totals).count;
+    const errCount = P.count;
     $('check-count').textContent = String(errCount); $('check-count').hidden = !errCount;
     if (S.cursor) showCursor(S.cursor);
+    publish().catch(e => console.warn('bill window:', e));
   }
   async function goTo(eId) {
+    // a schedule not in the document is opened first
+    const sched = scheduleEls().map(x => x.getAttribute('eId')).find(x => eId === x || eId.startsWith(x + '__'));
+    if (sched && !S.open.includes(sched)) await openSchedule(sched);
     // the element's own content control, or the nearest one above it
     let id = eId;
     await word(async ctx => {
@@ -228,7 +302,7 @@ const BUD = (() => {
     const id = S.cursor, e = byEId(id); if (!e) throw new Error('Click an appropriation in the document first.');
     const words = flat($('b-add-words').value), amount = $('b-add-amount').value.replace(/[^\d]/g, '');
     if (!words) throw new Error('Type the new item\'s words.'); if (!amount) throw new Error('Type the amount.');
-    const n = BW.addItem(S.doc, e, words, amount);
+    const n = BW.addItem(S.doc, e, words, amount); changed();
     await word(async ctx => quietly(ctx, async () => {
       const cc = (await ours(ctx)).find(x => x.t.eId === id); if (!cc) throw new Error('That item is no longer in the document.');
       cc.c.getRange('Whole').insertOoxml(padded(BW.render(n)), 'After'); await ctx.sync(); await tidy(ctx);
@@ -240,7 +314,7 @@ const BUD = (() => {
   async function removeAt() {
     const id = S.cursor, e = byEId(id); if (!e) return;
     await word(async ctx => quietly(ctx, async () => { const cc = (await ours(ctx)).find(x => x.t.eId === id); if (cc) { cc.c.delete(false); await ctx.sync(); } }));
-    BW.removeItem(e); await store(); S.cursor = null; $('b-item').hidden = true; await refresh();
+    BW.removeItem(e); changed(); await store(); S.cursor = null; $('b-item').hidden = true; await refresh();
     notice('Item taken out of the bill.' + (S.totals.length ? ' Update the totals above.' : ''));
   }
 
@@ -383,12 +457,65 @@ const BUD = (() => {
   }
   const pdfName = () => (B.outline(S.doc).bill || 'budget') + ' clean copy.pdf';
 
+  /* ---------- the bill window ----------
+     The whole bill in a window of its own, to browse and search; it asks the pane to open a schedule into the
+     document or go to an item. In Word it is an Office dialog; elsewhere (testing in a browser) a browser window. */
+  let win = null, pubVersion = -1;
+  async function publish() {
+    if (!win || !S.doc) return;
+    const A = analysis(), P = problems(A.F, S.totals);
+    if (pubVersion !== S.version) { await BD.windowStore.put('xml', xml(S.doc)); pubVersion = S.version; }
+    const per = (ids) => { const m = {}; for (const id of ids) { const ag = (/^(sec_\d+__agency_\d+)/.exec(id || '') || [])[1]; if (ag) m[ag] = (m[ag] || 0) + 1; } return m; };
+    await BD.windowStore.put('status', {
+      version: S.version, at: Date.now(), bill: A.outline.bill, title: $('b-title').textContent, open: S.open, edited: S.pending.edited,
+      problems: per(P.list.map(x => x.eId).concat(P.extra.map(x => x.eId))), problemIds: P.list.map(x => x.item || x.eId).concat(P.extra.map(x => x.eId)),
+      vetoes: A.vetoes ? A.vetoes.flatMap(v => v.items.map(e => ({ eId: e, number: v.number, reason: v.reason }))) : [],
+    });
+    tellWindow({ type: 'update', version: S.version });
+  }
+  function tellWindow(msg) {
+    if (!win) return;
+    try {
+      if (win.kind === 'dialog' && win.d.messageChild) win.d.messageChild(JSON.stringify(msg));
+      else if (win.kind === 'window') { if (win.w.closed) win = null; else win.w.postMessage({ ...msg, billPane: true }, location.origin); }
+    } catch (e) { /* the window polls the store too */ }
+  }
+  async function onWindowMessage(m) {
+    m = typeof m === 'string' ? JSON.parse(m) : m;
+    if (m.type === 'ready') { pubVersion = -1; return publish(); }
+    if (m.type === 'open') return busy(null, () => openSchedule(m.eId));
+    if (m.type === 'close') return busy(null, () => closeSchedule(m.eId));
+    if (m.type === 'goto') return busy(null, async () => { showTab('draft'); await goTo(m.eId); });
+  }
+  window.addEventListener('message', e => { if (e.origin === location.origin && e.data && e.data.billWindow) onWindowMessage(e.data); });
+  async function openWindow() {
+    if (!S.doc) throw new Error('Open a budget bill first.');
+    const url = new URL('bill-window.html', document.baseURI).href;
+    if (win && win.kind === 'window' && !win.w.closed) { win.w.focus(); return; }
+    const ui = window.Office && Office.context && Office.context.ui;
+    if (ui && ui.displayDialogAsync) {
+      await new Promise((res, rej) => ui.displayDialogAsync(url, { height: 85, width: 60, promptBeforeOpen: false }, r => {
+        if (r.status !== 'succeeded' && !(Office.AsyncResultStatus && r.status === Office.AsyncResultStatus.Succeeded)) return rej(new Error('Word did not open the window: ' + ((r.error && r.error.message) || 'unknown reason') + '.'));
+        win = { kind: 'dialog', d: r.value };
+        r.value.addEventHandler(Office.EventType.DialogMessageReceived, a => onWindowMessage(a.message));
+        r.value.addEventHandler(Office.EventType.DialogEventReceived, () => { win = null; });
+        res();
+      }));
+    } else {
+      const w = window.open(url, 'billwindow', 'width=1000,height=900');
+      if (!w) throw new Error('The window was blocked. Allow pop-ups for this site and try again.');
+      win = { kind: 'window', w };
+    }
+    pubVersion = -1; await publish();
+  }
+
   /* ---------- wiring ---------- */
   function wire() {
     const on = (id, fn) => { const b = $(id); b.onclick = () => busy(b, fn); };
     on('b-mark', () => mark()); on('b-dock-check', async () => showTab('checks'));
     on('b-add', addAfter); on('b-remove', removeAt); on('b-goto', async () => S.cursor && goTo(S.cursor));
-    on('b-run', runChecks);
+    on('b-run', runChecks); on('b-window', openWindow);
+    let ft; $('b-filter').oninput = () => { clearTimeout(ft); ft = setTimeout(() => { S.filter = $('b-filter').value.trim(); busy(null, refresh); }, 200); };
     on('b-cmp', async () => compareView());
     on('b-pdf', makePdf);
     on('b-pdf-save', async () => download(await (await fetch(S.pdfUrl)).blob(), pdfName()));
@@ -410,5 +537,5 @@ const BUD = (() => {
     if (name === 'draft') busy(null, refresh);
     void focusSec;
   }
-  return { init, refresh, cursor, onTab, mark, updateTotals, S };
+  return { init, refresh, cursor, onTab, mark, updateTotals, openSchedule, closeSchedule, openWindow, S };
 })();

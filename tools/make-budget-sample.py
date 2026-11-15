@@ -103,7 +103,23 @@ exp["vetoes"] = {str(v["number"]): v["items"] for v in vetoes}
 F = json.load(open(pathlib.Path(sys.argv[3]) if len(sys.argv) > 3 else profile.parent.parent / "report" / "out" / "S3003D.json"))
 exp["findings"] = {k: [x for x in F[k] if any(n.lower() in x["agency"].lower() for n in ("department of labor", "state university of new york"))]
                    for k in ("headings", "summaries", "totals", "schedules", "schedule_items", "reapprop_over", "no_original")}
+# The whole of S.3003-D, for the working set and the clean copy in parts: the bill, last year's whole chapter, all
+# the 2025 vetoes and the print's lines for every element.
+full = out / "full"
+full.mkdir(exist_ok=True)
+import shutil  # noqa: E402
+shutil.copy(profile / "real" / "S3003D.xml", full / "S3003D.akn.xml")
+shutil.copy(profile / "real" / "prior-2024" / "S8303D.xml", full / "S8303D.akn.xml")
+all_lines = print_lines.lines_of(str(profile / "real" / "S3003D.xml"), pickle.load(open(approp / "s3003d.pkl", "rb")))
+(full / "S3003D.lines.json").write_text(json.dumps(all_lines, separators=(",", ":")))
+all_vetoes = json.load(open(profile / "real" / "vetoes" / "vetoes-2025.json"))
+(full / "vetoes-2025.json").write_text(json.dumps([{k: v.get(k) for k in FIELDS} for v in all_vetoes], indent=1))
+fres, flapsed, *_ = PC.check(str(full / "S3003D.akn.xml"), str(full / "S8303D.akn.xml"), 53, 2024)
+exp["full"] = {"prior": {k: len(v) for k, v in fres.items() if v}, "items": len(list(BI.items(str(full / "S3003D.akn.xml")))),
+               "findings": {k: len(F[k]) for k in ("headings", "summaries", "totals", "schedules", "schedule_items", "reapprop_over", "no_original")},
+               "vetoes": {str(v["number"]): v["items"] for v in all_vetoes}}
 (repo / "tests" / "budget-expected.json").write_text(json.dumps(exp, indent=1))
+print("full:", exp["full"]["items"], "items;", exp["full"]["prior"], exp["full"]["findings"])
 
 for f in (d, p, sd, sc):
     print(f.name, f.stat().st_size, "bytes")

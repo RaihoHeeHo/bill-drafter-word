@@ -36,6 +36,14 @@
 // Reading the XML
 // ---------------------------------------------------------------------------
 #let source = xml(sys.inputs.at("xml", default: "sample-bill.xml"))
+// Printing a long budget bill in parts (the Word add-in prints a few hundred pages at a time and joins them):
+// a part begins on page page-offset + 1, only the first carries the front matter and only the last the table
+// of contents, which takes the pages of the agencies in earlier parts from agency-pages ({eId: page}). Each
+// agency begins on a page of its own, so the parts paginate exactly as the whole bill does.
+#let page-offset = int(sys.inputs.at("page-offset", default: "0"))
+#let part-front = sys.inputs.at("front", default: "yes") == "yes"
+#let part-toc = sys.inputs.at("toc", default: "yes") == "yes"
+#let earlier-pages = json(bytes(sys.inputs.at("agency-pages", default: "{}")))
 #let root = source.filter(n => type(n) == dictionary and n.tag != "").first()
 
 #let is-el(n, tag: none) = type(n) == dictionary and n.tag != "" and (tag == none or n.tag == tag)
@@ -956,8 +964,9 @@
   }
   let tm = spec.first-line - 0.8 * spec.size + ntop * spec.pitch
   page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, {
-    // where the agency begins, for the table of contents
+    // where the agency begins, for the table of contents (and, with its page, for printing in parts)
     [#metadata(attr(n, "eId")) <agency-start>]
+    context [#metadata((eid: attr(n, "eId"), page: here().page() + page-offset)) <agency-page>]
     for (i, b) in blocks.enumerate() {
       if i > 0 { a-blank }
       b.join()
@@ -1267,9 +1276,9 @@
   margin: (left: spec.left, right: 8.5in - spec.left - measure, top: top-margin, bottom: 11in - top-margin - body-height),
   header-ascent: top-margin - (spec.header + 0.2 * spec.size),
   header: context {
-    if here().page() > 1 and approp {
+    if here().page() + page-offset > 1 and approp {
       // appropriation bills: the page number centred, the LBD number (without "LBD") ending at column 72
-      let pg = str(here().page())
+      let pg = str(here().page() + page-offset)
       let lbd = lbd-no.replace("LBD", "")
       par(justify: false, h((36 - calc.floor(pg.len() / 2)) * char) + pg + h((62 - (36 - calc.floor(pg.len() / 2)) - pg.len()) * char) + lbd)
       // the Legislature and Judiciary bill names itself on every page after the first
@@ -1307,7 +1316,7 @@
     v(top-margin + body-height - (spec.first-page-end + (if longer { spec.pitch } else { 0pt }) + 0.2 * spec.size), weak: false)
   }
 }
-#place(bottom + left, float: true, clearance: 0pt, first-page-foot)
+#if part-front { place(bottom + left, float: true, clearance: 0pt, first-page-foot) }
 
 // ---------------------------------------------------------------------------
 // The document
@@ -1317,7 +1326,7 @@
 // told apart by its class, in the order the profile stores them.
 #let big-line(t) = place(top + left, dx: (measure - t.clusters().len() * spec.big * 0.6) / 2 + 0.1 * char,
   text(size: spec.big, weight: "bold", t))
-#{
+#if part-front {
   set par.line(numbering: none)
   set par(justify: false, first-line-indent: 0pt)
   let centered(t) = par(center-pad(t.clusters().len()) + t)
@@ -1396,12 +1405,12 @@
   let tm = spec.first-line - 0.8 * spec.size + 3 * spec.pitch
   page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, context {
     let pages = (:)
-    for m in query(<agency-start>) { if m.value not in pages { pages.insert(m.value, str(m.location().page())) } }
+    for m in query(<agency-start>) { if m.value not in pages { pages.insert(m.value, str(m.location().page() + page-offset)) } }
     let blocks = ()
     for it in kids(toc, "tocItem") {
       let col = (int(attr(it, "level")) - 1) * 2
       let href = attr(it, "href").slice(1)
-      let pg = if href == "sec_1" { "1" } else { pages.at(href, default: "") }
+      let pg = if href == "sec_1" { "1" } else { pages.at(href, default: str(earlier-pages.at(href, default: ""))) }
       let ws = nodes-words(it.children)
       if attr(it, "class") == "noPage" or pg == "" {
         blocks.push(a-par(ws, first: col, cont: col + 2, right: 72, just: false))
@@ -1415,7 +1424,7 @@
     }
   })
 }
-#if approp {
+#if approp and part-toc {
   let c = kid(bill, "conclusions")
   let toc = if c != none { kid(c, "toc") } else { none }
   if toc != none { render-toc(toc) }

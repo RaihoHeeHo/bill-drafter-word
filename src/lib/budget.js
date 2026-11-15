@@ -32,7 +32,17 @@
     return new P().parseFromString(xml, 'application/xml');
   }
   const docEl = doc => doc.documentElement || doc;
-  const byEId = (doc, id) => all(docEl(doc), e => e.getAttribute && e.getAttribute('eId') === id)[0] || null;
+  // Elements by eId, from an index made once per document and made again when it no longer answers (an element
+  // added since, or one taken out: a removed element has no parent).
+  const eidIndex = new WeakMap();
+  function byEId(doc, id) {
+    const R = docEl(doc), ok = e => e && (e === R || e.parentNode);
+    let m = eidIndex.get(R), e = m && m.get(id);
+    if (m && ok(e)) return e;
+    m = new Map(); for (const x of all(R, x => x.getAttribute && x.getAttribute('eId'))) m.set(x.getAttribute('eId'), x);
+    eidIndex.set(R, m);
+    e = m.get(id); return ok(e) ? e : null;
+  }
 
   /* ---------- items and their keys (budget_items.py) ----------
      An item's key is its agency, its account number, the program code of the purpose it falls under and its object
@@ -156,17 +166,18 @@
       if (parts.length === 1 && parts[0] === 'All Funds') continue;
       F.headings.push({ eId: acc.getAttribute('eId'), agency: agencyName(agencyOf(acc)), heading: (parts.length > 2 ? parts.slice(1) : parts).join(' / ') });
     }
-    // 2. agency summaries
-    const ags = all(R, hc('agency'));
+    // 2. agency summaries (each agency's sums made once)
+    const ags = all(R, hc('agency')), sums = new Map();
+    const sumsOf = g => { if (!sums.has(g)) sums.set(g, { appr: sumIn([g], 'appropriation', 'amount'), off: sumIn([g], 'adjustment', 'offset'), reap: sum([g], 'reappropriatedAmount') }); return sums.get(g); };
     for (const s of all(R, hc('agencySummary'))) {
       const a = s.parentNode, refs = (s.getAttribute('refersTo') || '').split(/\s+/).filter(Boolean);
       const scope = refs.length > 1 ? ags.filter(g => refs.includes('#' + (g.getAttribute('refersTo') || '').replace(/^#/, ''))) : null;
       const tot = all(s, e => ln(e) === 'tr' && cls(e).includes('totalRow'))[0]; if (!tot) continue;
       const ta = all(tot, isQ('summaryAppropriations')), tr = all(tot, isQ('summaryReappropriations'));
       const own = scope || [a];
-      const appr = sumIn(own, 'appropriation', 'amount'), off = sumIn(own, 'adjustment', 'offset');
+      const appr = own.reduce((t, g) => t + sumsOf(g).appr, 0), off = own.reduce((t, g) => t + sumsOf(g).off, 0);
       const rset = scope || ags.filter(g => g.getAttribute('refersTo') === a.getAttribute('refersTo'));
-      const reap = sum(rset, 'reappropriatedAmount');
+      const reap = rset.reduce((t, g) => t + sumsOf(g).reap, 0);
       for (const [col, printed, comp] of [['appropriations', ta, [appr, appr - off]], ['reappropriations', tr, [reap]]]) {
         if (!printed.length) continue;
         const pv = val(printed[0]);
@@ -206,11 +217,15 @@
       });
     }
     // 5. reappropriations larger than the original, and those printing no original amount
+    // (a source line printed above an earlier account covers the reappropriations after it: found by document order)
+    const order = new Map(); all(R).forEach((e, i) => order.set(e, i));
+    const srcs = all(R, hc('reappropriationSource')).filter(x => kid(x, 'intro'));
+    const lastSrcBefore = r => { const at = order.get(r); let lo = 0, hi = srcs.length - 1, best = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (order.get(srcs[m]) < at) { best = m; lo = m + 1; } else hi = m - 1; } return best < 0 ? null : srcs[best]; };
     for (const r of all(R, hc('reappropriation'))) {
       const o = qNow(r, 'originalAmount'), re_ = qNow(r, 'reappropriatedAmount');
       const src = ancestors(r).find(hc('reappropriationSource'));
       let lead = src && kid(src, 'intro') ? norm(text(kid(src, 'intro'))) : '';
-      if (!lead) { const prev = all(R, hc('reappropriationSource')).filter(s => kid(s, 'intro') && (s.compareDocumentPosition ? s.compareDocumentPosition(r) & 4 : true)); lead = prev.length ? norm(text(kid(prev[prev.length - 1], 'intro'))) + ' (continued)' : ''; }
+      if (!lead) { const prev = lastSrcBefore(r); lead = prev ? norm(text(kid(prev, 'intro'))) + ' (continued)' : ''; }
       const t = norm(text(kid(kid(r, 'content'), 'p')));
       if (o != null && re_ != null && re_ > o && !lead.includes('supplemented')) F.reapprop_over.push({ eId: r.getAttribute('eId'), agency: agencyName(agencyOf(r)), text: t.slice(-90), source: lead, original: o, reappropriated: re_ });
       if (o == null && re_ != null) F.no_original.push({ eId: r.getAttribute('eId'), agency: agencyName(agencyOf(r)), code: ([...t.matchAll(/\(([0-9A-Z]{8})\)/g)].pop() || [])[1] || '', reappropriated: re_, source: lead });
@@ -308,10 +323,12 @@
   }
 
   /* ---------- one print against another (compare_prints.py, appropriation bills) ---------- */
+  const nowText = n => { let t = ''; for (let c = n.firstChild; c; c = c.nextSibling) t += c.nodeType === 3 ? c.nodeValue : c.nodeType === 1 && ln(c) !== 'del' ? nowText(c) : ''; return t; };
   function budgetOf(doc) {
     const its = numbered(items(doc));
     for (const i of its) {
-      const p = kid(kid(i.el, 'content'), 'p'), t = p ? norm(text(p)) : '';
+      // the item as it now reads: matter struck in this print is not part of what it says
+      const p = kid(kid(i.el, 'content'), 'p'), t = p ? norm(nowText(p)) : '';
       i.cmp = t.replace(/\s[\d,]+$/, '').replace(/\s*\.\.\.\s*[\d,]*\s*(\(re\. \$[\d,]+\))?\s*$/, '');
     }
     const summaries = {}, programs = {};

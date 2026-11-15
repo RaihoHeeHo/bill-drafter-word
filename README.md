@@ -68,6 +68,15 @@ Switch the pane to **Budget** at the top. It works on an appropriation bill as L
 - **Check** runs the budget tools' checks on the XML, the same way they run in Python: the print-error report's amount checks; reappropriations against **last year's chapter** (by agency, account, program and object, as `prior_check.py`); **changes in this print**, against the bill as opened or another print (`compare_prints.py`); and **line vetoes** placed on the items printed on their lines, each with its line veto memorandum (`line_vetoes.py`). `tests/budget-expected.json` holds what the Python tools find in the samples, and the unit tests check the add-in finds the same.
 - **Clean copy** reads the document's edits back first, refuses if any reappropriation no longer reads as existing law once its brackets and underlines are taken into account, and typesets the bill with the same template.
 
+### A whole budget bill
+
+The third demo bill is **all of S.3003-D**: 98 schedules, 8,497 items, 1,518 pages.
+
+- **The XML of the whole bill is the record**, kept in the document (compressed: 8 MB of XML is about 1 MB stored). **Word holds only the schedules being worked on**: the bill opens with none laid out, and each schedule in the list has **Open** and **Close**. Closing a schedule reads its edits into the XML first. A bill of up to 1,200 items (the other demo bills) is laid out whole, as before.
+- **Every check runs on the whole bill**, open in the document or not: the amount checks (41 in S.3003-D as printed), all 6,720 reappropriations against chapter 53 of 2024, all 24 line vetoes, and the changes since the bill was opened. On the whole bill they take a second or two, and they are worked out again only when the XML changes.
+- **The bill window** (Draft > *Open the bill window*) shows the whole bill as the print lays it out, schedule by schedule, with a search over every item. **Open in Word** and **Go to in Word** ask the pane to put the schedule in the document and go to the item. In Word it is an Office dialog; the pane hands it the bill through the browser's storage on this computer.
+- **The clean copy is printed in parts** of about 280 pages, split between agencies (each agency begins a page of its own, so the parts paginate as the whole bill does), each beginning on the page after the last, and joined into one PDF with pdf-lib (`vendor/pdf-lib`). The typesetter runs in a worker of its own (`src/cleancopy-worker.js`), so the pane stays responsive. All of S.3003-D takes about 70 seconds; every one of its 671,255 words lands in the same place on the same page as in the desktop typesetter's single run. The template takes the part's first page (`page-offset`), whether it carries the front matter (`front`) and the table of contents (`toc`), and the pages of the agencies in earlier parts (`agency-pages`).
+
 ## For developers
 
 ```
@@ -80,8 +89,12 @@ src/lib/tables.js     tables: found in the Bank's fixed-width text, marked row b
 src/lib/akn.js        model -> Akoma Ntoso 3.0, AKN-NY profile 0.3
 src/lib/budget.js     appropriation bills: item keys, amount checks, last year's chapter, print comparison, line vetoes
 src/lib/budgetword.js an appropriation bill in Word: laid out from its XML, edits read back and marked, totals
-src/budgetpane.js     the pane's budget mode
-samples/budget/       the demo budget bills and what comes with them (tools/make-budget-sample.py makes them)
+src/budgetpane.js     the pane's budget mode, the working set of schedules
+src/billwindow.js     the bill window (bill-window.html): the whole bill, schedule list, search
+src/lib/windowstore.js what the pane hands the bill window (IndexedDB on this computer)
+src/cleancopy-worker.js the typesetter in a worker; src/cleancopy.js prints long bills in parts and joins them
+samples/budget/       the demo budget bills and what comes with them; full/ is all of S.3003-D (tools/make-budget-sample.py)
+vendor/pdf-lib/       pdf-lib 1.17.1 (MIT), to join the parts of a long clean copy
 src/taskpane.*        the pane (Office.js)
 src/cleancopy.js      clean copy PDF in the pane (Typst in WebAssembly + clean-copy/bill.typ)
 tools/docx2akn.cjs    command-line converter (same code)
@@ -93,6 +106,7 @@ tests/flow.cjs        whole flow in Chromium against a Word stand-in (tests/word
                       python3 -m http.server 8123 & node tests/flow.cjs tests/bank-fixture out/
 tests/bank-fixture/   three small Bank files for the flow (tests/make-bank-fixture.cjs)
 tests/budget-flow.cjs budget mode in Chromium against the Word stand-in   (node tests/budget-flow.cjs out/)
+tests/budget-whole.cjs all of S.3003-D: schedules opened and closed, checks, the bill window, the clean copy in parts
 ```
 
 The libraries have no Office dependency, so they run in Node. To try the pane against a real Word, sideload `manifest.xml` as above; to point it at another host, replace `https://raihoheeho.github.io/bill-drafter-word/` in the manifest.
