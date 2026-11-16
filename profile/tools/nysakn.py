@@ -46,14 +46,19 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 MIME = "application/vnd.lbdc.akn-ny+zip"
-KIND, FORMAT, VERSION = "AKN-NY bill package", "akn-ny-package", 1
+KIND, FORMAT, VERSION = "AKN-NY bill package", "akn-ny-package", 2
 PBKDF2_ITER = 310000
 AAD_PAYLOAD, AAD_KEY, HKDF_INFO = b"akn-ny-package-v1 payload", b"akn-ny-package-v1 key", b"akn-ny-package-v1 wrap"
 CARD_FIELDS = ("box", "created", "device", "keyId", "name", "role", "sign", "v")
 MAX_FILES, MAX_ONE, MAX_ALL = 200, 64 << 20, 256 << 20
-README = """This is a signed bill package (.nysakn), version 1, from LBDC's Bill Drafter.
+README = """This is a signed bill package (.nysakn), version 2, from LBDC's Bill Drafter.
 
-bill.akn.xml is the bill in LBDC's AKN-NY profile. manifest.json lists every file with its size and SHA-256,
+bill.akn.xml is the bill in LBDC's AKN-NY profile; preview.html shows it in any browser (it checks nothing).
+activity.json is each person's signed log of what they did to the draft, lawcheck.json the checks against the
+Bank when it was signed, versions/ earlier versions, attachments/ the files that go with it, each signed by the
+person who added it.
+
+ manifest.json lists every file with its size and SHA-256,
 and signature.json holds the signer's Ed25519 signature over the exact bytes of manifest.json. The signer's
 public key is in the manifest, on their card; compare its fingerprint with them before you trust it.
 
@@ -213,9 +218,129 @@ def bill_info(xml: str) -> dict:
     return out
 
 
-def build(xml: bytes, stored_key: dict, copy: str = "working", note: str = "", app: str = "AKN-NY profile tools/nysakn.py") -> bytes:
+# ---------- version 2's parts: canonical JSON, the activity log, attachments, the preview ----------
+
+def canon(v) -> bytes:
+    return json.dumps(v, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+
+
+ENTRY_FIELDS = ("at", "by", "role", "e", "d", "k", "seq", "prev")
+
+
+def add_entry(stored_key: dict, log: list, e: str, d: str = "") -> list:
+    """An activity entry signed with this key, chained to its previous entry (as the Word add-in's addEntry)."""
     card, sk, _ = load_keys(stored_key)
-    parts = [("bill.akn.xml", xml), ("README.txt", README.encode())]
+    mine = [x for x in log if x.get("k") == card["keyId"]]
+    last = mine[-1] if mine else None
+    x = {"at": now(), "by": card["name"], "role": card["role"], "e": e, "d": d, "k": card["keyId"],
+         "seq": last["seq"] + 1 if last else 1, "prev": last["h"] if last else ""}
+    x["h"] = sha256(canon(x))
+    x["sig"] = b64(sk.sign(purpose_message("activity", x["h"].encode())))
+    return log + [x]
+
+
+def check_log(log: list, people: dict) -> dict:
+    out = {"entries": [], "signers": {}, "problems": []}
+    chains: dict[str, list] = {}
+    for x in log:
+        it = dict(x, status="bad")
+        c = people.get(x.get("k"))
+        if not c:
+            it["status"] = "unknown-key"
+        elif sha256(canon({f: x.get(f) for f in ENTRY_FIELDS})) == x.get("h") and verify_for(c, "activity", str(x.get("h")).encode(), x.get("sig", "")):
+            it["status"] = "valid"
+            chains.setdefault(x["k"], []).append(x)
+        out["entries"].append(it)
+    bad = sum(1 for e in out["entries"] if e["status"] == "bad")
+    unknown = sum(1 for e in out["entries"] if e["status"] == "unknown-key")
+    if bad:
+        out["problems"].append(f"{bad} entr{'y' if bad == 1 else 'ies'} of its activity log {'was' if bad == 1 else 'were'} changed after being signed")
+    if unknown:
+        out["problems"].append(f"{unknown} entr{'y' if unknown == 1 else 'ies'} of its activity log {'is' if unknown == 1 else 'are'} signed by a key it does not name")
+    for k, ls in chains.items():
+        ls.sort(key=lambda x: x["seq"])
+        by_seq = {x["seq"]: x for x in ls}
+        s = out["signers"][k] = {"card": people[k], "count": len(ls), "last": ls[-1]["seq"], "head": ls[-1]["h"], "gaps": [], "broken": 0}
+        for n in range(1, s["last"] + 1):
+            x = by_seq.get(n)
+            if not x:
+                s["gaps"].append(n)
+            elif n == 1:
+                s["broken"] += x.get("prev") != ""
+            elif n - 1 in by_seq and x.get("prev") != by_seq[n - 1]["h"]:
+                s["broken"] += 1
+        who = card_text(people[k])
+        if s["gaps"]:
+            g = s["gaps"]
+            out["problems"].append(f"{who}’s activity " + (f"entry {g[0]} is" if len(g) == 1 else "entries " + ", ".join(map(str, g[:8])) + (", …" if len(g) > 8 else "") + " are") + " missing")
+        if s["broken"]:
+            out["problems"].append(f"{who}’s chain of activity entries is broken in {s['broken']} place" + ("" if s["broken"] == 1 else "s"))
+    return out
+
+
+def chain_heads(log: list) -> dict:
+    h = {}
+    for x in log:
+        if x["k"] not in h or x["seq"] > h[x["k"]]["seq"]:
+            h[x["k"]] = {"seq": x["seq"], "h": x["h"]}
+    return h
+
+
+def attach_msg(a: dict) -> bytes:
+    return canon({"name": a["name"], "size": a["size"], "sha256": a["sha256"], "at": a["at"], "by": a.get("by", ""), "k": a.get("k", "")})
+
+
+def safe_name(n: str) -> str:
+    n = re.split(r"[\\/]", str(n or ""))[-1]
+    n = re.sub(r'[\x00-\x1f<>:"|?*]', "_", n).strip()
+    if not n or n.startswith("."):
+        n = "attachment" + n
+    return n[:120]
+
+
+def attachment(stored_key: dict, name: str, data: bytes, mime: str = "") -> dict:
+    card, sk, _ = load_keys(stored_key)
+    a = {"name": safe_name(name), **({"type": mime} if mime else {}), "size": len(data), "sha256": sha256(data), "at": now(), "by": card["name"], "k": card["keyId"]}
+    a["sig"] = b64(sk.sign(purpose_message("attachment", attach_msg(a))))
+    return a
+
+
+def bill_text(xml: str) -> list[str]:
+    t = re.sub(r"<meta>[\s\S]*?</meta>", "", xml, count=1)
+    t = re.sub(r"<ins\b[^>]*>", "\x01", t).replace("</ins>", "\x02")
+    t = re.sub(r"<del\b[^>]*>", "[", t).replace("</del>", "]")
+    t = re.sub(r"</(p|heading|longTitle|formula|docTitle|docNumber|docProponent|docStage|docDate|tr)>", "\n", t)
+    t = re.sub(r"<num\b[^>]*>", "\n", t)
+    t = re.sub(r"<[^>]+>", "", t)
+    for a, b in (("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&apos;", "'"), ("&amp;", "&")):
+        t = t.replace(a, b)
+    return [l for l in (re.sub(r"\s+", " ", x).strip() for x in t.split("\n")) if l]
+
+
+def preview_html(m: dict, xml: str) -> str:
+    import html
+    b = m.get("bill", {})
+    title = "LBD " + b["lbd"] if b.get("lbd") else "Bill"
+    lines = "\n".join("<p>" + html.escape(l).replace("\x01", "<u>").replace("\x02", "</u>") + "</p>" for l in bill_text(xml))
+    pk = m.get("packet")
+    pkt = (f'<div class="packet"><b>Review packet for the {html.escape(pk.get("to", "").lower())}</b>' + (f' · due {html.escape(pk["due"])}' if pk.get("due") else "")
+           + (f'<br>{html.escape(pk["note"])}' if pk.get("note") else "") + "</div>") if pk else ""
+    return ('<!doctype html><html><head><meta charset="utf-8"><title>' + html.escape(title) + '</title><style>body{margin:0;font:14px system-ui,sans-serif;background:#f4f4ef;color:#1f2a24}'
+            'header{padding:20px 28px;background:#fff;border-bottom:1px solid #d6dfd9}h1{font:600 22px Georgia,serif;margin:0 0 6px}.meta{color:#53616a;margin:2px 0}.packet{margin-top:10px;padding:10px 12px;border-left:4px solid #b45309;background:#fff7ed}'
+            'main{max-width:46em;margin:20px auto;padding:24px 32px;background:#fff;font:13.5px/1.55 "Courier New",monospace}main p{margin:0 0 .5em}footer{color:#53616a;font-size:12px;padding:0 28px 28px;max-width:46em;margin:auto}</style></head><body>'
+            f'<header><h1>{html.escape(title)}</h1><p class="meta">{"Clean copy" if m.get("copy") == "clean" else "Working copy"}' + (f' · {html.escape(b["status"])}' if b.get("status") else "")
+            + f' · signed by {html.escape(card_text(m.get("signer")))} · {html.escape(str(m.get("created", ""))[:10])}</p>'
+            f'<p class="meta">Bill fingerprint {html.escape(m.get("fingerprint", ""))} · key {html.escape(key_fingerprint(m.get("signer", {}).get("keyId")))}</p>{pkt}</header><main>{lines}</main>'
+            "<footer>Preview only: it shows what the package holds but checks nothing. The signed bill is bill.akn.xml; check the package in the Bill Drafter for Word or with the AKN-NY profile's tools/nysakn.py check.</footer></body></html>")
+
+
+def build(xml: bytes, stored_key: dict, copy: str = "working", note: str = "", app: str = "AKN-NY profile tools/nysakn.py",
+          packet: dict | None = None, versions: list | None = None, attachments: list | None = None,
+          activity: list | None = None, people: dict | None = None, lawcheck: dict | None = None, pdftext: str | None = None) -> bytes:
+    """versions: [{"xml": bytes, "label", "at", "by"}]; attachments: [(meta from attachment(), data)];
+    activity: entries (add_entry); people: {keyId: card} for the keys that sign the activity and attachments."""
+    card, sk, _ = load_keys(stored_key)
+    parts = [("bill.akn.xml", xml)]
     created = now()
     m = {"kind": KIND, "format": FORMAT, "version": VERSION, "created": created, "app": app,
          "copy": "clean" if copy == "clean" else "working",
@@ -223,6 +348,37 @@ def build(xml: bytes, stored_key: dict, copy: str = "working", note: str = "", a
          "fingerprint": fingerprint_code(sha256(xml))}
     if note:
         m["note"] = note
+    if packet and packet.get("to"):
+        m["packet"] = {k: v for k, v in packet.items() if k in ("to", "due", "note") and v}
+    ppl = {card["keyId"]: {k: card[k] for k in (*CARD_FIELDS, "self")}}
+    def want(k):
+        if k and k not in ppl and people and k in people:
+            ppl[k] = people[k]
+    if activity:
+        for x in activity:
+            want(x.get("k"))
+        parts.append(("activity.json", json.dumps({"entries": activity}, indent=1, ensure_ascii=False).encode()))
+        m["chainHeads"] = chain_heads(activity)
+    if lawcheck:
+        parts.append(("lawcheck.json", json.dumps(lawcheck, indent=1, ensure_ascii=False).encode()))
+    if versions:
+        m["versions"] = []
+        for i, v in enumerate(versions, 1):
+            path = f"versions/{i}.akn.xml"
+            parts.append((path, v["xml"]))
+            vi = bill_info(v["xml"].decode("utf-8", "replace"))
+            m["versions"].append({"path": path, **{k: v[k] for k in ("label", "at", "by") if v.get(k)}, **({"lbd": vi["lbd"]} if vi.get("lbd") else {}), "fingerprint": fingerprint_code(sha256(v["xml"]))})
+    if attachments:
+        m["attachments"] = []
+        for meta, data in attachments:
+            path = f"attachments/{meta['sha256']}/{meta['name']}"
+            want(meta.get("k"))
+            parts.append((path, data))
+            m["attachments"].append({"path": path, **meta})
+    if pdftext is not None:
+        parts.append(("pdftext.txt", pdftext.encode()))
+    m["people"] = ppl
+    parts += [("preview.html", preview_html(m, xml.decode("utf-8", "replace")).encode()), ("README.txt", README.encode())]
     m["files"] = [{"path": p, "size": len(d), "sha256": sha256(d)} for p, d in parts]
     mraw = json.dumps(m, indent=1, ensure_ascii=False).encode()
     sig = {"alg": "Ed25519", "keyId": card["keyId"], "at": created, "sig": b64(sk.sign(purpose_message("manifest", mraw)))}
@@ -265,8 +421,10 @@ def encrypt(inner: bytes, from_card: dict, password: str = "", to: list | None =
         epk = raw_public(ep.public_key())
         n, w = seal(hkdf(ep.exchange(X25519PublicKey.from_public_bytes(pub)), epk + pub), ck, AAD_KEY)
         h["recipients"].append({"type": "x25519", "keyId": c["keyId"], "label": card_text(c), "epk": b64(epk), "nonce": b64(n), "wrapped": b64(w)})
+    note = ('<!doctype html><meta charset="utf-8"><title>Encrypted bill package</title><body style="font:16px system-ui;padding:40px">'
+            '<h1>Encrypted bill package</h1><p>This signed bill package is encrypted. Check it in the Bill Drafter for Word or with tools/nysakn.py check.</p></body>')
     return write_zip([("mimetype", MIME.encode(), True), ("encrypted.json", json.dumps(h, indent=1).encode(), False),
-                      ("payload.bin", ct, True)])
+                      ("preview.html", note.encode(), True), ("payload.bin", ct, True)])
 
 
 def decrypt(h: dict, payload: bytes, password: str = "", stored_key: dict | None = None) -> bytes | None:
@@ -295,6 +453,260 @@ def decrypt(h: dict, payload: bytes, password: str = "", stored_key: dict | None
         except (InvalidTag, ValueError, KeyError):
             continue
     return None
+
+
+# ---------- the words drawn on a PDF's pages (pdftext.txt) ----------
+# The same simple reading as the Word add-in's src/lib/pdftext.js: every string a page shows (Tj, TJ, ', "), in the
+# order its content draws it, each code turned into text through its font's ToUnicode map; compared with all white
+# space removed. General extractors disagree with one another, so both sides use this one.
+
+SPACE = re.compile("[\t\n\v\f\r \u00a0\u1680\u2000-\u200b\u2028\u2029\u202f\u205f\u3000\ufeff]")
+
+
+def squeeze_text(s: str) -> str:
+    return SPACE.sub("", s or "")
+
+
+def _ws(c):
+    return c in (0x20, 0x0A, 0x0D, 0x09, 0x0C, 0x00)
+
+
+def _delim(c):
+    return c in (0x28, 0x29, 0x3C, 0x3E, 0x5B, 0x5D, 0x7B, 0x7D, 0x2F, 0x25)
+
+
+NUMBER = re.compile(r"^[+-]?(\d+\.?\d*|\.\d+)$")
+
+
+def pdf_tokens(u: bytes):
+    i, n = 0, len(u)
+    while i < n:
+        c = u[i]
+        if _ws(c):
+            i += 1
+            continue
+        if c == 0x25:
+            while i < n and u[i] not in (0x0A, 0x0D):
+                i += 1
+            continue
+        if c == 0x28:
+            out, depth = bytearray(), 1
+            i += 1
+            while i < n and depth:
+                b = u[i]
+                i += 1
+                if b == 0x5C:
+                    e = u[i] if i < n else 0
+                    i += 1
+                    if e == 0x6E: out.append(10)
+                    elif e == 0x72: out.append(13)
+                    elif e == 0x74: out.append(9)
+                    elif e == 0x62: out.append(8)
+                    elif e == 0x66: out.append(12)
+                    elif 0x30 <= e <= 0x37:
+                        v, k = e - 48, 0
+                        while k < 2 and i < n and 0x30 <= u[i] <= 0x37:
+                            v = v * 8 + u[i] - 48
+                            i += 1
+                            k += 1
+                        out.append(v & 255)
+                    elif e == 0x0D:
+                        if i < n and u[i] == 0x0A:
+                            i += 1
+                    elif e == 0x0A:
+                        pass
+                    else:
+                        out.append(e)
+                    continue
+                if b == 0x28:
+                    depth += 1
+                elif b == 0x29:
+                    depth -= 1
+                    if not depth:
+                        break
+                out.append(b)
+            yield ("s", bytes(out))
+            continue
+        if c == 0x3C and i + 1 < n and u[i + 1] == 0x3C:
+            yield ("op", "<<"); i += 2; continue
+        if c == 0x3E and i + 1 < n and u[i + 1] == 0x3E:
+            yield ("op", ">>"); i += 2; continue
+        if c == 0x3C:
+            h = ""
+            i += 1
+            while i < n and u[i] != 0x3E:
+                ch = chr(u[i]); i += 1
+                if ch in "0123456789abcdefABCDEF":
+                    h += ch
+            i += 1
+            if len(h) % 2:
+                h += "0"
+            yield ("s", bytes.fromhex(h))
+            continue
+        if c == 0x5B:
+            yield ("op", "["); i += 1; continue
+        if c == 0x5D:
+            yield ("op", "]"); i += 1; continue
+        if c == 0x2F:
+            j = i + 1
+            while j < n and not _ws(u[j]) and not _delim(u[j]):
+                j += 1
+            yield ("name", u[i + 1:j].decode("latin1"))
+            i = j
+            continue
+        j = i
+        while j < n and not _ws(u[j]) and not _delim(u[j]):
+            j += 1
+        if j == i:
+            i += 1
+            continue
+        w = u[i:j].decode("latin1")
+        i = j
+        yield ("num", float(w)) if NUMBER.match(w) else ("op", w)
+        if w == "ID":
+            i += 1
+            while i < n and not (u[i] == 0x45 and i + 1 < n and u[i + 1] == 0x49 and (i + 2 >= n or _ws(u[i + 2]))):
+                i += 1
+            i += 2
+
+
+def _utf16(b: bytes) -> str:
+    return "".join(chr((b[k] << 8) | b[k + 1]) for k in range(0, len(b) - 1, 2))
+
+
+def parse_cmap(u: bytes):
+    toks = list(pdf_tokens(u))
+    m, width, k = {}, 0, 0
+    while k < len(toks):
+        kind, v = toks[k]
+        if kind == "op" and v == "begincodespacerange" and k + 1 < len(toks) and toks[k + 1][0] == "s":
+            width = len(toks[k + 1][1])
+        if kind == "op" and v == "beginbfchar":
+            k += 1
+            while k + 1 < len(toks) and toks[k] != ("op", "endbfchar"):
+                if toks[k][0] == "s" and toks[k + 1][0] == "s":
+                    m[toks[k][1].hex()] = _utf16(toks[k + 1][1])
+                k += 2
+        if kind == "op" and v == "beginbfrange":
+            k += 1
+            while k < len(toks) and toks[k] != ("op", "endbfrange"):
+                lo, hi = toks[k], toks[k + 1] if k + 1 < len(toks) else ("", None)
+                dst = toks[k + 2] if k + 2 < len(toks) else ("", None)
+                if lo[0] != "s" or hi[0] != "s":
+                    k += 1
+                    continue
+                w, a, b = len(lo[1]), int(lo[1].hex(), 16), int(hi[1].hex(), 16)
+                if dst[0] == "s":
+                    for val in range(a, min(b, a + 65535) + 1):
+                        d = bytearray(dst[1]); carry, p = val - a, len(d) - 1
+                        while carry and p >= 0:
+                            s0 = d[p] + carry; d[p] = s0 & 255; carry = s0 >> 8; p -= 1
+                        m[format(val, "0%dx" % (w * 2))] = _utf16(bytes(d))
+                    k += 3
+                elif dst == ("op", "["):
+                    val = a
+                    k += 3
+                    while k < len(toks) and toks[k] != ("op", "]"):
+                        if toks[k][0] == "s":
+                            m[format(val, "0%dx" % (w * 2))] = _utf16(toks[k][1]); val += 1
+                        k += 1
+                    k += 1
+                else:
+                    k += 3
+        k += 1
+    return m, width
+
+
+def pdf_pages_text(pdf: bytes) -> list[str]:
+    from pypdf import PdfReader
+    from pypdf.generic import ArrayObject, IndirectObject
+    reader = PdfReader(io.BytesIO(pdf))
+    cache = {}
+
+    def font_info(ref):
+        key = (ref.idnum, ref.generation) if isinstance(ref, IndirectObject) else id(ref)
+        if key in cache:
+            return cache[key]
+        f = ref.get_object()
+        tu = f.get("/ToUnicode")
+        m, width = parse_cmap(tu.get_object().get_data()) if tu is not None else ({}, 0)
+        if not width:
+            width = 2 if f.get("/Subtype") == "/Type0" else 1
+        cache[key] = (m, width)
+        return cache[key]
+
+    def run(data: bytes, resources, out: list, depth: int):
+        if depth > 8:
+            return
+        resources = resources.get_object() if resources is not None else {}
+        fonts = resources.get("/Font")
+        fonts = fonts.get_object() if fonts is not None else {}
+        xobjs = resources.get("/XObject")
+        xobjs = xobjs.get_object() if xobjs is not None else {}
+        font, stack = None, []
+
+        def show(s: bytes):
+            if not font:
+                return
+            m, w = font
+            for k in range(0, len(s) - w + 1, w):
+                out.append(m.get(s[k:k + w].hex(), ""))
+
+        for kind, v in pdf_tokens(data):
+            if kind != "op" or v in ("[", "<<"):
+                stack.append((kind, v))
+                continue
+            if v == "]":
+                arr = []
+                while stack and stack[-1] != ("op", "["):
+                    arr.insert(0, stack.pop())
+                if stack:
+                    stack.pop()
+                stack.append(("arr", arr))
+                continue
+            if v == ">>":
+                while stack and stack[-1] != ("op", "<<"):
+                    stack.pop()
+                if stack:
+                    stack.pop()
+                stack.append(("dict", None))
+                continue
+            args, stack = stack, []
+            if v == "Tf":
+                nm = next((a[1] for a in args if a[0] == "name"), None)
+                ref = fonts.get("/" + nm) if nm else None
+                font = font_info(ref) if ref is not None else None
+            elif v in ("Tj", "'", '"'):
+                ss = [a[1] for a in args if a[0] == "s"]
+                if ss:
+                    show(ss[-1])
+            elif v == "TJ":
+                arr = next((a[1] for a in args if a[0] == "arr"), None)
+                for e in arr or []:
+                    if e[0] == "s":
+                        show(e[1])
+            elif v == "Do":
+                nm = next((a[1] for a in args if a[0] == "name"), None)
+                x = xobjs.get("/" + nm) if nm else None
+                if x is not None:
+                    x = x.get_object()
+                    if x.get("/Subtype") == "/Form":
+                        run(x.get_data(), x.get("/Resources", resources), out, depth + 1)
+
+    pages = []
+    for page in reader.pages:
+        c = page.get("/Contents")
+        datas = []
+        if c is not None:
+            c = c.get_object()
+            if isinstance(c, ArrayObject):
+                datas = [x.get_object().get_data() for x in c]
+            else:
+                datas = [c.get_data()]
+        out = []
+        run(b"".join(d + b"\n" for d in datas), page.get("/Resources"), out, 0)
+        pages.append("".join(out))
+    return pages
 
 
 # ---------- checking ----------
@@ -366,11 +778,111 @@ def open_package(data: bytes, password: str = "", stored_key: dict | None = None
         o["fingerprint"] = fingerprint_code(sha256(xml))
         if m.get("fingerprint") and m["fingerprint"] != o["fingerprint"]:
             o["problems"].append("the fingerprint in its manifest is not the bill’s")
+    open_parts(o, m, files, listed)
     s = o["signature"]
     if s.get("status") == "valid" and s.get("trust") != "trusted":
         o["warnings"].append(f"Signed by {card_text(card)}, whose key is not on the trusted list. Compare the fingerprint "
                              f"{s['fingerprint']} with them (in person or by phone) before you rely on it.")
     return o
+
+
+def open_parts(o: dict, m: dict, files: dict, listed: set) -> None:
+    """Version 2's parts, checked as the Word add-in checks them (package.js openParts)."""
+    def got(p):
+        return files.get(p) if p in listed else None
+
+    def load(p):
+        b = got(p)
+        if b is None:
+            return None
+        try:
+            return json.loads(b)
+        except ValueError:
+            return ValueError
+    people = {}
+    for k, c in (m.get("people") or {}).items():
+        if isinstance(c, dict) and c.get("keyId") == k and card_valid(c):
+            people[k] = c
+        else:
+            o["problems"].append(f"the card it carries for {card_text(c if isinstance(c, dict) else None)} is not genuine")
+    sg = m.get("signer")
+    if isinstance(sg, dict) and sg.get("keyId") not in people and card_valid(sg):
+        people[sg["keyId"]] = sg
+    o["people"] = people
+    o["packet"] = m.get("packet")
+    act = load("activity.json")
+    if act is ValueError:
+        o["problems"].append("its activity log (activity.json) is damaged")
+    elif act is not None or m.get("chainHeads"):
+        r = check_log((act or {}).get("entries") or [], people)
+        o["activity"] = r
+        o["problems"].extend(r["problems"])
+        for k, w in (m.get("chainHeads") or {}).items():
+            s = r["signers"].get(k)
+            if not s or s["last"] < w["seq"] or (s["last"] == w["seq"] and s["head"] != w["h"]):
+                o["problems"].append("activity entries were taken out after the package was signed")
+                break
+    o["attachments"] = []
+    for a in m.get("attachments") or []:
+        b, it = got(a.get("path")), dict(a, status="bad")
+        if b is None or len(b) != a.get("size") or sha256(b) != a.get("sha256") or a.get("path") != f"attachments/{a.get('sha256')}/{a.get('name')}":
+            o["problems"].append(f"the attachment {a.get('name')} is missing or changed")
+        elif a.get("k") not in people:
+            it["status"] = "unknown-key"
+            o["problems"].append(f"the attachment {a.get('name')} is signed by a key the package does not name")
+        elif not verify_for(people[a["k"]], "attachment", attach_msg(a), a.get("sig", "")):
+            o["problems"].append(f"the attachment {a.get('name')}’s signature does not match it")
+        else:
+            it["status"], it["signer"] = "valid", people[a["k"]]["name"]
+        o["attachments"].append(it)
+    o["versions"] = []
+    for v in m.get("versions") or []:
+        b = got(v.get("path"))
+        if b is None:
+            o["problems"].append(f"the earlier version {v.get('label') or v.get('path')} is missing")
+            continue
+        if v.get("fingerprint") and v["fingerprint"] != fingerprint_code(sha256(b)):
+            o["problems"].append(f"the earlier version {v.get('label') or v.get('path')} is not the one its manifest names")
+        o["versions"].append(v)
+    lc = load("lawcheck.json")
+    if lc is ValueError:
+        o["warnings"].append("Its law check (lawcheck.json) could not be read.")
+    else:
+        o["lawcheck"] = lc
+    pt = got("pdftext.txt")
+    o["pdftext"] = pt.decode("utf-8", "replace") if pt is not None else None
+
+
+def signoffs_unsigned(xml: bytes, act: dict | None) -> list[str]:
+    """Sign-offs standing in a working copy that no valid activity entry of their examiner records (section and hash)."""
+    if not act:
+        return []
+    from lxml import etree
+    A, L = "http://docs.oasis-open.org/legaldocml/ns/akn/3.0", "urn:x-lbdc:akn:1.0"
+    try:
+        doc = etree.fromstring(xml)
+    except etree.XMLSyntaxError:
+        return []
+    names = {p.get("eId"): p.get("showAs") for p in doc.iter("{%s}TLCPerson" % A)}
+    standing = {}
+    for wf in doc.iter("{%s}workflow" % A):
+        if wf.get("source") != "#lbdc-review":
+            continue
+        for st in wf.iter("{%s}step" % A):
+            sec = st.get("{%s}section" % L)
+            if not sec:
+                continue
+            if st.get("refersTo") == "#signedOff":
+                standing[sec] = st
+            elif st.get("refersTo") == "#signoffWithdrawn":
+                standing.pop(sec, None)
+    out = []
+    for sec, st in standing.items():
+        who = names.get((st.get("by") or "").lstrip("#"), (st.get("by") or "").lstrip("#"))
+        d = f"{sec} {st.get('{%s}hash' % L)}"
+        if not any(e["status"] == "valid" and e.get("e") == "signedOff" and e.get("by") == who and e.get("d") == d for e in act["entries"]):
+            out.append(f"The sign-off of {sec.replace('sec_', '§ ')} by {who} is not in {who}’s signed activity.")
+    return out
 
 
 def profile_findings(xml: bytes) -> list[str]:
@@ -384,7 +896,7 @@ def profile_findings(xml: bytes) -> list[str]:
     return [f"Profile {pr.severity}: {pr.where}: {pr.message}" for pr in r.problems]
 
 
-def pdf_package(pdf: bytes) -> tuple[bytes, list[str]]:
+def pdf_package(pdf: bytes) -> tuple[bytes, list[str]]:  # noqa: D401
     from pypdf import PdfReader
     reader = PdfReader(io.BytesIO(pdf))
     att = reader.attachments
@@ -435,9 +947,21 @@ def check(path: Path, password: str = "", stored_key: dict | None = None, truste
     pages = None
     if data[:4] == b"%PDF":
         data, pages = pdf_package(data)
+    raw_pdf = path.read_bytes() if pages is not None else None
     o = open_package(data, password, stored_key, trusted)
     o["file"] = str(path)
     o["pdf"] = pages is not None
+    if raw_pdf is not None and o.get("pdftext") is not None:
+        drawn, want = pdf_pages_text(raw_pdf), o["pdftext"].split("\f")
+        if len(drawn) != len(want):
+            o["problems"].append(f"the PDF has {len(drawn)} pages, but its signed package says {len(want)}")
+        else:
+            for i, (a, b) in enumerate(zip(drawn, want), 1):
+                if squeeze_text(a) != squeeze_text(b):
+                    o["problems"].append(f"the words on page {i} of the PDF are not the words it was signed with")
+            o["pages_checked"] = len(drawn) if not any("words on page" in p for p in o["problems"]) else 0
+    if o.get("xml") is not None:
+        o["warnings"].extend(signoffs_unsigned(o["xml"], o.get("activity")))
     if pages is not None and o.get("fingerprint"):
         code = o["fingerprint"]
         for i, t in enumerate(pages, 1):
@@ -476,6 +1000,25 @@ def report(o: dict) -> str:
         lines.append(f"  fingerprint {o['fingerprint']}" + (" (on every page of the PDF)" if o.get("pdf") and not any("page" in p for p in o["problems"]) else ""))
     if o.get("encrypted"):
         lines.append("  was encrypted for " + ", ".join(o.get("recipients", [])))
+    if o.get("pages_checked"):
+        lines.append(f"  the words on all {o['pages_checked']} pages are the words it was signed with")
+    pk = o.get("packet")
+    if pk:
+        lines.append(f"  review packet for the {pk.get('to', '').lower()}" + (f", due {pk['due']}" if pk.get("due") else "") + (f": {pk['note']}" if pk.get("note") else ""))
+    if m.get("note"):
+        lines.append(f"  note: {m['note']}")
+    act = o.get("activity")
+    if act:
+        who = ", ".join(f"{v['card']['name']} ({v['count']})" for v in act["signers"].values())
+        lines.append(f"  activity: {len(act['entries'])} signed entr{'y' if len(act['entries']) == 1 else 'ies'}" + (f" by {who}" if who else "") + ("" if act["problems"] else "; every chain is whole"))
+    for a in o.get("attachments") or []:
+        lines.append(f"  attachment {a['name']} ({a['size']:,} bytes)" + (f", signed by {a['signer']}" if a.get("signer") else f", {a['status']}"))
+    for v in o.get("versions") or []:
+        lines.append(f"  earlier version {v.get('label') or v['path']}" + (f", {v['at'][:10]}" if v.get("at") else "") + f", fingerprint {v.get('fingerprint')}")
+    lc = o.get("lawcheck")
+    if lc:
+        lines.append(f"  when signed, the checks found {lc.get('errors', 0)} error(s) and {lc.get('warnings', 0)} warning(s)"
+                     + (" against the Bank: " + ", ".join(f"{k} ({v or 'not in the Bank'})" for k, v in (lc.get("bank") or {}).items()) if lc.get("bank") else ""))
     for p in (o["void"] or {}).get("reasons", []):
         lines.append(f"  VOID: {p}")
     for w in o["warnings"]:
@@ -504,6 +1047,11 @@ def main(argv=None) -> int:
     mk.add_argument("--key", type=Path, required=True)
     mk.add_argument("--copy", choices=["working", "clean"], default="working")
     mk.add_argument("--note", default="")
+    mk.add_argument("--packet-to", choices=["Drafter", "Examiner", "Proofreader"], help="send it as a review packet for this role")
+    mk.add_argument("--due", default="", help="the review packet's due date (YYYY-MM-DD)")
+    mk.add_argument("--attach", type=Path, nargs="*", default=[], help="files to attach (signed with --key)")
+    mk.add_argument("--version", type=Path, nargs="*", default=[], dest="versions", help="earlier versions of the bill (.akn.xml)")
+    mk.add_argument("--lawcheck", type=Path, help="a law check to carry (JSON, as the Word add-in writes it)")
     mk.add_argument("--password-env", metavar="VAR", help="encrypt with the password in this environment variable")
     mk.add_argument("--to", type=Path, nargs="*", default=[], help="encrypt for these people (card files)")
     mk.add_argument("-o", "--out", type=Path, required=True)
@@ -529,7 +1077,13 @@ def main(argv=None) -> int:
         return 0
     if a.cmd == "make":
         stored = json.loads(a.key.read_text())
-        inner = build(a.xml.read_bytes(), stored, a.copy, a.note)
+        import mimetypes
+        log = add_entry(stored, [], "packageSaved", f"{a.copy} {fingerprint_code(sha256(a.xml.read_bytes()))}")
+        atts = [(attachment(stored, f.name, f.read_bytes(), mimetypes.guess_type(f.name)[0] or ""), f.read_bytes()) for f in a.attach]
+        vers = [{"xml": f.read_bytes(), "label": re.sub(r"(\.akn)?\.xml$", "", f.name), "at": datetime.fromtimestamp(f.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")} for f in a.versions]
+        inner = build(a.xml.read_bytes(), stored, a.copy, "" if a.packet_to else a.note,
+                      packet={"to": a.packet_to, "due": a.due, "note": a.note} if a.packet_to else None,
+                      versions=vers, attachments=atts, activity=log, lawcheck=json.loads(a.lawcheck.read_text()) if a.lawcheck else None)
         out = encrypt(inner, stored["card"], os.environ.get(a.password_env, "") if a.password_env else "", [read_card(str(p)) for p in a.to])
         a.out.write_bytes(out)
         print(f"Signed {a.out} ({len(out):,} bytes); fingerprint {fingerprint_code(sha256(a.xml.read_bytes()))}")
@@ -544,7 +1098,7 @@ def main(argv=None) -> int:
         print(json.dumps({"file": str(a.file), "unreadable": str(e)}) if a.json else f"Not opened: {a.file}: {e}")
         return 3
     if a.json:
-        o = {k: v for k, v in o.items() if k != "xml"}
+        o = {k: v for k, v in o.items() if k not in ("xml", "pdftext")}
         print(json.dumps(o, indent=1, ensure_ascii=False))
     else:
         print(report(o))

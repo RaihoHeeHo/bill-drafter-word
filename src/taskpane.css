@@ -250,3 +250,15 @@ ul.bad, p.bad { color: var(--err); }
 /* renumbering choices */
 .actions label > input#rn-from, .actions label > input#rn-to { width: 52px; }
 .actions label.sub { margin-left: 22px; }
+
+/* package parts */
+ul.files { list-style: none; padding: 0; margin: 4px 0 6px; }
+ul.files li { display: flex; flex-wrap: wrap; gap: 4px; align-items: baseline; padding: 2px 0; }
+ul.files li .chips { margin-left: auto; }
+.packet { margin: 6px 0; padding: 8px 10px; border-left: 4px solid #b45309; background: rgba(180,83,9,.08); }
+ol.activity { margin: 4px 0 6px 18px; padding: 0; font-size: 12px; }
+ol.activity li.bad, ul li.bad { color: var(--err); }
+p.sub-h { font-weight: 600; margin: 8px 0 0; }
+textarea#pk-note { width: 100%; box-sizing: border-box; font: inherit; }
+#pk-packet-box { align-items: center; gap: 6px; flex-wrap: wrap; }
+#pk-packet-box select, #pk-packet-box input { width: auto; flex: 0 0 auto; }

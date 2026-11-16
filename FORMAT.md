@@ -97,7 +97,7 @@ A table with a caption or groups is written as the profile's *named table*. That
 
 ## Signed packages
 
-The review's custom XML part (`urn:x-lbdc:bill-drafter:review`) also holds `cards`: each person's public card (name, role, Ed25519 and X25519 public keys, key id, self-signature), added when they say who they are. Private keys stay in the browser's storage on each computer (`bill-drafter-key:<name>|<role>`), as do the keys each person trusts (`bill-drafter-trusted:<name>`). A `.nysakn` package holds the XML the pane writes, signed; a signed clean copy PDF embeds `bill.nysakn` and `bill.akn.xml`. The format is in `profile/PACKAGE.md`.
+The review's custom XML part (`urn:x-lbdc:bill-drafter:review`) also holds `activity` (the signed, hash-chained log: `at`, `by`, `role`, `e`, `d`, `k`, `seq`, `prev`, `h`, `sig`), `attachments` (each attachment's signed record; the file itself is in its own part, `<file xmlns="urn:x-lbdc:bill-drafter:file" sha256="…">` base64), and `cards`: each person's public card (name, role, Ed25519 and X25519 public keys, key id, self-signature), added when they say who they are. Private keys stay in the browser's storage on each computer (`bill-drafter-key:<name>|<role>`), as do the keys each person trusts (`bill-drafter-trusted:<name>`). Each package or clean copy saved keeps its XML as `<version xmlns="urn:x-lbdc:bill-drafter:version" at by label fingerprint encoding="gzip-base64">`. A `.nysakn` package holds the XML the pane writes, signed; a signed clean copy PDF embeds `bill.nysakn` and `bill.akn.xml`. The format is in `profile/PACKAGE.md`.
 
 ## Document properties
 

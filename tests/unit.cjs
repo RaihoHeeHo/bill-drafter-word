@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'package', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'package', 'pdftext', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -460,6 +460,45 @@ pending.push((async () => {
   f = (await BD.check({ title: null, enacting: null, sections: S2 }, getLaw)).map(x => x.text);
   assert.ok(f.some(t => /renumbers subdivision 2 as 1, but section 296 already has a subdivision 1/.test(t)), f.join(' | '));
   n++; console.log('ok - renumberings checked against the Bank');
+})());
+// Signed packages, version 2: the activity log, attachments, versions, packet, law check, and the words on a PDF's pages.
+pending.push((async () => {
+  const P = BD.nysakn, cp = require('child_process'), os = require('os');
+  globalThis.PDFLib = globalThis.PDFLib || require('pdf-lib');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill.akn.xml'), 'utf8');
+  const ann = await P.makeKeys({ name: 'Ann Drafter', role: 'drafter' }), ed = await P.makeKeys({ name: 'Ed Examiner', role: 'examiner' });
+  const ka = await P.loadKeys(ann), ke = await P.loadKeys(ed);
+  let log = await P.addEntry(ka, [], { e: 'drafted', d: 'sec_1' }); log = await P.addEntry(ke, log, { e: 'signedOff', d: 'sec_1 abc' }); log = await P.addEntry(ka, log, { e: 'packageSaved', d: 'working' });
+  const memo = new TextEncoder().encode('Request memo.'), att = await P.attachment(ke, 'memo.txt', 'text/plain', memo), people = { [ed.card.keyId]: ed.card };
+  const z = await P.build({ xml, keys: ka, packet: { to: 'Examiner', due: '2026-11-20', note: 'Section 2' }, versions: [{ xml: xml.replace('1234', '1233'), label: 'first draft' }], attachments: [{ meta: att, data: memo }], activity: log, people, lawcheck: { errors: 0, warnings: 0 } });
+  let o = await P.open(z, { trusted: new Set([ann.card.keyId]) });
+  assert.strictEqual(o.void, null, JSON.stringify(o.void)); assert.deepStrictEqual(o.activity.entries.map(e => e.status), ['valid', 'valid', 'valid']);
+  assert.strictEqual(o.attachments[0].status, 'valid'); assert.strictEqual(o.versions[0].label, 'first draft'); assert.strictEqual(o.packet.to, 'Examiner');
+  o = await P.open(await P.build({ xml, keys: ka, activity: log.filter(e => !(e.k === ann.card.keyId && e.seq === 1)), people }));
+  assert.ok(o.void && o.void.reasons.some(r => /activity entry 1 is missing/.test(r)), JSON.stringify(o.void));
+  const t = JSON.parse(JSON.stringify(log)); t[1].d = 'sec_2 abc';
+  o = await P.open(await P.build({ xml, keys: ka, activity: t, people }));
+  assert.ok(o.void && o.void.reasons.some(r => /changed after being signed/.test(r)));
+  o = await P.open(await P.build({ xml, keys: ka, attachments: [{ meta: { ...att, name: 'other.txt' }, data: memo }], people }));
+  assert.ok(o.void && o.void.reasons.some(r => /other.txt.*signature does not match/.test(r)), JSON.stringify(o.void));
+  // the words on a PDF's pages: this reader and the profile's agree, and a page with other words is VOID
+  const pdf = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill - clean copy.pdf'));
+  const pages = await BD.pdftext.pdfPagesText(pdf);
+  assert.ok(pages.length > 1 && /STATEOFNEWYORK/.test(BD.pdftext.squeeze(pages[0])), pages[0].slice(0, 80));
+  const pz = await P.build({ xml, keys: ka, copy: 'clean', pdftext: pages.join('\f') });
+  assert.strictEqual((await P.open(pz, { pdf })).pagesChecked, pages.length);
+  const other = await P.build({ xml, keys: ka, copy: 'clean', pdftext: pages.map((p, i) => i === 1 ? p.replace(/e/, 'E') : p).join('\f') });
+  o = await P.open(other, { pdf }); assert.ok(o.void && o.void.reasons.some(r => /words on page 2 of the PDF/.test(r)), JSON.stringify(o.void));
+  n++; console.log('ok - signed packages, version 2: activity, attachments, versions, packet, a PDF\'s pages');
+  try { cp.execFileSync('python3', ['-c', 'import cryptography, lxml, pypdf'], { stdio: 'ignore' }); } catch (x) { console.log('   (Python side skipped)'); return; }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nysakn2-')), tool = path.join(__dirname, '..', 'profile', 'tools', 'nysakn.py');
+  fs.writeFileSync(path.join(dir, 'v2.nysakn'), z);
+  let r = cp.spawnSync('python3', [tool, 'check', path.join(dir, 'v2.nysakn'), '--trust', ann.card.keyId, '--no-profile', '--json'], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const j = JSON.parse(r.stdout); assert.strictEqual(j.activity.entries.length, 3); assert.strictEqual(j.attachments[0].status, 'valid');
+  const py = JSON.parse(cp.execFileSync('python3', ['-c', 'import sys,json; sys.path.insert(0, sys.argv[1]); import nysakn as N; print(json.dumps([N.squeeze_text(t) for t in N.pdf_pages_text(open(sys.argv[2], "rb").read())]))', path.dirname(tool), path.join(__dirname, '..', 'examples', 'Example bill - clean copy.pdf')], { encoding: 'utf8' }));
+  assert.deepStrictEqual(py, pages.map(BD.pdftext.squeeze));
+  n++; console.log('ok - version 2 packages and the page reader agree with the profile\'s tools/nysakn.py');
 })());
 // Signed packages (.nysakn): made and checked here and by the profile's tools/nysakn.py, each checking the other's.
 pending.push((async () => {

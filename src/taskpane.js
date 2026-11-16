@@ -738,7 +738,7 @@ function infoSummary() {
    examiner, proofreader, examiner, drafter; its steps and everyone's role are kept in the document, in a custom XML
    part of their own. Who is at this computer is kept on this computer. */
 const NSR = 'urn:x-lbdc:bill-drafter:review', RV = BD.review;
-let review = { roles: {}, steps: [], cards: {} }, reviewPart = null;
+let review = { roles: {}, steps: [], cards: {}, activity: [], attachments: [] }, reviewPart = null;
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 const waitingText = m => 'Not made: ' + plural(m.suggestions.total, 'suggested change') + ' (Word\'s tracked changes) ' + (m.suggestions.total === 1 ? 'waits' : 'wait') + ' to be accepted or rejected. Settle ' + (m.suggestions.total === 1 ? 'it' : 'them') + ' (Review tab), then make the clean copy.';
 const peopleOf = m => [...new Set([...((m && m.suggestions && m.suggestions.people) || []), ...RV.stepPeople(review.steps)])];
@@ -751,7 +751,7 @@ async function loadReview() {
   const cx = Office.context.document.customXmlParts, ps = await xcall(cx.getByNamespaceAsync.bind(cx), NSR);
   for (const p of ps) {
     const r = new DOMParser().parseFromString(await xcall(p.getXmlAsync.bind(p)), 'application/xml').documentElement;
-    try { const v = JSON.parse(r.textContent); review = { roles: v.roles || {}, steps: v.steps || [], cards: v.cards || {} }; reviewPart = p; } catch (e) { /* not ours */ }
+    try { const v = JSON.parse(r.textContent); review = { roles: v.roles || {}, steps: v.steps || [], cards: v.cards || {}, activity: v.activity || [], attachments: v.attachments || [] }; reviewPart = p; } catch (e) { /* not ours */ }
   }
   if (!reviewPart && Office.context.requirements.isSetSupported('WordApi', '1.3')) { // roles kept by the earlier version
     await Word.run(async ctx => {
@@ -790,8 +790,11 @@ async function currentXml(model) {
   const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: { roles: review.roles, steps: review.steps } };
   return BD.toAkn(model, info);
 }
-function step(event, extra) {
-  const m = me(); review.steps.push({ at: new Date().toISOString(), by: m.name, role: m.role, event, ...(extra || {}) });
+// A review step, recorded in the working copy and in the signed activity log.
+async function step(event, extra) {
+  const m = me(), at = new Date().toISOString(); review.steps.push({ at, by: m.name, role: m.role, event, ...(extra || {}) });
+  const x = extra || {};
+  await logActivity(event, [x.section, x.hash, x.suggestionBy].filter(Boolean).join(' '), at);
 }
 const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
 let reviewDrawn = 0, drawToken = 0;
@@ -829,7 +832,7 @@ async function drawReview(model) {
       b.onclick = () => busy(b, () => sgo && !stale ? withdraw(eid) : signOff(i));
       chips.append(b);
     }
-    if (RV.mayProofread(m) && !p) { const b = el('button', { className: 'mini', textContent: 'Proofread' }); b.onclick = () => busy(b, async () => { step('proofread', { section: eid }); await saveReview(); await drawReview(state.model); }); chips.append(b); }
+    if (RV.mayProofread(m) && !p) { const b = el('button', { className: 'mini', textContent: 'Proofread' }); b.onclick = () => busy(b, async () => { await step('proofread', { section: eid }); await saveReview(); await drawReview(state.model); }); chips.append(b); }
     const stale = sgo && xml && hashes[eid] !== sgo.hash;
     sl.append(el('li', { className: stale ? 'stale' : '' }, el('span', { className: 'n', textContent: s.num || '§ ?' }), ' ', el('span', { className: 'what', textContent: bits.join('; ') || 'Not signed off' }), ' ', chips));
   });
@@ -845,7 +848,7 @@ function needMe() {
 }
 async function sendOn() {
   const h = RV.handOff(review.steps, needMe()); if (!h.ok) throw new Error(h.why);
-  step(h.event); await saveReview(); await drawReview(state.model);
+  await step(h.event); await saveReview(); await drawReview(state.model);
   notice(RV.EVENTS[h.event] + '. The draft is ' + RV.STATUS[RV.statusOf(review.steps)] + '.');
 }
 async function signOff(i) {
@@ -855,11 +858,11 @@ async function signOff(i) {
   if (missing.length) throw new Error('Give a review role to ' + missing.join(', ') + ' first (People, below).');
   const eid = 'sec_' + (i + 1), hash = await RV.sectionHash(await currentXml(model), eid);
   if (!hash) throw new Error('That section is not in the bill any more.');
-  step('signedOff', { section: eid, hash }); await saveReview(); await refresh();
+  await step('signedOff', { section: eid, hash }); await saveReview(); await refresh();
   notice('Signed off ' + (model.sections[i].num || eid).replace(/\.$/, '') + '.');
 }
 async function withdraw(eid) {
-  needMe(); step('signoffWithdrawn', { section: eid }); await saveReview(); await drawReview(state.model);
+  needMe(); await step('signoffWithdrawn', { section: eid }); await saveReview(); await drawReview(state.model);
 }
 // Accept or reject one suggestion through Word's tracked changes (WordApi 1.6), as the rules allow, and record it.
 async function decide(it, accept) {
@@ -875,7 +878,7 @@ async function decide(it, accept) {
     await ctx.sync(); return true;
   });
   if (!done) throw new Error('Word did not find that tracked change; it may have been settled already. Look in Word\'s Review tab.');
-  step(accept ? 'accepted' : 'rejected', { suggestionBy: it.by }); await saveReview(); await refresh();
+  await step(accept ? 'accepted' : 'rejected', { suggestionBy: it.by }); await saveReview(); await refresh();
   notice((accept ? 'Accepted' : 'Rejected') + ' ' + it.by + '\'s suggestion.' + (accept ? ' Mark changes will bracket and underline it against the Bank.' : ''));
 }
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
@@ -908,7 +911,13 @@ async function toPdf() {
   let keys = null; try { if (me()) keys = await myKeys(); } catch (e) { /* not signed */ }
   const fp = keys ? await PK.xmlFingerprint(aknText) : '';
   let pdf = await BD.cleanCopyPdf(aknText, status, fp ? [['fingerprint', fp]] : []);
-  if (keys) { status('Signing…'); pdf = await PK.embedInPdf(pdf, await PK.build({ xml: aknText, keys, copy: 'clean' }), aknText); }
+  if (keys) {
+    status('Signing…');
+    const pdftext = (await BD.pdftext.pdfPagesText(pdf)).join('\f');
+    await logActivity('cleanCopyMade', fp); await saveReview();
+    pdf = await PK.embedInPdf(pdf, await PK.build({ xml: aknText, keys, copy: 'clean', activity: review.activity, people: peopleByKey(), lawcheck: await lawCheck(), pdftext }), aknText);
+    await keepVersion(aknText, 'Clean copy made by ' + keys.card.name); drawVersionsCount();
+  }
   if (pdfUrl) URL.revokeObjectURL(pdfUrl);
   pdfUrl = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
   $('pdf-open').disabled = $('pdf-save').disabled = false; $('pdf-actions').hidden = false;
@@ -932,7 +941,9 @@ function savePdf() {
    who signed what. The clean copy is signed too: its pages carry the bill's fingerprint and the PDF carries its signed
    package. Keys kept in the browser are for the demonstration: in production signatures would rest on the state's own
    sign-ins or certificates. */
-const PK = BD.nysakn;
+const ACT_NAME = { packageSaved: 'Package saved', cleanCopyMade: 'Clean copy made', attachmentAdded: 'Attachment added', attachmentRemoved: 'Attachment removed' };
+const PK = BD.nysakn, PK_plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+async function drawVersionsCount() { const n = (await versionsKept()).length; if ($('pk-versions-n')) $('pk-versions-n').textContent = n ? ' (' + n + ' kept in this document)' : ' (none kept yet)'; $('pk-versions').disabled = !n; }
 const keyName = m => 'bill-drafter-key:' + m.name + '|' + m.role;
 // The keys each person at this computer trusts (their own among them).
 const trustName = () => 'bill-drafter-trusted:' + ((me() && me().name) || '');
@@ -947,6 +958,82 @@ async function myKeys() {
   if (!had || had.keyId !== keys.card.keyId) { review.cards[m.name] = PK.cardOf(keys.card); await saveReview(); drawLock(); }
   return keys;
 }
+// The signed activity log (src/lib/package.js addEntry): one hash-chained entry per thing each person does, signed
+// with their key, kept in the review part and carried by the packages saved from this document.
+async function logActivity(e, d, at) {
+  const keys = await myKeys();
+  review.activity = await PK.addEntry(keys, review.activity, { e, d, at });
+}
+const peopleByKey = () => { const o = {}; for (const c of Object.values(review.cards || {})) if (c && c.keyId) o[c.keyId] = c; return o; };
+
+/* Earlier versions: the XML of every package and clean copy saved from this document, kept in it (custom XML
+   parts, gzip + base64 where the browser can), so a later package can carry them. */
+const NSV = 'urn:x-lbdc:bill-drafter:version', NSF = 'urn:x-lbdc:bill-drafter:file';
+const canGzip = typeof CompressionStream !== 'undefined' && typeof DecompressionStream !== 'undefined';
+const toB64 = u => { let s = ''; for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768)); return btoa(s); };
+const fromB64 = t => Uint8Array.from(atob(t.trim()), c => c.charCodeAt(0));
+const gz = async str => canGzip ? toB64(new Uint8Array(await new Response(new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer())) : str;
+const gunz = async (t, enc) => enc === 'gzip-base64' ? new Response(new Blob([fromB64(t)]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : t;
+const xa = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+async function partsIn(ns) {
+  if (!inWord || !Office.context.document.customXmlParts) return [];
+  const cx = Office.context.document.customXmlParts, ps = await xcall(cx.getByNamespaceAsync.bind(cx), ns), out = [];
+  for (const p of ps) out.push({ part: p, el: new DOMParser().parseFromString(await xcall(p.getXmlAsync.bind(p)), 'application/xml').documentElement });
+  return out;
+}
+async function versionsKept() {
+  const out = [];
+  for (const { el: r } of await partsIn(NSV)) out.push({ at: r.getAttribute('at'), by: r.getAttribute('by'), label: r.getAttribute('label'), fingerprint: r.getAttribute('fingerprint'), get: () => gunz(r.textContent, r.getAttribute('encoding')) });
+  return out.sort((a, b) => a.at < b.at ? -1 : 1);
+}
+async function keepVersion(xml, label) {
+  if (!inWord) return;
+  const fp = await PK.xmlFingerprint(xml), have = await versionsKept();
+  if (have.some(v => v.fingerprint === fp)) return;
+  const m = me() || {}, cx = Office.context.document.customXmlParts;
+  await xcall(cx.addAsync.bind(cx), '<version xmlns="' + NSV + '" at="' + new Date().toISOString() + '" by="' + xa(m.name || '') + '" label="' + xa(label) + '" fingerprint="' + fp + '"' + (canGzip ? ' encoding="gzip-base64"' : '') + '>' + (canGzip ? await gz(xml) : xa(xml)) + '</version>');
+}
+// Attachments: files that go with the bill (a request memo, a fiscal note), each signed by the person who adds it.
+async function addAttachments(files) {
+  const keys = await myKeys(), cx = Office.context.document.customXmlParts;
+  for (const f of files) {
+    if (f.size > 10 << 20) throw new Error(f.name + ' is over 10 MB; attach a smaller file.');
+    const data = new Uint8Array(await f.arrayBuffer()), meta = await PK.attachment(keys, f.name, f.type, data);
+    if (review.attachments.some(a => a.sha256 === meta.sha256)) continue;
+    if (inWord) await xcall(cx.addAsync.bind(cx), '<file xmlns="' + NSF + '" sha256="' + meta.sha256 + '">' + toB64(data) + '</file>');
+    review.attachments.push(meta);
+    await logActivity('attachmentAdded', meta.name + ' ' + meta.sha256);
+  }
+  await saveReview(); drawAttachments();
+}
+async function attachmentData(sha) {
+  const hit = (await partsIn(NSF)).find(x => x.el.getAttribute('sha256') === sha);
+  return hit ? fromB64(hit.el.textContent) : null;
+}
+async function removeAttachment(sha) {
+  const a = review.attachments.find(x => x.sha256 === sha); if (!a) return;
+  for (const x of await partsIn(NSF)) if (x.el.getAttribute('sha256') === sha) await xcall(x.part.deleteAsync.bind(x.part));
+  review.attachments = review.attachments.filter(x => x.sha256 !== sha);
+  await logActivity('attachmentRemoved', a.name + ' ' + a.sha256); await saveReview(); drawAttachments();
+}
+function drawAttachments() {
+  const ul = $('pk-atts'); if (!ul) return; ul.innerHTML = '';
+  if (!review.attachments.length) ul.append(el('li', { className: 'hint', textContent: 'None.' }));
+  for (const a of review.attachments) {
+    const rm = el('button', { className: 'mini', textContent: 'Remove' }); rm.onclick = () => busy(rm, () => removeAttachment(a.sha256));
+    ul.append(el('li', {}, el('b', { textContent: a.name }), ' ' + kb(a.size) + ', added by ' + a.by + ' ', el('span', { className: 'chips' }, rm)));
+  }
+  $('pk-atts-n').textContent = review.attachments.length ? ' (' + review.attachments.length + ')' : '';
+}
+const kb = n => n < 1024 ? n + ' bytes' : n < 1 << 20 ? Math.round(n / 1024) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
+// The checks against the Bank at the moment of signing, as the package carries them (lawcheck.json).
+async function lawCheck() {
+  const model = await word(readModel), found = await BD.check(model, getLaw), bank = {};
+  for (const s of model.sections) if (s.law && !bank[s.law]) { const l = await getLaw(s.law); bank[s.law] = l ? l.activeDate || '' : null; }
+  return { at: new Date().toISOString(), bank, errors: found.filter(f => f.level === 'error').length, warnings: found.filter(f => f.level === 'warning').length,
+    findings: found.filter(f => f.level !== 'info').map(f => ({ level: f.level, rule: f.rule, text: f.text, ...(f.sec != null ? { section: model.sections[f.sec] ? model.sections[f.sec].num || '' : '' } : {}) })) };
+}
+
 // People this document holds a card for (everyone who has signed something in it), other than me.
 function drawLock() {
   const box = $('pk-people'); if (!box) return;
@@ -971,13 +1058,23 @@ async function savePackage() {
     lock.to = [...$('pk-people').querySelectorAll('input:checked')].map(c => review.cards[c.value]);
     if (!lock.to.length) throw new Error('Choose at least one person to send it to.');
   }
-  const inner = await PK.build({ xml: aknText, keys, copy: clean ? 'clean' : 'working', note: $('pk-note').value.trim() });
+  const packet = $('pk-packet').checked ? { to: $('pk-to').value, due: $('pk-due').value || '', note: $('pk-note').value.trim() } : null;
+  const versions = [];
+  if ($('pk-versions').checked) { const fp = await PK.xmlFingerprint(aknText); for (const v of await versionsKept()) if (v.fingerprint !== fp) versions.push({ xml: await v.get(), label: v.label, at: v.at, by: v.by }); }
+  const attachments = [];
+  if ($('pk-with-atts').checked) for (const a of review.attachments) { const data = await attachmentData(a.sha256); if (!data) throw new Error('The attachment ' + a.name + ' is not in the document any more. Remove it and add it again.'); attachments.push({ meta: a, data }); }
+  await logActivity('packageSaved', (clean ? 'clean' : 'working') + ' ' + await PK.xmlFingerprint(aknText) + (packet ? ' for the ' + packet.to.toLowerCase() : ''));
+  await saveReview();
+  const inner = await PK.build({ xml: aknText, keys, copy: clean ? 'clean' : 'working', note: packet ? '' : $('pk-note').value.trim(), packet, versions, attachments, activity: review.activity, people: peopleByKey(), lawcheck: await lawCheck() });
+  await keepVersion(aknText, (clean ? 'Clean copy' : 'Working copy') + ' saved by ' + keys.card.name);
   const out = await PK.encrypt(inner, lock, keys.card);
   const name = ($('lbd').value.trim() || 'bill') + (clean ? ' clean copy' : ' working copy') + '.nysakn';
   const a = el('a', { href: URL.createObjectURL(new Blob([out], { type: PK.MIME })), download: name });
   document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
   $('pk-pw').value = $('pk-pw2').value = '';
-  notice('Saved ' + name + ', signed by ' + keys.card.name + (lock.password || lock.to ? ', encrypted' + (lock.password ? ' with a password' : '') + (lock.to ? (lock.password ? ' and' : '') + ' for ' + lock.to.map(c => c.name).join(', ') : '') : '') + '. Fingerprint ' + await PK.xmlFingerprint(aknText) + '.');
+  const extras = [versions.length && PK_plural(versions.length, 'earlier version'), attachments.length && PK_plural(attachments.length, 'attachment'), packet && 'a review packet for the ' + packet.to.toLowerCase()].filter(Boolean);
+  notice('Saved ' + name + ', signed by ' + keys.card.name + (lock.password || lock.to ? ', encrypted' + (lock.password ? ' with a password' : '') + (lock.to ? (lock.password ? ' and' : '') + ' for ' + lock.to.map(c => c.name).join(', ') : '') : '') + (extras.length ? ', with ' + extras.join(', ') : '') + '. Fingerprint ' + await PK.xmlFingerprint(aknText) + '.');
+  drawVersionsCount();
 }
 // Check a package, or a clean copy PDF that carries one.
 let checked = null;
@@ -989,7 +1086,7 @@ async function checkPackage(file, password) {
     pkgBytes = att.get('bill.nysakn'); fromPdf = data;
   }
   let keys = null; try { if (me()) keys = await myKeys(); } catch (e) { /* not signed in */ }
-  const o = await PK.open(pkgBytes, { password, keys, trusted: trustedKeys() });
+  const o = await PK.open(pkgBytes, { password, keys, trusted: trustedKeys(), pdf: fromPdf });
   checked = { name: file.name, file, o, fromPdf };
   drawChecked();
 }
@@ -1009,6 +1106,7 @@ async function drawChecked() {
   const s = o.signature, m = o.manifest || {}, verdict = o.void ? 'void' : s.trust === 'trusted' ? 'good' : 'meh';
   box.append(el('div', { className: 'verdict ' + verdict }, el('b', { textContent: o.void ? 'VOID: do not rely on this ' + (fromPdf ? 'PDF' : 'package') : s.trust === 'trusted' ? 'Signed and unchanged' : 'Signed and unchanged, by a key this computer does not yet trust' }),
     el('div', { textContent: (m.copy === 'clean' ? 'Clean copy' : 'Working copy') + (m.bill && m.bill.lbd ? ' of ' + m.bill.lbd : '') + (m.bill && m.bill.status ? ' (' + (RV.STATUS[m.bill.status] || m.bill.status) + ')' : '') + (s.signer ? ', signed by ' + PK.cardText(s.signer) + (s.at ? ', ' + fmtDate(s.at) : '') : '') + '.' })));
+  if (o.packet) box.append(el('div', { className: 'packet' }, el('b', { textContent: 'Review packet for the ' + String(o.packet.to || '').toLowerCase() }), o.packet.due ? ' · due ' + fmtDate(o.packet.due + 'T12:00:00') : '', o.packet.note ? el('div', { textContent: o.packet.note }) : null, s.signer ? el('div', { className: 'hint', textContent: 'From ' + PK.cardText(s.signer) }) : null));
   if (o.void) box.append(el('ul', { className: 'bad' }, ...o.void.reasons.map(r => el('li', { textContent: (/^[\w-]+\.\w+\b/.test(r) ? r : r.charAt(0).toUpperCase() + r.slice(1)) + '.' }))));
   if (s.signer) {
     const line = el('p', {}, 'Key ', el('span', { className: 'fp', textContent: s.fingerprint }), ' ');
@@ -1019,12 +1117,46 @@ async function drawChecked() {
     }
     box.append(line);
   }
-  if (o.fingerprint) box.append(el('p', { className: 'hint', textContent: 'Bill fingerprint ' + o.fingerprint + (fromPdf ? '. It should be at the foot of every page; the words on the pages themselves are compared with the signed XML by the profile\'s tools/nysakn.py check --rerender.' : '. A clean copy printed from it carries this at the foot of every page.') }));
+  if (o.fingerprint) box.append(el('p', { className: 'hint', textContent: 'Bill fingerprint ' + o.fingerprint + (fromPdf ? (o.pagesChecked ? '. The words on all ' + o.pagesChecked + ' pages are the words it was signed with.' : o.pdftext == null ? '. This PDF\'s package does not hold the text of its pages; the profile\'s tools/nysakn.py check --rerender compares them with the signed XML.' : '') : '. A clean copy printed from it carries this at the foot of every page.') }));
   if (m.note) box.append(el('p', {}, el('b', { textContent: 'Note: ' }), m.note));
   if (o.encrypted) box.append(el('p', { className: 'hint', textContent: 'It was encrypted for ' + (o.recipients || []).join(', ') + '.' }));
+  const act = o.activity, entries = act ? act.entries : [];
   if (o.xml) {
     const offs = await RV.signoffsInXml(o.xml);
-    if (offs.length) box.append(el('p', { textContent: 'Sign-offs: ' + offs.map(x => (x.section.replace(/^sec_/, '§ ')) + ' by ' + x.by + (x.stale ? ' — stale: the section changed after it was signed off' : '')).join('; ') + '.' }));
+    // a sign-off is signed when its examiner's own activity entry records that section and hash
+    const signedBy = x => act && entries.some(e => e.status === 'valid' && e.e === 'signedOff' && e.by === x.by && e.d === x.section + ' ' + x.hash);
+    if (offs.length) box.append(el('p', { textContent: 'Sign-offs: ' + offs.map(x => (x.section.replace(/^sec_/, '§ ')) + ' by ' + x.by + (x.stale ? ' — stale: the section changed after it was signed off' : '') + (act ? (signedBy(x) ? ', signed with ' + x.by + '\'s key' : ' — not in ' + x.by + '\'s signed activity') : '')).join('; ') + '.' }));
+  }
+  if (act) {
+    const who = Object.values(act.signers).map(x => x.card ? x.card.name + ' (' + x.count + ')' : '?');
+    const det = el('details', {}, el('summary', { textContent: 'Activity: ' + entries.length + ' signed ' + (entries.length === 1 ? 'entry' : 'entries') + (who.length ? ' by ' + who.join(', ') : '') + (act.problems.length ? '' : '; every chain is whole') }));
+    const ol = el('ol', { className: 'activity' });
+    for (const e of entries) ol.append(el('li', { className: e.status === 'valid' ? '' : 'bad' }, fmtDate(e.at) + ' ' + (RV.EVENTS[e.e] || ACT_NAME[e.e] || e.e) + ' by ' + e.by + (e.d ? ' · ' + e.d.replace(/\b[0-9a-f]{64}\b/g, h => h.slice(0, 8) + '…') : '') + (e.status === 'valid' ? '' : ' — ' + (e.status === 'bad' ? 'changed after it was signed' : 'unknown key'))));
+    det.append(ol); box.append(det);
+  }
+  if (o.lawcheck) {
+    const lc = o.lawcheck, laws = Object.entries(lc.bank || {}).map(([k, v]) => k + (v ? ' (' + v + ')' : ' (not in the Bank)'));
+    const det = el('details', {}, el('summary', { textContent: 'When it was signed, the checks found ' + PK_plural(lc.errors || 0, 'error') + ' and ' + PK_plural(lc.warnings || 0, 'warning') + (laws.length ? ', against the Bank: ' + laws.join(', ') : '') + '.' }));
+    const ul = el('ul', {}); for (const f of lc.findings || []) ul.append(el('li', { className: f.level === 'error' ? 'bad' : '' }, (f.section ? f.section + ' ' : '') + f.rule + ': ' + f.text));
+    if ((lc.findings || []).length) det.append(ul);
+    box.append(det);
+  }
+  const save = (data, fname, type) => { const a = el('a', { href: URL.createObjectURL(new Blob([data], { type: type || 'application/octet-stream' })), download: fname }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); };
+  if (o.attachments && o.attachments.length) {
+    const ul = el('ul', { className: 'files' });
+    for (const a of o.attachments) {
+      const b = el('button', { className: 'mini', textContent: 'Save', disabled: !a.data || o.void }); b.onclick = () => save(a.data, a.name, a.type);
+      ul.append(el('li', { className: a.status === 'valid' ? '' : 'bad' }, el('b', { textContent: a.name }), ' ' + kb(a.size) + (a.signer ? ', added and signed by ' + a.signer.name : a.status === 'unknown-key' ? ', signed by an unknown key' : ', its signature does not match') + ' ', el('span', { className: 'chips' }, b)));
+    }
+    box.append(el('p', { className: 'sub-h', textContent: 'Attachments' }), ul);
+  }
+  if (o.versions && o.versions.length) {
+    const ul = el('ul', { className: 'files' });
+    for (const v of o.versions) {
+      const b = el('button', { className: 'mini', textContent: 'Save XML' }); b.onclick = () => save(v.xml, (v.label || v.path).replace(/[\\/:*?"<>|]/g, '-') + '.akn.xml', 'application/xml');
+      ul.append(el('li', {}, (v.label || v.path) + (v.at ? ', ' + fmtDate(v.at) : '') + ' ', el('span', { className: 'fp', textContent: v.fingerprint }), ' ', el('span', { className: 'chips' }, b)));
+    }
+    box.append(el('p', { className: 'sub-h', textContent: 'Earlier versions' }), ul);
   }
   for (const w of o.warnings.filter(w => !/whose key this computer does not yet trust/.test(w))) box.append(el('p', { className: 'hint', textContent: w }));
   const row = el('div', { className: 'row' });
@@ -1146,6 +1278,10 @@ function wire() {
   on('akn-save', async () => { await toAkn(); saveAkn(); });
   on('to-pdf', toPdf); on('pdf-save', async () => savePdf());
   on('pk-save', savePackage);
+  $('pk-packet').onchange = () => { $('pk-packet-box').hidden = !$('pk-packet').checked; };
+  on('pk-att-add', async () => $('pk-att-file').click());
+  $('pk-att-file').onchange = () => { const fs = [...$('pk-att-file').files]; $('pk-att-file').value = ''; if (fs.length) busy(null, () => addAttachments(fs)); };
+  drawAttachments(); drawVersionsCount().catch(() => {});
   for (const id of ['pk-lock-none', 'pk-lock-pw', 'pk-lock-people']) $(id).onchange = () => { $('pk-pw-box').hidden = !$('pk-lock-pw').checked; $('pk-people').hidden = !$('pk-lock-people').checked; if ($('pk-lock-people').checked) drawLock(); };
   $('pk-file').onchange = () => { const f = $('pk-file').files[0]; $('pk-file').value = ''; if (f) busy(null, () => checkPackage(f)); };
   on('pk-check', async () => $('pk-file').click());
@@ -1191,6 +1327,7 @@ async function start(host) {
   await showBank(); await fillLaws();
   if (inWord) {
     await loadReview().catch(e => console.error(e));
+    drawAttachments(); drawVersionsCount().catch(() => {});
     await busy(null, refresh);
     const info = await loadInfo().catch(() => ({}));
     for (const [id] of INFO) if (info[id]) $(id).value = info[id];

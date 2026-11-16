@@ -263,7 +263,16 @@
     <div class="row" id="pk-pw-box" hidden><input id="pk-pw" type="password" placeholder="8 or more characters" autocomplete="new-password"><input id="pk-pw2" type="password" placeholder="The password again" autocomplete="new-password"></div>
     <label class="check"><input type="radio" name="pk-lock" id="pk-lock-people"> Only these people (no password to share)</label>
     <div id="pk-people" class="sub" hidden></div>
-    <label class="full">Note for whoever opens it <input id="pk-note" placeholder="Optional"></label>
+    <h3>What goes with it</h3>
+    <label class="check"><input type="checkbox" id="pk-versions" checked> Earlier versions<span id="pk-versions-n"></span></label>
+    <label class="check"><input type="checkbox" id="pk-with-atts" checked> Attachments<span id="pk-atts-n"></span></label>
+    <ul id="pk-atts" class="files sub"></ul>
+    <div class="row sub"><button id="pk-att-add" class="mini">Attach a file…</button><span class="hint">a request memo, a fiscal note: signed by you, kept in the document</span></div>
+    <input type="file" id="pk-att-file" multiple hidden>
+    <label class="check"><input type="checkbox" id="pk-packet"> Send it for review</label>
+    <div id="pk-packet-box" class="row sub" hidden>For the <select id="pk-to"><option>Examiner</option><option>Proofreader</option><option>Drafter</option></select> · due <input type="date" id="pk-due"></div>
+    <label class="full">Note for whoever opens it <textarea id="pk-note" rows="2" placeholder="Optional: what should they look at?"></textarea></label>
+    <p class="hint">Every package also carries the activity log (each person's signed record of what they did), the checks against the Bank as they stand now, and a preview anyone can open in a browser.</p>
     <div class="row"><button id="pk-save" class="primary">Save signed package</button><button id="pk-check">Check a package or PDF…</button></div>
     <input type="file" id="pk-file" accept=".nysakn,.pdf" hidden>
     <div id="pk-result" class="pk-result" hidden></div>
@@ -372,6 +381,7 @@
 <script src="src/lib/akn.js"></script>
 <script src="src/lib/review.js"></script>
 <script src="src/lib/package.js"></script>
+<script src="src/lib/pdftext.js"></script>
 <script src="src/lib/budget.js"></script>
 <script src="src/lib/budgetword.js"></script>
 <script src="src/lib/windowstore.js"></script>

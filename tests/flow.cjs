@@ -163,10 +163,14 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   const py = cp.spawnSync('python3', [tool, 'check', signedPdf, '--no-profile'], { encoding: 'utf8' });
   console.log('nysakn.py on the clean copy:', py.status, py.stdout.split('\n').slice(0, 4).join(' / '));
   if (py.status !== 0) throw new Error('the profile\'s checker does not accept the signed clean copy: ' + py.stdout + py.stderr);
+  if (!/the words on all \d+ pages are the words it was signed with/.test(py.stdout)) throw new Error('the profile\'s checker did not compare the pages with pdftext.txt: ' + py.stdout);
   // Kim sends Lee a working copy only Lee can open; Lee checks it; a changed copy is VOID; the PDF checks too.
   await step('save a signed package for Lee', async () => {
     await p.check('#pk-working'); await p.check('#pk-lock-people'); await p.waitForTimeout(200);
     await p.check('#pk-people input[value="Lee Smith"]'); await p.fill('#pk-note', 'Please look at section 2 again.');
+    await p.setInputFiles('#pk-att-file', { name: 'request memo.txt', mimeType: 'text/plain', buffer: Buffer.from('Request from the sponsor: notaries.') }); await p.waitForTimeout(500);
+    if (!/request memo\.txt/.test(await p.textContent('#pk-atts'))) throw new Error('the attachment did not go in: ' + await p.textContent('#pk-atts'));
+    await p.check('#pk-packet'); await p.selectOption('#pk-to', 'Examiner'); await p.fill('#pk-due', '2026-11-20');
     const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('#pk-save')]);
     await dl.saveAs(OUT + '/for-lee.nysakn'); console.log('saved:', dl.suggestedFilename(), fs.statSync(OUT + '/for-lee.nysakn').size, 'bytes');
   });
@@ -176,6 +180,8 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   await p.click('[data-tab=review]'); await who('Lee Smith', 'examiner'); await p.click('[data-tab=export]');
   res = await checkFile(OUT + '/for-lee.nysakn'); console.log('Lee checks it:', res.slice(0, 260));
   if (!/Signed and unchanged, by a key this computer does not yet trust/.test(res) || !/Working copy/.test(res) || !/Please look at section 2 again/.test(res)) throw new Error('Lee could not check the package: ' + res);
+  for (const want of [/Review packet for the examiner · due Nov 20/, /request memo\.txt [\d]+ bytes, added and signed by Kim Lo/, /Earlier versions/, /Activity: \d+ signed entries by .*Kim Lo.*every chain is whole/, /When it was signed, the checks found \d+ errors? and \d+ warnings?/, /signed with Lee Smith's key/])
+    if (!want.test(res)) throw new Error('the package check does not show ' + want + ': ' + res);
   await p.screenshot({ path: OUT + '/7-package.png', fullPage: true });
   await step('Lee trusts Kim\'s key', () => p.click('#pk-result button:has-text("trust this key")')); await p.waitForTimeout(800);
   if (!/^Signed and unchanged ?Working/.test((await p.textContent('#pk-result')).replace(/\s+/g, ' ').trim())) throw new Error('trusting did not take: ' + await p.textContent('#pk-result'));
@@ -191,6 +197,18 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   await p.screenshot({ path: OUT + '/7b-void.png', fullPage: true });
   res = await checkFile(signedPdf); console.log('the clean copy PDF:', res.slice(0, 160));
   if (!/^Signed and unchanged ?Clean copy/.test(res.trim())) throw new Error('the signed clean copy did not check: ' + res);
+  if (!/The words on all \d+ pages are the words it was signed with/.test(res)) throw new Error('the pane did not compare the PDF\'s pages: ' + res);
+  // the same PDF with one letter of page 1 changed (in its content stream, as another program would)
+  {
+    const PL = require('pdf-lib'), doc = await PL.PDFDocument.load(fs.readFileSync(signedPdf)), pg = doc.getPages()[0], c = pg.node.Contents();
+    const st = c instanceof PL.PDFArray ? doc.context.lookup(c.get(0)) : doc.context.lookup(pg.node.get(PL.PDFName.of('Contents')));
+    const raw = Buffer.from(PL.decodePDFRawStream(st).decode()), at = raw.indexOf(')]TJ', raw.indexOf('/f1'));
+    raw[at - 1] = raw[at - 1] === 0x01 ? 0x02 : 0x01; // the last glyph of a line, another glyph
+    const ns = doc.context.flateStream(raw); pg.node.set(PL.PDFName.of('Contents'), doc.context.register(ns));
+    fs.writeFileSync(OUT + '/edited clean copy.pdf', await doc.save());
+  }
+  res = await checkFile(OUT + '/edited clean copy.pdf'); console.log('an edited clean copy:', res.slice(0, 160));
+  if (!/VOID/.test(res) || !/The words on page 1 of the PDF are not the words it was signed with/.test(res)) throw new Error('an edited PDF page was not VOID: ' + res);
   // The drafter deletes a section in the document: back in the pane, the list offers to renumber.
   await p.click('[data-tab=draft]');
   await p.evaluate(() => { const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
