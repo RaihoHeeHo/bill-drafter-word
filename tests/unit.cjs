@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'package', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'package', 'pdftext', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -393,6 +393,113 @@ t('budget: the whole of S.3003-D, as the Python tools find it', () => {
   for (const v of V) assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number);
 });
 
+
+/* ---------- renumbering ---------- */
+t('mark changes: units taken out, put in and renumbered stay units', () => {
+  const show = ps => ps.map(p => p.map(r => r.k === 'ins' ? '{' + r.t + '}' : r.t).join('')).join(' | ');
+  assert.strictEqual(show(BD.markChanges(['1. Text one here.', '2. Text two is longer here.', '3. Text three goes here.'], ['1. Text one here.', '2. Text three goes here.'])),
+    '1. Text one here. | [2. Text two is longer here.] | [3.] {2.} Text three goes here.');
+  assert.strictEqual(show(BD.markChanges(['(a) First words of it.', '(b) Second words of it.'], ['(a) New words inserted here.', '(b) First words of it.', '(c) Second words of it.'])),
+    '{(a) New words inserted here.} | [(a)] {(b)} First words of it. | [(b)] {(c)} Second words of it.');
+  const r = BD.readings(BD.markChanges(['(a) One.', '(b) Two.', '(c) Three.'], ['(a) One.', '(b) Three.']));
+  assert.ok(BD.sameText(r.old, ['(a) One.', '(b) Two.', '(c) Three.']) && BD.sameText(r.now, ['(a) One.', '(b) Three.']));
+});
+t('units an amended text renumbers are recorded as renumberings, from their old addresses', () => {
+  const x = BD.toAkn(taxBill(), info());
+  assert.ok(x.includes('<textualMod eId="amod_2" type="renumbering"><source href="#sec_1__mod_1"/><destination href="/akn/us-ny/act/consolidated/tax/~sec_606__subsec_c__para_2"/><new href="/akn/us-ny/act/consolidated/tax/~sec_606__subsec_c__para_3"/></textualMod>'), x);
+  // the old law nests by its old numbers: "[(i)] (b)" after "(a)" was subparagraph (i) of paragraph (a)
+  const q = [[r('1. Text.')], [r('(a) First.')], [r('[(i)]', 'del'), r(' '), r('(b)', 'ins'), r(' Was a subparagraph.')], [r('[(b)]', 'del'), r(' '), r('2.', 'ins'), r(' Was paragraph (b).')]];
+  const got = BD.renumberedIn(q, false, [['sec', '5'], ['subdvs', '1']]).map(m => m.old.map(a => a.join('_')).join('__') + ' -> ' + m.now.map(a => a.join('_')).join('__'));
+  assert.deepStrictEqual(got, ['sec_5__subdvs_1__para_a__subpara_i -> sec_5__subdvs_1__para_b', 'sec_5__subdvs_1__para_b -> sec_5__subdvs_2']);
+  // "[5. Upon a determination ...] 4. Following …": the old number and words struck, the new number in the new words
+  const loose = BD.renumberedIn([[r('[5. Upon a determination]', 'del'), r(' '), r('4. Following referral', 'ins'), r(', the individual.')]], false, [['sec', '349-a'], ['subdvs', '5']]);
+  assert.deepStrictEqual(loose.map(m => m.old[1][1] + '>' + m.now[1][1]), ['5>4']);
+});
+t('renumberings in a real bill: the add-in reads S.8760 as the converter did', () => {
+  const res = require('child_process').spawnSync('node', [path.join(__dirname, 'renum-real.cjs'), path.join(__dirname, 'fixtures', 'S8760.xml')], { encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr); assert.ok(/recorded 8, found 8, missing 0, extra 0/.test(res.stdout), res.stdout);
+});
+t('a renumbering section: clause, read back, XML', () => {
+  const sos = { lawId: 'SOS', name: 'Social Services', lawType: 'CONSOLIDATED' };
+  const c = BD.amendingClause({ act: 'renumber', info: sos, loc: '349-A', unit: '6,7', to: ['5', '6'], add: '7', history: 'as added by chapter 436 of the laws of 1997' });
+  assert.strictEqual(c, 'Subdivisions 6 and 7 of section 349-a of the social services law, as added by chapter 436 of the laws of 1997, are renumbered subdivisions 5 and 6 and a new subdivision 7 is added to read as follows:');
+  assert.deepStrictEqual(BD.renumberingOf(c), { units: ['6', '7'], to: ['5', '6'], add: '7', section: false });
+  assert.strictEqual(BD.amendingClause({ act: 'renumber', info: { lawId: 'TAX', name: 'Tax', lawType: 'CONSOLIDATED' }, loc: '606', unit: 'c,d', to: 'd,e' }), 'Subsections (c) and (d) of section 606 of the tax law are relettered subsections (d) and (e).');
+  assert.strictEqual(BD.amendingClause({ act: 'renumber', info: { lawId: 'GCN', name: 'General Construction', lawType: 'CONSOLIDATED' }, loc: '13', unit: '', to: ['13-a'] }), 'Section 13 of the general construction law is renumbered section 13-a.');
+  assert.ok(BD.longTitle([{ act: 'renumber', law: 'SOS', lawName: 'the social services law' }], 'x').text.startsWith('AN ACT to amend the social services law'));
+  const m = { title: { text: 'AN ACT to amend the social services law, in relation to x', runs: [r('AN ACT to amend the social services law, in relation to x')] }, enacting: null, sections: [
+    { act: 'renumber', law: 'SOS', loc: '349-A', unit: '6,7', paras: [], clause: c, quoted: { paras: [[r('7. A new subdivision.', 'ins')]] } }, { act: 'effective', paras: [[r('This act shall take effect immediately.')]] }] };
+  const x = BD.toAkn(m, info({ lawNames: { SOS: 'the social services law' } }));
+  assert.ok(x.includes('<ref href="/akn/us-ny/act/consolidated/sos/~sec_349-a__subdvs_6">Subdivisions 6</ref> and <ref href="/akn/us-ny/act/consolidated/sos/~sec_349-a__subdvs_7">7 of section 349-a of the social services law</ref>'), x);
+  assert.ok(x.includes('type="renumbering"><source href="#sec_1__mod_1"/><destination href="/akn/us-ny/act/consolidated/sos/~sec_349-a__subdvs_7"/><new href="/akn/us-ny/act/consolidated/sos/~sec_349-a__subdvs_6"/>'), x);
+  assert.ok(x.includes('type="insertion"><source href="#sec_1__mod_1"/><destination href="/akn/us-ny/act/consolidated/sos/~sec_349-a__subdvs_7"/>'), x);
+});
+pending.push((async () => {
+  // checked against the Bank: a number the law already has, a unit it doesn't, and one freed by another section
+  const law = BD.parseLaw(require('./bank-fixture/EXC.json')), gcn = BD.parseLaw(require('./bank-fixture/GCN.json'));
+  const getLaw = async id => ({ EXC: law, GCN: gcn })[id] || null;
+  const sec = (o) => ({ act: 'renumber', law: o.law || 'EXC', loc: o.loc || '296', unit: o.unit || '', paras: [], clause: BD.amendingClause({ act: 'renumber', info: (o.law === 'GCN' ? gcn : law).info, loc: o.loc || '296', unit: o.unit, to: o.to, add: o.add, history: 'as amended by chapter 1 of the laws of 2020' }), quoted: o.add ? { paras: [[r(o.add + '. New.', 'ins')]] } : null });
+  const run = async (...secs) => { const S = secs.concat([{ act: 'effective', paras: [[r('This act shall take effect immediately.')]] }]); S.forEach((s, i) => { s.index = i; s.num = BD.sectionNum(i); s.text = BD.textOf ? '' : ''; }); S[S.length - 1].text = 'This act shall take effect immediately.'; return (await BD.check({ title: null, enacting: null, sections: S }, getLaw)).filter(f => /Already in law|Citation|Amending clause/.test(f.rule)).map(f => f.text); };
+  let f = await run(sec({ unit: '1', to: ['2'] }));
+  assert.ok(f.some(t => /Subdivision 2 of section 296 is already in the law and stays/.test(t)), f.join(' | '));
+  f = await run(sec({ unit: '2', to: ['3'], add: '2' }));
+  assert.deepStrictEqual(f, []);
+  f = await run(sec({ unit: '9', to: ['10'] }));
+  assert.ok(f.some(t => /Subdivision 9 is not in section 296/.test(t)), f.join(' | '));
+  f = await run(sec({ unit: '1,2', to: ['2', '3'] }));
+  assert.deepStrictEqual(f, []); // 2 moves away in the same section
+  f = await run(sec({ unit: '1', to: ['2'] }), sec({ unit: '2', to: ['3'] }));
+  assert.deepStrictEqual(f.filter(t => /already in the law/.test(t)), []); // 2 freed by another section
+  f = await run(sec({ law: 'GCN', loc: '13', to: ['12'] }));
+  assert.ok(f.some(t => /Section 12 is already in the general construction law/.test(t)), f.join(' | '));
+  f = await run(sec({ law: 'GCN', loc: '13', to: ['13-a'] }));
+  assert.deepStrictEqual(f, []);
+  // an amended subdivision that renumbers itself onto a subdivision the bill leaves in place
+  const am = { act: 'amend', law: 'EXC', loc: '296', unit: '2', paras: [], clause: 'Subdivision 2 of section 296 of the executive law, as amended by chapter 1 of the laws of 2020, is amended to read as follows:', quoted: { loc: '296', unit: '2', paras: [[r('[2.]', 'del'), r(' '), r('1.', 'ins'), r(' Text for tests.')]] } };
+  const S2 = [am, { act: 'effective', text: 'This act shall take effect immediately.', paras: [[r('This act shall take effect immediately.')]] }]; S2.forEach((x, i) => { x.index = i; x.num = BD.sectionNum(i); });
+  f = (await BD.check({ title: null, enacting: null, sections: S2 }, getLaw)).map(x => x.text);
+  assert.ok(f.some(t => /renumbers subdivision 2 as 1, but section 296 already has a subdivision 1/.test(t)), f.join(' | '));
+  n++; console.log('ok - renumberings checked against the Bank');
+})());
+// Signed packages, version 2: the activity log, attachments, versions, packet, law check, and the words on a PDF's pages.
+pending.push((async () => {
+  const P = BD.nysakn, cp = require('child_process'), os = require('os');
+  globalThis.PDFLib = globalThis.PDFLib || require('pdf-lib');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill.akn.xml'), 'utf8');
+  const ann = await P.makeKeys({ name: 'Ann Drafter', role: 'drafter' }), ed = await P.makeKeys({ name: 'Ed Examiner', role: 'examiner' });
+  const ka = await P.loadKeys(ann), ke = await P.loadKeys(ed);
+  let log = await P.addEntry(ka, [], { e: 'drafted', d: 'sec_1' }); log = await P.addEntry(ke, log, { e: 'signedOff', d: 'sec_1 abc' }); log = await P.addEntry(ka, log, { e: 'packageSaved', d: 'working' });
+  const memo = new TextEncoder().encode('Request memo.'), att = await P.attachment(ke, 'memo.txt', 'text/plain', memo), people = { [ed.card.keyId]: ed.card };
+  const z = await P.build({ xml, keys: ka, packet: { to: 'Examiner', due: '2026-11-20', note: 'Section 2' }, versions: [{ xml: xml.replace('1234', '1233'), label: 'first draft' }], attachments: [{ meta: att, data: memo }], activity: log, people, lawcheck: { errors: 0, warnings: 0 } });
+  let o = await P.open(z, { trusted: new Set([ann.card.keyId]) });
+  assert.strictEqual(o.void, null, JSON.stringify(o.void)); assert.deepStrictEqual(o.activity.entries.map(e => e.status), ['valid', 'valid', 'valid']);
+  assert.strictEqual(o.attachments[0].status, 'valid'); assert.strictEqual(o.versions[0].label, 'first draft'); assert.strictEqual(o.packet.to, 'Examiner');
+  o = await P.open(await P.build({ xml, keys: ka, activity: log.filter(e => !(e.k === ann.card.keyId && e.seq === 1)), people }));
+  assert.ok(o.void && o.void.reasons.some(r => /activity entry 1 is missing/.test(r)), JSON.stringify(o.void));
+  const t = JSON.parse(JSON.stringify(log)); t[1].d = 'sec_2 abc';
+  o = await P.open(await P.build({ xml, keys: ka, activity: t, people }));
+  assert.ok(o.void && o.void.reasons.some(r => /changed after being signed/.test(r)));
+  o = await P.open(await P.build({ xml, keys: ka, attachments: [{ meta: { ...att, name: 'other.txt' }, data: memo }], people }));
+  assert.ok(o.void && o.void.reasons.some(r => /other.txt.*signature does not match/.test(r)), JSON.stringify(o.void));
+  // the words on a PDF's pages: this reader and the profile's agree, and a page with other words is VOID
+  const pdf = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill - clean copy.pdf'));
+  const pages = await BD.pdftext.pdfPagesText(pdf);
+  assert.ok(pages.length > 1 && /STATEOFNEWYORK/.test(BD.pdftext.squeeze(pages[0])), pages[0].slice(0, 80));
+  const pz = await P.build({ xml, keys: ka, copy: 'clean', pdftext: pages.join('\f') });
+  assert.strictEqual((await P.open(pz, { pdf })).pagesChecked, pages.length);
+  const other = await P.build({ xml, keys: ka, copy: 'clean', pdftext: pages.map((p, i) => i === 1 ? p.replace(/e/, 'E') : p).join('\f') });
+  o = await P.open(other, { pdf }); assert.ok(o.void && o.void.reasons.some(r => /words on page 2 of the PDF/.test(r)), JSON.stringify(o.void));
+  n++; console.log('ok - signed packages, version 2: activity, attachments, versions, packet, a PDF\'s pages');
+  try { cp.execFileSync('python3', ['-c', 'import cryptography, lxml, pypdf'], { stdio: 'ignore' }); } catch (x) { console.log('   (Python side skipped)'); return; }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nysakn2-')), tool = path.join(__dirname, '..', 'profile', 'tools', 'nysakn.py');
+  fs.writeFileSync(path.join(dir, 'v2.nysakn'), z);
+  let r = cp.spawnSync('python3', [tool, 'check', path.join(dir, 'v2.nysakn'), '--trust', ann.card.keyId, '--no-profile', '--json'], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  const j = JSON.parse(r.stdout); assert.strictEqual(j.activity.entries.length, 3); assert.strictEqual(j.attachments[0].status, 'valid');
+  const py = JSON.parse(cp.execFileSync('python3', ['-c', 'import sys,json; sys.path.insert(0, sys.argv[1]); import nysakn as N; print(json.dumps([N.squeeze_text(t) for t in N.pdf_pages_text(open(sys.argv[2], "rb").read())]))', path.dirname(tool), path.join(__dirname, '..', 'examples', 'Example bill - clean copy.pdf')], { encoding: 'utf8' }));
+  assert.deepStrictEqual(py, pages.map(BD.pdftext.squeeze));
+  n++; console.log('ok - version 2 packages and the page reader agree with the profile\'s tools/nysakn.py');
+})());
 // Signed packages (.nysakn): made and checked here and by the profile's tools/nysakn.py, each checking the other's.
 pending.push((async () => {
   const P = BD.nysakn, cp = require('child_process'), os = require('os');

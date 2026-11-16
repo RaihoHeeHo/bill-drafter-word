@@ -26,6 +26,7 @@ Each tag starts with `akn:` and may carry `;key=value` properties (Word allows 6
 | `amend` | Amend a law > Amend the section / subdivision | — | `law` = Bank law id (e.g. `GCN`), `loc` = section id as the Bank has it (`37-A`), `unit` = subdivision (or subsection, for the Tax and Insurance Laws). `textualMod type="substitution"` |
 | `add` | Add a new section / subdivision | — | all of the quoted text is new matter. `textualMod type="insertion"` |
 | `repeal` | Repeal the section | — | no quoted text; the lead-in ends "is REPEALED." inside the `mod`. `textualMod type="repeal"` |
+| `renumber` | Renumbers subdivisions / Renumbers the section | — | `unit` = the units renumbered (`6,7`; none for a section). The new numbers, and any unit added, are read from the amending clause itself ("… are renumbered subdivisions 5 and 6 and a new subdivision 7 is added to read as follows:"), so editing the clause changes them. Each unit cited is its own `ref`; one `textualMod type="renumbering"` per unit (`destination` the old address, `new` the new one), and `type="insertion"` with quoted text for a unit added |
 | `shortTitle` | Standard sections | `#shortTitle` | always section 1 |
 | `findings` | Standard sections | `#legislativeFindings` | after the short title |
 | `new` | Blank section | — | free text, not underlined (new law, notwithstanding clauses, …) |
@@ -72,7 +73,7 @@ Inside `quotedStructure`, each numbered paragraph is a unit, nested by the order
 
 `(i)` right after `(h)` is a letter, otherwise roman. A section's short verbless sentence after its number is its `heading` ("§ 12. Affidavit."); on other units, a short sentence standing alone before a deeper unit. "§ 296. Unlawful discriminatory practices. 1. It shall be …" is split into the section and its subdivision 1. Text before a unit's sub-units goes in `intro` (eId `…__intro`); unnumbered paragraphs join the unit above.
 
-eIds follow the profile: the `mod`'s eId, then `__qstr`, then each level (`sec_3__mod_1__qstr__sec_296__subdvs_1__para_a`). The last part is the printed number without punctuation, with its case kept (`subpara_A`). A renumbered unit (`[3.] 4.`) takes its new number; a unit struck out whole ends in `-old` (`para_4-old`); a second unit with the same number gets the Bank's marker (`para_34*2`), which is never printed.
+eIds follow the profile: the `mod`'s eId, then `__qstr`, then each level (`sec_3__mod_1__qstr__sec_296__subdvs_1__para_a`). The last part is the printed number without punctuation, with its case kept (`subpara_A`). A renumbered unit (`[3.] 4.`) takes its new number, and the move is recorded as `textualMod type="renumbering"` from where the unit stood before the bill (its old number, nested by the old numbering, as the profile's converter does) to where it stands now; a unit struck out whole ends in `-old` (`para_4-old`); a second unit with the same number gets the Bank's marker (`para_34*2`), which is never printed.
 
 ## Tables
 
@@ -96,7 +97,7 @@ A table with a caption or groups is written as the profile's *named table*. That
 
 ## Signed packages
 
-The review's custom XML part (`urn:x-lbdc:bill-drafter:review`) also holds `cards`: each person's public card (name, role, Ed25519 and X25519 public keys, key id, self-signature), added when they say who they are. Private keys stay in the browser's storage on each computer (`bill-drafter-key:<name>|<role>`), as do the keys each person trusts (`bill-drafter-trusted:<name>`). A `.nysakn` package holds the XML the pane writes, signed; a signed clean copy PDF embeds `bill.nysakn` and `bill.akn.xml`. The format is in `profile/PACKAGE.md`.
+The review's custom XML part (`urn:x-lbdc:bill-drafter:review`) also holds `activity` (the signed, hash-chained log: `at`, `by`, `role`, `e`, `d`, `k`, `seq`, `prev`, `h`, `sig`), `attachments` (each attachment's signed record; the file itself is in its own part, `<file xmlns="urn:x-lbdc:bill-drafter:file" sha256="…">` base64), and `cards`: each person's public card (name, role, Ed25519 and X25519 public keys, key id, self-signature), added when they say who they are. Private keys stay in the browser's storage on each computer (`bill-drafter-key:<name>|<role>`), as do the keys each person trusts (`bill-drafter-trusted:<name>`). Each package or clean copy saved keeps its XML as `<version xmlns="urn:x-lbdc:bill-drafter:version" at by label fingerprint encoding="gzip-base64">`. A `.nysakn` package holds the XML the pane writes, signed; a signed clean copy PDF embeds `bill.nysakn` and `bill.akn.xml`. The format is in `profile/PACKAGE.md`.
 
 ## Document properties
 

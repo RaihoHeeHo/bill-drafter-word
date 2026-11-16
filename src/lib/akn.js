@@ -107,15 +107,19 @@
   }
   /* The number at the start of a paragraph. A struck number keeps its bracket ("[3.]"); a renumbered one is the old
      number struck and the new one underlined ("[3.] 4."): both are the unit's number. */
+  // The run holding character `at` of the paragraph.
+  const runAt = (rs, at) => { let n = 0; for (const r of rs) { if (at < n + r.t.length) return r; n += r.t.length; } return null; };
   function numAt(rs) {
     if (BD.isTable(rs)) return null;
     const t = plain(rs);
-    let m = /^\[([^\]]{1,12})\]\s+/.exec(t);
-    if (m && rs[0].k === 'del' && NUM.test(m[1] + ' ')) {
-      const rest = t.slice(m[0].length), m2 = NUM.exec(rest);
-      const nextIns = rs.find((r, i) => i > 0 && r.t.trim());
-      if (m2 && nextIns && nextIns.k === 'ins' && nextIns.t.trim().startsWith(m2[0])) return { token: m2[0], len: m[0].length + m2[0].length, old: NUM.exec(m[1] + ' ')[0] };
-      return { token: NUM.exec(m[1] + ' ')[0], len: m[0].length - (m[0].length - m[0].trimEnd().length), struckOnly: true };
+    // A section's sign can stay outside the brackets: "§ [696-c.] 696-b."
+    const sg = /^§\s*(?=\[)/.exec(t), pre = sg ? sg[0] : '', off = pre.length;
+    let m = /^\[([^\]]{1,12})\]\s+/.exec(t.slice(off));
+    if (m && (runAt(rs, off) || {}).k === 'del' && NUM.test(pre + m[1] + ' ')) {
+      const rest = t.slice(off + m[0].length), m2 = NUM.exec(pre + rest), tok2 = m2 && m2[0].slice(pre.length);
+      const nextIns = runAt(rs, off + m[0].length + (rest.length - rest.trimStart().length));
+      if (m2 && nextIns && nextIns.k === 'ins' && rest.trimStart().startsWith(tok2)) return { token: m2[0], len: off + m[0].length + tok2.length, old: NUM.exec(pre + m[1] + ' ')[0] };
+      return { token: NUM.exec(pre + m[1] + ' ')[0], len: off + m[0].length - (m[0].length - m[0].trimEnd().length), struckOnly: true };
     }
     m = /^\[/.test(t) && rs[0].k === 'del' ? NUM.exec(t.slice(1)) : null;
     if (m) return { token: m[0], len: 1 + m[0].length };
@@ -151,7 +155,12 @@
     const unique = id => { if (!used.has(id)) { used.add(id); return id; } let k = 2; while (used.has(id + '*' + k)) k++; used.add(id + '*' + k); return id + '*' + k; };
     let loose = 0;
     ps.forEach((rs, i) => {
-      const n = numAt(rs);
+      // "[5. Upon a determination ...] 4. Following referral ...": the unit's old number and opening words are struck
+      // and a new number begins the new words. It stays text (as the converter reads it), but the unit was renumbered.
+      const t0 = BD.isTable(rs) ? '' : plain(rs), lm = !stack.length && t0 && rs[0].k === 'del' && /^\[(\S{1,12})\s[^\]]*\]\s+(\S{1,12})\s/.exec(t0);
+      const struckOpen = lm && NUM.test(lm[1] + ' ') && NUM.test(lm[2] + ' ') && (runAt(rs, lm[0].length - lm[2].length - 1) || {}).k === 'ins' && numKind(lm[1], null) === numKind(lm[2], null);
+      if (struckOpen) (top.loose = top.loose || []).push({ old: numId(NUM.exec(lm[1] + ' ')[0]), now: numId(NUM.exec(lm[2] + ' ')[0]) });
+      const n = struckOpen ? null : numAt(rs);
       if (!n) {
         if (stack.length) stack[stack.length - 1].node.content.push(rs);
         else top.push({ tag: 'hcontainer', eId: rootEid + '__text_' + (++loose), content: [rs], kids: [] });
@@ -168,6 +177,10 @@
       const struck = !n.old && rs[0].k === 'del' && allStruck(rs);
       const node = { tag: TAG[abbr], abbr, eId: unique(parentEid + '__' + abbr + '_' + numId(n.token) + (struck ? '-old' : '')), num: null, heading: null, content: [], kids: [] };
       const [numRuns, rest] = splitRuns(rs, n.len); node.num = numRuns;
+      // For renumberings: the kind of number, the old number of a renumbered unit, and whether the number is all new.
+      node.kind = kind; node.key = node.eId.slice(parentEid.length + 3 + abbr.length);
+      if (n.old) node.oldKey = numId(n.old), node.oldToken = n.old;
+      node.isNew = numRuns.filter(r => r.t.trim()).every(r => r.k === 'ins');
       // A heading: on a section, a short verbless sentence before the text; on other units, a short sentence
       // standing alone with a deeper unit after it.
       const rt = plain(rest), h = HEADING.exec(rt);
@@ -268,8 +281,88 @@
       return '<del class="' + (seen[g] === 1 ? 'spanStart' : seen[g] === count[g] ? 'spanEnd' : 'spanMiddle') + '">';
     });
   }
-  function quoted(q, modEid, sub) {
-    const eid = modEid + '__qstr', us = units(groupDeletions(q.paras), eid, sub ? SCHEME_SUBSEC : SCHEME);
+  /* Units the quoted text renumbers itself ("[3.] 4.", "[(i)] (a)"), as renumberings from where each stood before the
+     bill to where it stands now (as the profile's converter, tools/bill2akn.py, records them). The old law is the text
+     as it read, so its units nest by their old numbers, not the new ones: "[(i)] (a)" after "(a)" was subparagraph (i)
+     of paragraph (a), though it is now a paragraph of its own. Units whose number is all new matter were not in the
+     old law. target: the address the lead-in names, [[abbr, key], ...]. Returns [{old: path, now: path}]. */
+  const ROMAN_KEY = /^[ivxlc]+$/i;
+  function follows(prev, k) {
+    if (/^\d+$/.test(prev) && /^\d+$/.test(k)) return +k === +prev + 1;
+    if (prev.length === 1 && k.length === 1) return k.charCodeAt(0) === prev.charCodeAt(0) + 1;
+    if (ROMAN_KEY.test(prev) && ROMAN_KEY.test(k)) return romanNext(prev) === k.toLowerCase();
+    return false;
+  }
+  function romanNext(r) {
+    const v = { i: 1, v: 5, x: 10, l: 50, c: 100 }; let n = 0, prev = 0;
+    for (const ch of r.toLowerCase().split('').reverse()) { const a = v[ch] || 0; if (a < prev) n -= a; else { n += a; prev = a; } }
+    n += 1; let out = '';
+    for (const [a, sym] of [[100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']]) while (n >= a) { out += sym; n -= a; }
+    return out;
+  }
+  function renumbered(top, scheme, target) {
+    target = target.filter(t => t[0] !== 'art' && t[0] !== 'part' && t[0] !== 'title');
+    const olds = new Map(), ost = []; // ost: {kind, abbr, key}
+    const parentAbbr = top.length && top[0].abbr === 'sec' ? null : 'sec';
+    const walk = u => {
+      if (u.tag !== 'hcontainer' && (u.oldKey != null || !u.isNew)) {
+        let kind = u.kind, key = u.oldKey != null ? u.oldKey : u.key.replace(/-old$/, '');
+        if (u.oldKey != null) {
+          kind = numKind(u.oldToken, null);
+          if (kind === 'paren-roman' || (kind === 'paren-letter' && ROMAN_KEY.test(key))) {
+            // "(i)" after "(h)" is a letter; otherwise a roman numeral one level down
+            const lets = ost.filter(o => o.kind === 'paren-letter'), last = lets.length ? lets[lets.length - 1].key : '';
+            kind = last && key.length === 1 && key.charCodeAt(0) === last.charCodeAt(0) + 1 ? 'paren-letter' : 'paren-roman';
+          }
+        }
+        if (kind === 'sect') ost.length = 0;
+        else if (ost.some(o => o.kind === kind)) {
+          // the same kind closes down to the open unit it follows ("2." after "1.", even with an outer "8." open);
+          // "1." under "8." opens a list inside it
+          const same = ost.map((o, i) => o.kind === kind ? i : -1).filter(i => i >= 0);
+          const at = same.slice().reverse().find(i => follows(ost[i].key, key));
+          if (!(at === undefined && /^(1|a|A|i|I)$/.test(key))) ost.length = at !== undefined ? at : same[0];
+        }
+        let abbr = u.abbr;
+        if (u.oldKey != null) {
+          if (kind === 'sect') abbr = 'sec';
+          else {
+            const base = ost.length ? ost[ost.length - 1].abbr : parentAbbr, i = scheme.indexOf(base);
+            if (ost.length || i < 0) abbr = scheme[Math.min((i < 0 ? 0 : i) + 1, scheme.length - 1)];
+          }
+        }
+        ost.push({ kind, abbr, key });
+        olds.set(u, ost.map(o => [o.abbr, o.key]));
+      }
+      u.kids.forEach(walk);
+    };
+    top.forEach(walk);
+    const out = [];
+    const place = p => {
+      if (!p.length || p[0][0] === 'sec') return p;
+      const at = target.findIndex(t => t[0] === p[0][0]);
+      return (at >= 0 ? target.slice(0, at) : target).concat(p);
+    };
+    const moved = (u, path) => {
+      const p = u.tag === 'hcontainer' ? path : path.concat([[u.abbr, u.key]]);
+      // A provision's address starts at its section: lines outside any section (an article's table of contents)
+      // are not provisions.
+      const was = olds.has(u) && place(olds.get(u)), now = place(p);
+      if (u.oldKey != null && !p.some(([, k]) => /-old$/.test(k)) && was && was[0][0] === 'sec' && now[0][0] === 'sec') out.push({ old: was, now });
+      u.kids.forEach(k => moved(k, p));
+    };
+    top.forEach(u => moved(u, []));
+    // renumbered units left as text: at the level the lead-in names
+    if (top.loose && target.length) {
+      const abbr = target[target.length - 1][0], base = target.slice(0, -1);
+      for (const l of top.loose) out.push({ old: base.concat([[abbr, l.old]]), now: base.concat([[abbr, l.now]]) });
+    }
+    return out;
+  }
+  const pathHref = (base, p) => base + '/~' + p.map(([a, k]) => a + '_' + k).join('__');
+  function quoted(q, modEid, sub, found) {
+    const scheme = sub ? SCHEME_SUBSEC : SCHEME, eid = modEid + '__qstr', us = units(groupDeletions(q.paras), eid, scheme);
+    if (found) found.push(...renumbered(us, scheme, found.target || []));
     return '<quotedStructure eId="' + eid + '">' + (spans(us.map(unitXml).join('')) || '<hcontainer name="text" eId="' + eid + '__text_1"><content><p/></content></hcontainer>') + '</quotedStructure>';
   }
 
@@ -296,6 +389,26 @@
     const action = clause.slice(end), v = /\b(is|are) (amended|REPEALED)\b/.exec(action);
     const hist = v ? action.slice(0, v.index) : '', rest = v ? action.slice(v.index) : action;
     return '<ref href="' + href + '">' + x(clause.slice(0, end)) + '</ref>' + history(hist) + x(rest);
+  }
+
+  // A renumbering's lead-in: each unit cited is its own ref, as the converter writes them ("Subdivisions 6" and
+  // "7 of section 349-a of the social services law"); a clause in another form gets one ref to the section.
+  function renumberLead(clause, name, rn, at, secHref) {
+    const bare = String(name || '').replace(/^the /, ''), k = bare ? clause.toLowerCase().indexOf(bare.toLowerCase()) : -1;
+    if (k < 0) return leadIn(clause, name, secHref);
+    const end = k + bare.length, cite = clause.slice(0, end), action = clause.slice(end);
+    const v = /\b(is|are) (renumbered|relettered)\b/.exec(action);
+    const tail = v ? history(action.slice(0, v.index)) + x(action.slice(v.index)) : x(action);
+    if (rn.section) return '<ref href="' + at(rn.from) + '">' + x(cite) + '</ref>' + tail;
+    // "Subdivisions 6, 7 and 8 of section …": split before each designator after the first
+    const m = /^(\S+ )(.+?)( of section .*)$/.exec(cite), parts = m ? m[2].split(/(, | and )/) : null;
+    if (!parts || parts.filter((p, i) => i % 2 === 0).length !== rn.units.length) return '<ref href="' + secHref + '">' + x(cite) + '</ref>' + tail;
+    let out = '';
+    rn.units.forEach((u, i) => {
+      const txt = (i === 0 ? m[1] : '') + parts[2 * i] + (i === rn.units.length - 1 ? m[3] : '');
+      out += '<ref href="' + at(u) + '">' + x(txt) + '</ref>' + (i < rn.units.length - 1 ? x(parts[2 * i + 1]) : '');
+    });
+    return out + tail;
   }
 
   /* ---------- effective dates ---------- */
@@ -381,15 +494,29 @@
       const eid = 'sec_' + (i + 1), refers = REFERS[s.act];
       if (refers) used.add(refers);
       let content = '', cls = '';
-      if ((s.act === 'amend' || s.act === 'add' || s.act === 'repeal') && s.law) {
+      const rn = s.act === 'renumber' && s.law ? BD.renumberingOf(s.clause) : null;
+      if (rn) {
+        // A renumbering: one textualMod per unit moved, and an insertion for a unit added (with its text).
+        const modId = eid + '__mod_1', sub = BD.usesSubsections(s.law), base = lawBase(s.law, laws[s.law]);
+        const secPath = [['sec', numId(BD.secId(s.loc))]], unitAbbr = sub ? 'subsec' : 'subdvs';
+        const at = u => rn.section ? pathHref(base, [['sec', numId(u)]]) : pathHref(base, secPath.concat([[unitAbbr, numId(u)]]));
+        const olds = rn.section ? [rn.from || BD.secId(s.loc)] : rn.units;
+        const lead = renumberLead(s.clause, names[s.law], rn, at, provision(base, s.loc, null, sub));
+        content = '<p><mod eId="' + modId + '">' + lead + (rn.add && s.quoted ? quoted(s.quoted, modId, sub) : '') + '</mod></p>';
+        olds.forEach((u, k) => { if (rn.to[k]) mods.push({ type: 'renumbering', source: modId, dest: at(u), new: at(rn.to[k]) }); });
+        if (rn.add) mods.push({ type: 'insertion', source: modId, dest: at(rn.add) });
+        for (const p of s.paras) content += '<p>' + inline(p.map(r => ({ ...r, k: '' }))) + '</p>';
+      } else if ((s.act === 'amend' || s.act === 'add' || s.act === 'repeal') && s.law) {
         const modId = eid + '__mod_1', sub = BD.usesSubsections(s.law), base = lawBase(s.law, laws[s.law]);
         const dest = provision(base, s.loc, s.unit, sub);
         // An addition cites the law (or the section a subdivision is added to); an amendment or repeal the provision.
         const cite = s.act === 'add' ? (s.unit && /^(Section|Subsection|Subdivision)/.test(s.clause || '') ? provision(base, s.loc, null, sub) : base) : dest;
         const lead = leadIn(s.clause || '', names[s.law], cite);
+        const found = []; found.target = [['sec', numId(BD.secId(s.loc))]].concat(s.unit ? [[sub ? 'subsec' : 'subdvs', numId(s.unit)]] : []);
         if (s.act === 'repeal' || !s.quoted) content = '<p><mod eId="' + modId + '">' + lead + '</mod></p>';
-        else content = '<p><mod eId="' + modId + '">' + lead + quoted(s.quoted, modId, sub) + '</mod></p>';
+        else content = '<p><mod eId="' + modId + '">' + lead + quoted(s.quoted, modId, sub, found) + '</mod></p>';
         mods.push({ type: s.act === 'repeal' ? 'repeal' : s.act === 'add' ? 'insertion' : 'substitution', source: modId, dest });
+        for (const r of found) mods.push({ type: 'renumbering', source: modId, dest: pathHref(base, r.old), new: pathHref(base, r.now) });
         for (const p of s.paras) content += '<p>' + inline(p.map(r => ({ ...r, k: '' }))) + '</p>';
       } else {
         // Outside quoted text there is no new or old matter: the bill's own words are plain.
@@ -438,7 +565,7 @@
       '</identification>' +
       (work_ && BD.review ? BD.review.workflowXml(work_.steps, work_.personId) : '') +
       (mods.length ? '<analysis source="#lbdc"><activeModifications>' + mods.map((m, k) =>
-        '<textualMod eId="amod_' + (k + 1) + '" type="' + m.type + '"><source href="#' + m.source + '"/><destination href="' + m.dest + '"/></textualMod>').join('') + '</activeModifications></analysis>' : '') +
+        '<textualMod eId="amod_' + (k + 1) + '" type="' + m.type + '"><source href="#' + m.source + '"/><destination href="' + m.dest + '"/>' + (m.new ? '<new href="' + m.new + '"/>' : '') + '</textualMod>').join('') + '</activeModifications></analysis>' : '') +
       '<references source="#lbdc">' + refs.join('') + workingRefs(work_) + (work_ && BD.review ? BD.review.workflowRefs(work_.steps) : '') + '</references>' +
       '<proprietary source="#lbdc"><lbdc:documentInfo><lbdc:profile name="AKN-NY" version="' + PROFILE_VERSION + '"/><lbdc:house>' + house + '</lbdc:house><lbdc:session>' + session + '</lbdc:session>' +
       (printNo ? '<lbdc:printNumber>' + printNo + '</lbdc:printNumber>' : '') + (lbd ? '<lbdc:lbdNumber>LBD' + x(lbd) + '</lbdc:lbdNumber>' : '') + workingInfo(work_) + '</lbdc:documentInfo></proprietary></meta>' +
@@ -452,6 +579,6 @@
       '</bill></akomaNtoso>\n';
   }
 
-  Object.assign(BD, { toAkn, AKN_NS: AKN, LBDC_NS: LBDC, PROFILE_VERSION, lawUri, provision, effectiveClass });
+  Object.assign(BD, { renumberedIn: (paras, sub, target) => { const sc = sub ? SCHEME_SUBSEC : SCHEME; return renumbered(units(groupDeletions(paras), 'x', sc), sc, target || []); }, toAkn, AKN_NS: AKN, LBDC_NS: LBDC, PROFILE_VERSION, lawUri, provision, effectiveClass });
   if (typeof module !== 'undefined') module.exports = BD;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

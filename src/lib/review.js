@@ -124,7 +124,7 @@
     for (const [sec, st] of standing) {
       const el = body && Array.from(body.getElementsByTagNameNS(AKN, 'section')).find(s => s.getAttribute('eId') === sec);
       const want = st.getAttributeNS(LBDC, 'hash'), who = (st.getAttribute('by') || '').replace(/^#/, '');
-      out.push({ section: sec, by: names[who] || who, date: st.getAttribute('date'), stale: !!(el && want && await sha256hex(c14n(withoutComments(el))) !== want) });
+      out.push({ section: sec, by: names[who] || who, date: st.getAttribute('date'), hash: want, stale: !!(el && want && await sha256hex(c14n(withoutComments(el))) !== want) });
     }
     return out;
   }

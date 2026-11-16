@@ -103,7 +103,40 @@
       return cap(law) + ' is amended by adding ' + what + ' to read as follows:';
     }
     if (o.act === 'repeal') return cap(unitCite(o.loc, o.unit, sub)) + ' of ' + law + (hist ? ', ' + hist + ',' : '') + ' is REPEALED.';
+    if (o.act === 'renumber') return renumberClause(o, law, hist, sub);
     return cap(unitCite(o.loc, o.unit, sub)) + ' of ' + law + (hist ? ', ' + hist + ',' : '') + ' is amended to read as follows:';
+  }
+
+  /* Renumbering (Drafting Manual):
+       Subdivision 6 of section 349-a of the social services law is renumbered subdivision 5.
+       Subdivisions 6 and 7 of section 349-a of the social services law are renumbered subdivisions 5 and 6.
+       Subdivisions 6 and 7 … are renumbered subdivisions 5 and 6 and a new subdivision 7 is added to read as follows:
+       Subsections (c) and (d) of section 606 of the tax law are relettered subsections (d) and (e).
+       Section 12-a of the general construction law is renumbered section 12-b.
+     o.unit: the units renumbered ("6, 7"; none for a section), o.to: their new numbers, o.add: a unit added. */
+  const designators = v => (Array.isArray(v) ? v : String(v || '').split(/\s*(?:,|\band\b)\s*/)).map(x => String(x).replace(/[()\s]/g, '').replace(/^§/, '')).filter(Boolean);
+  const andList = a => a.length < 2 ? a.join('') : a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1];
+  const relettered = a => a.length && a.every(x => /^[a-z]+$/i.test(x) && !/^\d/.test(x));
+  function renumberClause(o, law, hist, sub) {
+    const from = designators(o.unit), to = designators(o.to), add = designators(o.add)[0];
+    const h = hist ? ', ' + hist + ',' : '', verb = relettered(to) ? 'relettered' : 'renumbered';
+    if (!from.length) return 'Section ' + secId(o.loc) + ' of ' + law + h + ' is ' + verb + ' section ' + secId(to[0] || '____') + '.';
+    const name = sub ? 'subsection' : 'subdivision', fmt = u => sub ? '(' + u + ')' : u, many = from.length > 1;
+    let t = cap(name) + (many ? 's ' : ' ') + andList(from.map(fmt)) + ' of section ' + secId(o.loc) + ' of ' + law + h +
+      (many ? ' are ' : ' is ') + verb + ' ' + name + (to.length > 1 ? 's ' : ' ') + andList((to.length ? to : ['____']).map(fmt));
+    return t + (add ? ' and a new ' + name + ' ' + fmt(add) + ' is added to read as follows:' : '.');
+  }
+
+  // What a renumbering clause says, read back from its words (the clause is the record: the drafter may edit it):
+  // {units: ['6', '7'] (none for a section), to: ['5', '6'], add: '7' | '', section: true for a section}. null if
+  // the clause is not a renumbering.
+  function renumberingOf(clause) {
+    const c = String(clause || '').replace(/\s+/g, ' ').trim();
+    let m = /^Section ([\w.-]+) of .+? is (?:renumbered|relettered) section ([\w.-]+)\.$/i.exec(c);
+    if (m) return { units: [], to: [m[2].toLowerCase()], add: '', section: true, from: m[1].toLowerCase() };
+    m = /^(?:Subdivisions?|Subsections?) (.+?) of section ([\w.-]+) of .+? (?:is|are) (?:renumbered|relettered) (?:subdivisions?|subsections?) (.+?)(?: and a new (?:subdivision|subsection) (\S+?) is added to read as follows:|\.)$/i.exec(c);
+    if (!m) return null;
+    return { units: designators(m[1]), to: designators(m[3]), add: m[4] ? designators(m[4])[0] : '', section: false };
   }
 
   /* ---------- the bill's sections: numbers and the long title ---------- */
@@ -129,7 +162,8 @@
     const amend = [], repeal = [];
     for (const s of sections) {
       if (!s.law || !s.lawName) continue;
-      if (s.act === 'amend' || s.act === 'add') { if (!amend.includes(s.lawName)) amend.push(s.lawName); }
+      // a renumbering amends the law
+      if (s.act === 'amend' || s.act === 'add' || s.act === 'renumber') { if (!amend.includes(s.lawName)) amend.push(s.lawName); }
       else if (s.act === 'repeal') repeal.push(unitCite(s.loc, s.unit, !!(BD.usesSubsections && BD.usesSubsections(s.law))) + ' of ' + s.lawName);
     }
     // A bill that expires says so in its title (Manual; the profile warns when it doesn't).
@@ -266,7 +300,49 @@
   // Deleted matter is put in brackets; a paragraph that is all new or all old stays its own paragraph.
   function markChanges(law, now) {
     if (law.some(isTbl) || now.some(isTbl)) return BD.markWithTables(law, now, markText);
-    return markText(law, now);
+    return markNumbered(law, now) || markText(law, now);
+  }
+  /* Numbered units (1., (a), (iv), § 12.) are matched paragraph to paragraph, by their words, before the words are
+     compared: a unit taken out is struck whole ("[3. Text.]"), a unit put in is new whole, and a unit whose number
+     changed is renumbered ("[3.] 2. Text."), not run together with its neighbours. Returns null when the text is not
+     numbered paragraphs. */
+  const UNIT_NUM = /^(\s*)(§\s*\d+[\w.-]*\.|\((?:[0-9]+(?:-[a-z])?|[a-z]{1,4}(?:-\d+)?|[A-Z]{1,2})\)|(?:[0-9]+(?:-[a-z])?|[a-z])\.)(?=\s|$)\s*/;
+  function markNumbered(law, now) {
+    const split = p => { const m = UNIT_NUM.exec(p); return m ? { num: m[2], body: p.slice(m[0].length) } : { num: '', body: p }; };
+    const L = law.map(split), N = now.map(split);
+    const numbered = xs => xs.filter(x => x.num).length;
+    if (law.length + now.length < 3 || numbered(L) < Math.max(2, law.length / 2) || numbered(N) < Math.max(2, now.length / 2)) return null;
+    const words = t => new Set(tokens([t]).map(k => norm(k.w).toLowerCase()).filter(w => /\w/.test(w)));
+    const LW = L.map(x => words(x.body)), NW = N.map(x => words(x.body));
+    const sim = (i, j) => { const a = LW[i], b = NW[j]; if (!a.size && !b.size) return 1; let c = 0; for (const w of a) if (b.has(w)) c++; return c / Math.max(a.size, b.size); };
+    // Best alignment of paragraphs: the most similar pairs, in order (a weighted longest common subsequence).
+    const n = L.length, m = N.length, S = Array.from({ length: n + 1 }, () => new Float64Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) {
+      const s0 = sim(i, j);
+      S[i][j] = Math.max(S[i + 1][j], S[i][j + 1], s0 >= 0.4 ? s0 + S[i + 1][j + 1] : -1);
+    }
+    const out = []; let i = 0, j = 0;
+    const struck = x => [{ t: '[' + (x.num ? x.num + ' ' : '') + x.body + ']', k: 'del' }];
+    const added = x => [{ t: (x.num ? x.num + ' ' : '') + x.body, k: 'ins' }];
+    const pair = (a, b) => {
+      const body = a.body === b.body ? (b.body ? [{ t: b.body, k: '' }] : []) : markText([a.body], [b.body])[0] || [];
+      const head = a.num === b.num ? (b.num ? [{ t: b.num + ' ', k: '' }] : []) :
+        !a.num ? [{ t: b.num, k: 'ins' }, { t: ' ', k: '' }] : !b.num ? [{ t: '[' + a.num + ']', k: 'del' }, { t: ' ', k: '' }] :
+        [{ t: '[' + a.num + ']', k: 'del' }, { t: ' ', k: '' }, { t: b.num, k: 'ins' }, { t: ' ', k: '' }];
+      const runs = [];
+      for (const r of head.concat(body)) { const l = runs[runs.length - 1]; if (l && l.k === r.k && !r.k) l.t += r.t; else runs.push({ ...r }); }
+      return runs;
+    };
+    while (i < n || j < m) {
+      if (i < n && j < m) {
+        const s0 = sim(i, j);
+        if (s0 >= 0.4 && S[i][j] === s0 + S[i + 1][j + 1]) { out.push(pair(L[i], N[j])); i++; j++; continue; }
+        if (S[i][j] === S[i + 1][j]) { out.push(struck(L[i])); i++; continue; }
+        out.push(added(N[j])); j++; continue;
+      }
+      if (i < n) out.push(struck(L[i++])); else out.push(added(N[j++]));
+    }
+    return out;
   }
   function markText(law, now) {
     const A = tokens(law), B = tokens(now), ops = diffWords(A, B);
@@ -323,7 +399,7 @@
 
   Object.assign(BD, {
     ENACTING, SHORT_TITLE, SEVERABILITY, FINDINGS, EFF_FORMS, EFF_ADDONS, effectiveText,
-    lawName, unconsolidatedChapter, secId, unitCite, amendingClause, sectionNum, ORDINAL, insertIndex, longTitle,
+    lawName, unconsolidatedChapter, secId, unitCite, amendingClause, designators, renumberingOf, sectionNum, ORDINAL, insertIndex, longTitle,
     lawParagraphs, subdivisions, tokens, diffWords, markChanges, readings, sameText,
   });
   if (typeof module !== 'undefined') module.exports = BD;

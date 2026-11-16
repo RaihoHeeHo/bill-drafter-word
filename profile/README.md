@@ -95,7 +95,10 @@ SHA-256 and the signer's Ed25519 signature over the manifest's exact bytes, opti
 or for named people (X25519). A clean copy PDF prints the bill's fingerprint (the start of its XML's SHA-256) at
 the foot of every page and carries its signed package inside. A package or PDF that fails a check is VOID. The
 format, the checks and what it is not (keys on the computer are for the demonstration; production would use the
-state's sign-ins or certificates) are in [PACKAGE.md](PACKAGE.md).
+state's sign-ins or certificates) are in [PACKAGE.md](PACKAGE.md). Version 2 adds the parts of the Chrome extension's
+`.nysbill` files: each person's signed, hash-chained activity log (sign-offs signed with the examiner's own key),
+attachments each signed by whoever added them, earlier versions, a review packet, the law check at signing, a
+preview to read in any browser, and, inside a clean copy PDF, the text of each page as drawn.
 
 ```
 pip install cryptography pypdf

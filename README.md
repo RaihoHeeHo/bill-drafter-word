@@ -45,7 +45,7 @@ The **Draft** tab opens with a short *Getting started* list until both steps are
 1. Open the pane (Home > Bill Drafter) and press **Load the Bank** at the top right.
 2. **Choose a folder…** and pick the folder with the law files (e.g. `Downloads\NYS Law Library\NY-Law-Exporter\Downloads\<date>`), or **Choose files…** for a few laws. They are kept in Word's storage on this computer; nothing leaves it. Do this again when the Bank is updated (the button at the top right shows how many laws are loaded).
 3. Type what the bill is in relation to and click **Start the bill**.
-4. Under **Add a section**, type the law and the section in one box (`GCN 12`, `executive 296`, `tax 606(c)`), press Enter, choose what the bill does, and insert it.
+4. Under **Add a section**, type the law and the section in one box (`GCN 12`, `executive 296`, `tax 606(c)`), press Enter, choose what the bill does (amend, add, renumber or repeal), and insert it.
 5. Edit the law's text in the document, then press **Mark changes** in the bar at the bottom of the pane.
 6. On **Clean copy**, fill in the bill information and make the PDF.
 
@@ -70,6 +70,7 @@ Word's **Track Changes** are suggestions: what a reviewer types or deletes with 
 - **People** (Review tab) lists everyone who made a suggestion or a comment or took a step; give each a role (drafter, examiner or proofreader). The roles and the review are saved in the document.
 - **Show the XML** then gives a *working copy* in the profile's terms: the bill with the suggestions, comments and review steps, who made them, and their roles.
 - **Signed package** (Clean copy tab) saves the working copy or the clean copy's XML in a `.nysakn` file signed with your key, for anyone, with a password, or only for people in the document (no password to share). **Check a package or PDF…** shows who signed it, whether anything changed since (if so it's **VOID**), stale sign-offs and the note; a VOID one prints with VOID across every page. Your key is made when you first say who you are and is kept on this computer (a demonstration: production would use the state's sign-ins or certificates); your public card goes into the document so others can send you packages. Compare a signer's fingerprint with them before trusting their key.
+- **What a package carries**: the activity log (each person's signed record of what they did, sign-offs included), the checks against the Bank at that moment, a preview anyone can open in a browser, and as you choose: the earlier versions kept in the document (every package and clean copy you save keeps one), attachments (a request memo, a fiscal note; signed by whoever adds them, kept in the document), and a review packet ("for the examiner, due Nov 20"). Checking a package shows all of it, and a log or attachment changed after signing makes it VOID.
 - **Signed clean copies**: once you've said who you are, every clean copy prints the bill's fingerprint at the foot of each page and carries its signed package inside the PDF. The profile's `tools/nysakn.py check` checks packages and PDFs from the command line, and with `--rerender` compares every page's words with the signed XML. See `profile/PACKAGE.md`.
 
 ## Budget mode
@@ -118,6 +119,9 @@ tests/unit.cjs        unit tests, including the profile validator on the add-in'
 tests/cleancopy.mjs   makes clean copies with the pane's own code and compiler   (node tests/cleancopy.mjs [bill.akn.xml ...])
 tests/flow.cjs        whole flow in Chromium against a Word stand-in (tests/word-mock.js):
                       python3 -m http.server 8123 & node tests/flow.cjs tests/bank-fixture out/
+tests/renumber-flow.cjs renumbering in Chromium: paragraphs lettered up and marked, a renumbering section with a
+                      new subdivision, a section renumbered onto a taken number (caught) and then a free one
+tests/renum-real.cjs  the add-in's renumberings in real bills against the converter's (node tests/renum-real.cjs x.xml)
 tests/bank-fixture/   three small Bank files for the flow (tests/make-bank-fixture.cjs)
 tests/budget-flow.cjs budget mode in Chromium against the Word stand-in   (node tests/budget-flow.cjs out/)
 tests/budget-whole.cjs all of S.3003-D: schedules opened and closed, checks, the bill window, the clean copy in parts

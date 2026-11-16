@@ -153,6 +153,14 @@
     for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(find)) { t.textContent = t.textContent.replace(find, replace); return true; }
     return false;
   };
+  // Test helper: empty the paragraph holding `find` (a person selecting a whole paragraph and deleting its words).
+  window.__emptyParaWith = find => {
+    for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(find)) {
+      let p = t; while (p && p.localName !== 'p') p = p.parentNode;
+      for (const u of p.getElementsByTagNameNS(W, 't')) u.textContent = ''; return true;
+    }
+    return false;
+  };
   // Test helper: Word's Track Changes. A tracked insertion by `author` right after the run that holds `after`.
   window.__suggestInLaw = (after, text, author) => {
     for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(after)) {
