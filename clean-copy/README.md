@@ -46,6 +46,10 @@ of memory), so the pane prints it in parts and joins them. Four inputs make that
 | `toc` | `yes` | Whether this part carries the table of contents |
 | `agency-pages` | `{}` | JSON `{eId: page}`: where the agencies of earlier parts begin, for the table of contents |
 
+Two more inputs sign a clean copy (see `profile/PACKAGE.md`): `fingerprint` (`XXXX-XXXX-XXXX`, the start of the
+SHA-256 of the bill's XML) is printed at the foot of every page, and `void=yes` prints VOID across every page of a
+copy whose signed package failed its checks. Both templates take them; without them the pages are unchanged.
+
 Each agency is `metadata` labelled `<agency-page>` with its page, so after a part is laid out the next part's inputs
 can be read from it:
 
