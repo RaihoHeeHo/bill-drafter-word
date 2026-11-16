@@ -223,11 +223,15 @@ function showActions() {
   $('action').hidden = false;
   const word = subsecs() ? 'subsection' : 'subdivision';
   $('sub-word').textContent = word; $('sub-word2').textContent = word;
+  document.querySelectorAll('.sub-word-pl').forEach(e => { e.textContent = word + 's'; }); document.querySelectorAll('.sub-word-one').forEach(e => { e.textContent = word; });
   const sub = $('sub'); sub.innerHTML = '';
   for (const x of subs) sub.append(el('option', { value: x.unit, textContent: subsecs() ? '(' + x.unit + ')' : x.unit }));
   const radio = v => document.querySelector('input[name=act][value=' + v + ']');
   radio('amendSub').disabled = !subs.length; sub.disabled = !subs.length;
   radio('amend').disabled = radio('repeal').disabled = !!s.missing; radio('addSub').disabled = !!s.missing;
+  radio('renumber').disabled = !subs.length || !!s.missing; radio('renumberSec').disabled = !!s.missing;
+  $('rn-from').value = pick.unit && subs.some(x => x.unit.toLowerCase() === pick.unit.toLowerCase()) ? pick.unit : ''; $('rn-to').value = ''; $('rn-add-on').checked = false;
+  $('rn-add').value = $('add-sub').value; $('rn-sec').value = s.missing ? '' : BD.nextFreeSection(pick.law, s.loc);
   $('add-num').value = s.missing ? BD.secId(s.loc) : BD.nextFreeSection(pick.law, s.loc);
   const last = subs.length ? subs[subs.length - 1].unit : (subsecs() ? '' : '0');
   $('add-sub').value = subsecs() ? (last ? String.fromCharCode(last.charCodeAt(0) + 1) : 'a') : /^\d+$/.test(last) ? String(+last + 1) : last + '-a';
@@ -243,13 +247,17 @@ function actionChanged() {
   if (!pick.sec) { $('insert-amend').textContent = 'Insert section'; return; }
   const how = (document.querySelector('input[name=act]:checked') || {}).value, id = pick.law.info.lawId, sec = BD.secId(pick.sec.loc);
   const unit = subsecs() ? '(' + $('sub').value + ')' : $('sub').value;
-  $('history-row').hidden = !(how === 'amend' || how === 'amendSub' || how === 'repeal');
+  $('history-row').hidden = !(how === 'amend' || how === 'amendSub' || how === 'repeal' || how === 'renumber' || how === 'renumberSec');
+  $('rn-add-row').hidden = how !== 'renumber';
+  const fmt = v => BD.designators(v).map(u => subsecs() ? '(' + u + ')' : u).join(', ') || '?';
   $('insert-amend').textContent = {
     amend: 'Insert: amend ' + id + ' § ' + sec,
     amendSub: 'Insert: amend ' + id + ' § ' + sec + ' ' + (subsecs() ? 'subsec. ' : 'subd. ') + unit,
     add: 'Insert: add ' + id + ' § ' + ($('add-num').value || '?'),
     addSub: 'Insert: add ' + (subsecs() ? 'subsec. (' + $('add-sub').value + ')' : 'subd. ' + $('add-sub').value) + ' to ' + id + ' § ' + sec,
     repeal: 'Insert: repeal ' + id + ' § ' + sec,
+    renumber: 'Insert: renumber ' + id + ' § ' + sec + ' ' + (subsecs() ? 'subsec. ' : 'subd. ') + fmt($('rn-from').value) + ' as ' + fmt($('rn-to').value) + ($('rn-add-on').checked ? ', add ' + fmt($('rn-add').value) : ''),
+    renumberSec: 'Insert: renumber ' + id + ' § ' + sec + ' as § ' + ($('rn-sec').value.trim() || '?'),
   }[how] || 'Insert section';
 }
 // The Bank's text as the document holds it: a paragraph as one run; a table as it is (its cells are text).
@@ -268,14 +276,24 @@ async function insertAmendment() {
   } else if (how === 'addSub') {
     const unit = $('add-sub').value.trim(); if (!unit) throw new Error('Type the new subdivision\'s number.');
     o = { act: 'add', loc: s.loc, unit, quoted: [[{ t: (BD.usesSubsections(law.info.lawId) ? '(' + unit.replace(/[()]/g, '') + ')' : unit + '.') + ' ____', k: 'ins' }]] };
+  } else if (how === 'renumber') {
+    const from = BD.designators($('rn-from').value), to = BD.designators($('rn-to').value), sub = BD.usesSubsections(law.info.lawId);
+    if (!from.length || !to.length) throw new Error('Type the present numbers of the ' + (sub ? 'subsections' : 'subdivisions') + ' and their new numbers, e.g. 6, 7 as 5, 6.');
+    if (from.length !== to.length) throw new Error('Give one new number for each ' + (sub ? 'subsection' : 'subdivision') + ': ' + from.length + ' renumbered, ' + to.length + ' new numbers.');
+    const add = $('rn-add-on').checked ? BD.designators($('rn-add').value)[0] : '';
+    if ($('rn-add-on').checked && !add) throw new Error('Type the new ' + (sub ? 'subsection' : 'subdivision') + '\'s number.');
+    o = { act: 'renumber', loc: s.loc, unit: from.join(','), to, add, quoted: add ? [[{ t: (sub ? '(' + add + ')' : add + '.') + ' ____', k: 'ins' }]] : undefined };
+  } else if (how === 'renumberSec') {
+    const to = BD.locKey($('rn-sec').value); if (!to) throw new Error('Type the section\'s new number.');
+    o = { act: 'renumber', loc: s.loc, unit: '', to: [BD.secId(to)] };
   } else o = { act: 'repeal', loc: s.loc };
   o.law = law.info.lawId;
-  o.clause = BD.amendingClause({ act: o.act, info: law.info, loc: o.loc, unit: o.unit, history: o.act === 'add' ? '' : history });
+  o.clause = BD.amendingClause({ act: o.act, info: law.info, loc: o.loc, unit: o.unit, to: o.to, add: o.add, history: o.act === 'add' ? '' : history });
   await insertSection(o.act, BD.sectionXml(o));
   await updateTitle(null);
   $('history').value = '';
   clearPick(); $('sec-q').blur();
-  notice(o.act === 'repeal' ? 'Repeal inserted.' : o.act === 'add' ? 'New ' + (o.unit ? 'unit' : 'section') + ' inserted, all underlined. Type over the ____ in the document.' : 'Section inserted with the law\'s text. Edit it in the document as you would any text, then press Mark changes.');
+  notice(o.act === 'renumber' ? (o.add ? 'Renumbering inserted, with the new ' + (BD.usesSubsections(o.law) ? 'subsection' : 'subdivision') + ' underlined. Type over the ____ in the document.' : 'Renumbering inserted.') : o.act === 'repeal' ? 'Repeal inserted.' : o.act === 'add' ? 'New ' + (o.unit ? 'unit' : 'section') + ' inserted, all underlined. Type over the ____ in the document.' : 'Section inserted with the law\'s text. Edit it in the document as you would any text, then press Mark changes.');
 }
 // Brackets and underlines from comparing each amended text with the Bank.
 // The marking as one string, to tell whether marking again would change anything (tables always count as changed).
@@ -288,7 +306,7 @@ async function markChanges(quiet) {
   await word(async ctx => quietly(ctx, async () => {
     const secs = await sectionControls(ctx);
     for (const c of secs) {
-      const tag = BD.parseTag(c.tag); if (tag.act !== 'amend' && tag.act !== 'add') continue;
+      const tag = BD.parseTag(c.tag); if (tag.act !== 'amend' && tag.act !== 'add' && tag.act !== 'renumber') continue;
       const ox = c.getOoxml(); await ctx.sync();
       const read = BD.readBill(ox.value), inner = read.sections, s = inner[0];
       if (!s || !s.quoted) continue;
@@ -296,7 +314,7 @@ async function markChanges(quiet) {
       if (read.suggestions && read.suggestions.bySection[0]) { waiting.push(c.title || s.num || tag.loc); continue; }
       const now = BD.readings(s.quoted.paras).now;
       let out;
-      if (tag.act === 'add') out = now.map(t => [{ t, k: 'ins' }]);
+      if (tag.act === 'add' || tag.act === 'renumber') out = now.map(t => [{ t, k: 'ins' }]); // a unit added: all new
       else {
         const law = await getLaw(tag.law), want = law && BD.lawTextFor(law, { loc: tag.loc, unit: tag.unit });
         if (!want) { problems.push({ where: (c.title || tag.loc), why: law ? 'the provision it amends is not in the Bank as cited' : 'the ' + tag.law + ' law is not in the Bank on this computer' }); continue; }
@@ -364,13 +382,18 @@ async function applyHistory(i, typed) {
     const sec = (await sectionControls(ctx))[i];
     if (!sec) throw new Error('That section is no longer in the bill.');
     const tag = BD.parseTag(sec.tag);
-    if (tag.act !== 'amend' && tag.act !== 'repeal') throw new Error('That section does not amend or repeal a provision, so it cites no history.');
+    if (tag.act !== 'amend' && tag.act !== 'repeal' && tag.act !== 'renumber') throw new Error('That section does not amend, renumber or repeal a provision, so it cites no history.');
     const mod = (await controlsByName(ctx, 'akn:mod', sec))[0];
     if (!mod) throw new Error('That section has no amending clause to put the history in.');
     mod.load('text'); await ctx.sync();
-    const old = mod.text.trim(), without = old.replace(/,\s*as (amended|added|renumbered|relettered)\b[^]*?,\s*(?=is (amended|REPEALED))/, ' ');
-    let clause = /\s(is amended to read|is REPEALED)/.test(without) ? without.replace(/\s+(is amended to read|is REPEALED)/, ', ' + h + ', $1') : '';
-    if (!clause) { const law = await getLaw(tag.law); if (!law) throw new Error('The clause has an unusual form; type the history into it by hand.'); clause = BD.amendingClause({ act: tag.act, info: law.info, loc: tag.loc, unit: tag.unit, history: h }); }
+    const old = mod.text.trim(), without = old.replace(/,\s*as (amended|added|renumbered|relettered)\b[^]*?,\s*(?=(is|are) (amended|REPEALED|renumbered|relettered))/, ' ');
+    const VERB = /\s+((?:is|are) (?:amended to read|REPEALED|renumbered|relettered))/;
+    let clause = VERB.test(without) ? without.replace(VERB, ', ' + h + ', $1') : '';
+    if (!clause) {
+      const law = await getLaw(tag.law); if (!law) throw new Error('The clause has an unusual form; type the history into it by hand.');
+      const rn = tag.act === 'renumber' ? BD.renumberingOf(old) : null;
+      clause = BD.amendingClause({ act: tag.act, info: law.info, loc: tag.loc, unit: rn ? rn.units.join(',') : tag.unit, to: rn && rn.to, add: rn && rn.add, history: h });
+    }
     mod.insertText(clause, 'Replace'); await ctx.sync();
     where = sec.title || '';
   }));
@@ -405,7 +428,7 @@ async function setEffective() {
    refresh() reads the bill and runs the checks, so the list can show each section's state (to fix, edits not
    marked, history wanted) with its fix next to it. It runs after every change the pane makes and whenever the
    drafter comes back to the pane from the document. */
-const KIND = { amend: 'Amend', add: 'Add', repeal: 'Repeal', new: '', shortTitle: 'Short title', findings: 'Findings', severability: 'Severability', effective: 'Effective date' };
+const KIND = { amend: 'Amend', add: 'Add', repeal: 'Repeal', renumber: 'Renumber', new: '', shortTitle: 'Short title', findings: 'Findings', severability: 'Severability', effective: 'Effective date' };
 const SHORT = { Blanks: 'Fill in the blank', Citation: 'Citation', 'Already in law': 'Number taken', 'Amending clause': 'Clause', 'Effective date': 'Effective date', 'Short title': 'Short title', Structure: 'Missing text', Brackets: 'Brackets' };
 // openRow: the section whose history is being typed (rowDraft keeps what was typed across refreshes).
 let state = { model: null, found: [] }, hasBill = false, refreshing = null, again = false, openRow = null, rowDraft = '', rowFocus = false;
@@ -458,7 +481,7 @@ function drawOutline(model, found) {
     const waitN = model.suggestions ? model.suggestions.bySection[i] : 0;
     if (waitN) chip(plural(waitN, 'suggestion') + ' waiting', 'warn', 'Word\'s tracked changes: accept or reject them in Word (Review). Mark changes leaves this section alone until then.', async () => goTo(i));
     if (hist) chip('Add history', 'warn', 'The amending clause should cite the last amendment. The Bank does not have it: type it in.', async () => { openRow = openRow === i ? null : i; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); });
-    if (!mine.some(f => f.level === 'error' || f.fix === 'history') && (s.act === 'amend' || s.act === 'add' || s.act === 'repeal')) chips.append(el('span', { className: 'ok', textContent: '✓', title: 'Nothing to fix' }));
+    if (!mine.some(f => f.level === 'error' || f.fix === 'history') && (s.act === 'amend' || s.act === 'add' || s.act === 'repeal' || s.act === 'renumber')) chips.append(el('span', { className: 'ok', textContent: '✓', title: 'Nothing to fix' }));
     const li = el('li', { className: openRow === i ? 'open' : '' }, el('div', { className: 'line' }, main, chips));
     li.dataset.i = String(i);
     if (openRow === i && hist) {
@@ -1138,7 +1161,11 @@ function wire() {
     else if (e.key === 'Enter') { e.preventDefault(); const items = [...$('sec-results').querySelectorAll('li[role=option]')]; const li = items[active >= 0 ? active : 0]; if (li) li.click(); }
   };
   for (const r of document.querySelectorAll('input[name=act]')) r.onchange = actionChanged;
-  for (const id of ['sub', 'add-num', 'add-sub']) $(id).addEventListener('input', actionChanged);
+  for (const id of ['sub', 'add-num', 'add-sub', 'rn-from', 'rn-to', 'rn-add', 'rn-sec']) $(id).addEventListener('input', actionChanged);
+  $('rn-add-on').onchange = actionChanged;
+  // typing in a choice's box chooses it
+  for (const [id, v] of [['rn-from', 'renumber'], ['rn-to', 'renumber'], ['rn-add', 'renumber'], ['rn-sec', 'renumberSec'], ['add-num', 'add'], ['add-sub', 'addSub']]) $(id).addEventListener('focus', () => { const r = document.querySelector('input[name=act][value=' + v + ']'); if (r && !r.disabled && !r.checked) { r.checked = true; actionChanged(); } });
+  $('rn-add-on').addEventListener('change', () => { const r = document.querySelector('input[name=act][value=renumber]'); if ($('rn-add-on').checked && !r.disabled) { r.checked = true; actionChanged(); } });
   for (const id of ['bank-folder', 'bank-files']) $(id).onchange = e => busy(null, () => loadBankFiles(e.target.files));
   const form = $('eff-form');
   for (const [label, text] of BD.EFF_FORMS) form.append(el('option', { value: text, textContent: label }));

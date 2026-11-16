@@ -246,3 +246,7 @@ button.mini:disabled { opacity: .45; }
 .verdict.void { border-color: var(--err); background: rgba(180,35,24,.08); }
 .verdict.void b { color: var(--err); letter-spacing: .02em; }
 ul.bad, p.bad { color: var(--err); }
+
+/* renumbering choices */
+.actions label > input#rn-from, .actions label > input#rn-to { width: 52px; }
+.actions label.sub { margin-left: 22px; }

@@ -58,7 +58,7 @@
     return out;
   }
 
-  const ACT_LABEL = { amend: 'Amend', add: 'Add', repeal: 'Repeal', new: 'New matter', shortTitle: 'Short title', findings: 'Findings', severability: 'Severability', effective: 'Effective date' };
+  const ACT_LABEL = { amend: 'Amend', add: 'Add', repeal: 'Repeal', renumber: 'Renumber', new: 'New matter', shortTitle: 'Short title', findings: 'Findings', severability: 'Severability', effective: 'Effective date' };
   // A bill section. s = {act, law, loc, unit, num, heading, clause, content: [runs] (first paragraph's text),
   //                      more: [[runs]…] (more paragraphs), quoted: [[runs]…]}
   function sectionXml(s) {
@@ -70,7 +70,7 @@
     first += runs(s.content || []);
     let inner = para('BillSection', first);
     for (const p of s.more || []) inner += para('BillSection', runs(p));
-    if (s.quoted) inner += sdt(tagOf('akn:quoted', { law: s.law, loc: s.loc, unit: s.unit }), 'Text of the law', quotedInner(s.quoted) || para('BillAmendedText', ''));
+    if (s.quoted) inner += sdt(tagOf('akn:quoted', { law: s.law, loc: s.loc, unit: s.act === 'renumber' ? '' : s.unit }), 'Text of the law', quotedInner(s.quoted) || para('BillAmendedText', ''));
     return sdt(tagOf('akn:section', props), alias.trim(), inner);
   }
   /* A table in the law's text is a Word table: heading rows repeat as Word header rows; a group row ("Group A:")

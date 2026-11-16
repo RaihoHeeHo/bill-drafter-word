@@ -45,7 +45,7 @@ The **Draft** tab opens with a short *Getting started* list until both steps are
 1. Open the pane (Home > Bill Drafter) and press **Load the Bank** at the top right.
 2. **Choose a folder…** and pick the folder with the law files (e.g. `Downloads\NYS Law Library\NY-Law-Exporter\Downloads\<date>`), or **Choose files…** for a few laws. They are kept in Word's storage on this computer; nothing leaves it. Do this again when the Bank is updated (the button at the top right shows how many laws are loaded).
 3. Type what the bill is in relation to and click **Start the bill**.
-4. Under **Add a section**, type the law and the section in one box (`GCN 12`, `executive 296`, `tax 606(c)`), press Enter, choose what the bill does, and insert it.
+4. Under **Add a section**, type the law and the section in one box (`GCN 12`, `executive 296`, `tax 606(c)`), press Enter, choose what the bill does (amend, add, renumber or repeal), and insert it.
 5. Edit the law's text in the document, then press **Mark changes** in the bar at the bottom of the pane.
 6. On **Clean copy**, fill in the bill information and make the PDF.
 
@@ -118,6 +118,9 @@ tests/unit.cjs        unit tests, including the profile validator on the add-in'
 tests/cleancopy.mjs   makes clean copies with the pane's own code and compiler   (node tests/cleancopy.mjs [bill.akn.xml ...])
 tests/flow.cjs        whole flow in Chromium against a Word stand-in (tests/word-mock.js):
                       python3 -m http.server 8123 & node tests/flow.cjs tests/bank-fixture out/
+tests/renumber-flow.cjs renumbering in Chromium: paragraphs lettered up and marked, a renumbering section with a
+                      new subdivision, a section renumbered onto a taken number (caught) and then a free one
+tests/renum-real.cjs  the add-in's renumberings in real bills against the converter's (node tests/renum-real.cjs x.xml)
 tests/bank-fixture/   three small Bank files for the flow (tests/make-bank-fixture.cjs)
 tests/budget-flow.cjs budget mode in Chromium against the Word stand-in   (node tests/budget-flow.cjs out/)
 tests/budget-whole.cjs all of S.3003-D: schedules opened and closed, checks, the bill window, the clean copy in parts

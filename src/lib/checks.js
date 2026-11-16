@@ -92,7 +92,8 @@
       const i = s.index, all = [s.heading, s.clause, s.text, ...(s.quoted ? runsOf(s.quoted.paras).map(BD.textOf) : [])].join(' ');
       if (/_{3,}/.test(all)) add('error', 'Blanks', 'There is a blank (____) to fill in.', i);
       if (s.act === 'new' && !s.text.trim()) add('error', 'Blanks', 'This section is empty: type its text, or remove it and renumber.', i);
-      if (s.act === 'amend' || s.act === 'add' || s.act === 'repeal') await checkAmendment(s, getLaw, add);
+      if (s.act === 'amend' || s.act === 'add' || s.act === 'repeal') await checkAmendment(s, getLaw, add, S);
+      if (s.act === 'renumber') await checkRenumber(s, getLaw, add, S);
       if (s.law && s.loc && s.act !== 'add') {
         const key = s.law + ' ' + BD.locKey(s.loc) + (s.unit ? '/' + s.unit : '');
         if (seen.has(key)) add('warning', 'Amendments', 'This provision is also acted on in section ' + (seen.get(key) + 1) + '. Combine them.', i);
@@ -107,7 +108,7 @@
     }
     // Sections amending one law go in the order of its section numbers.
     const byLaw = {};
-    for (const s of S) if ((s.act === 'amend' || s.act === 'add' || s.act === 'repeal') && s.law) (byLaw[s.law] = byLaw[s.law] || []).push(s);
+    for (const s of S) if ((s.act === 'amend' || s.act === 'add' || s.act === 'repeal' || s.act === 'renumber') && s.law) (byLaw[s.law] = byLaw[s.law] || []).push(s);
     for (const list of Object.values(byLaw)) for (let k = 1; k < list.length; k++)
       if (cmpLoc(list[k - 1].loc, list[k].loc) > 0) { add('info', 'Order', 'Sections amending the same law usually follow its section order (section ' + BD.secId(list[k].loc) + ' comes before section ' + BD.secId(list[k - 1].loc) + ').', list[k].index); break; }
 
@@ -123,7 +124,77 @@
     return String(a).localeCompare(String(b));
   }
 
-  async function checkAmendment(s, getLaw, add) {
+  /* ----- renumberings, against the Bank ----- */
+  const low = u => String(u || '').replace(/[()\s]/g, '').toLowerCase();
+  // The units of a section the bill takes away from their numbers, other than in section `skip`: renumbered or
+  // repealed elsewhere in the bill (so their numbers are free for others).
+  function freedElsewhere(S, law, loc, skip) {
+    const out = new Set();
+    for (const t of S) {
+      if (t === skip || t.law !== law || BD.locKey(t.loc) !== BD.locKey(loc)) continue;
+      if (t.act === 'repeal' && t.unit) out.add(low(t.unit));
+      if (t.act === 'renumber') { const r = BD.renumberingOf(t.clause); if (r) r.units.forEach(u => out.add(low(u))); }
+      if (t.act === 'amend' && t.quoted) for (const r of BD.renumberedIn(t.quoted.paras, BD.usesSubsections(t.law), unitTarget(t))) if (r.old.length === 2) out.add(low(r.old[1][1]));
+    }
+    return out;
+  }
+  const unitTarget = t => [['sec', BD.secId(t.loc).replace(/\./g, '-')]].concat(t.unit ? [[BD.usesSubsections(t.law) ? 'subsec' : 'subdvs', low(t.unit)]] : []);
+  const unitWord = (law, many) => (BD.usesSubsections(law) ? 'subsection' : 'subdivision') + (many ? 's' : '');
+  const unitShow = (law, u) => BD.usesSubsections(law) ? '(' + u + ')' : u;
+  async function checkRenumber(s, getLaw, add, S) {
+    const i = s.index, rn = BD.renumberingOf(s.clause);
+    if (!rn) { add('error', 'Amending clause', 'A renumbering reads "Subdivision 6 of section … is renumbered subdivision 5." (or "… are renumbered subdivisions 5 and 6 and a new subdivision 7 is added to read as follows:").', i, 'clause'); return; }
+    const olds = rn.section ? [rn.from] : rn.units;
+    if (olds.length !== rn.to.length) add('error', 'Amending clause', 'The clause renumbers ' + olds.length + ' but gives ' + rn.to.length + ' new number' + (rn.to.length === 1 ? '' : 's') + '.', i, 'clause');
+    if (rn.add && !s.quoted) add('error', 'Structure', 'The text of the new ' + unitWord(s.law) + ' ' + unitShow(s.law, rn.add) + ' is missing.', i);
+    if (rn.add && s.quoted) {
+      const plain = runsOf(s.quoted.paras).flatMap(p => p.filter(r => r.k !== 'ins' && r.t.trim())).length;
+      if (plain) add('error', 'Marking', 'All of an added provision is new matter: underline it (Mark changes).', i, 'mark');
+    }
+    const law = await getLaw(s.law);
+    if (!law) { add('info', 'Bank', 'The ' + s.law + ' law is not in this computer\'s Bank, so this renumbering could not be checked against the law. Load the Bank.', i); return; }
+    if (!/\bas (amended|added|renumbered)\b/.test(s.clause || '') && law.info.lawType !== 'MISC')
+      add('warning', 'History', 'The clause should cite the provision\'s last amendment ("as amended by chapter … of the laws of …"). The Bank does not hold the history, so type it in.', i, 'history');
+    const name = BD.lawName(law.info);
+    if (rn.section) {
+      const sec = BD.findSection(law, rn.from);
+      if (!sec) { add('error', 'Citation', 'Section ' + rn.from + ' is not in ' + name + '.', i); return; }
+      const freed = new Set(S.filter(t => t !== s && t.act === 'renumber' && t.law === s.law).map(t => BD.renumberingOf(t.clause)).filter(r => r && r.section).map(r => low(r.from)));
+      S.filter(t => t.act === 'repeal' && t.law === s.law && !t.unit).forEach(t => freed.add(low(BD.secId(t.loc))));
+      if (rn.to[0] && BD.findSection(law, rn.to[0]) && !freed.has(low(rn.to[0]))) add('error', 'Already in law', 'Section ' + rn.to[0] + ' is already in ' + name + '. Renumber or repeal it first, or choose another number (the next free one is ' + BD.nextFreeSection(law, rn.from) + ').', i);
+      return;
+    }
+    const sec = BD.findSection(law, s.loc);
+    if (!sec) { add('error', 'Citation', 'Section ' + BD.secId(s.loc) + ' is not in ' + name + ' (Bank as of ' + (law.activeDate || '?') + ').', i); return; }
+    const have = BD.subdivisions(BD.lawParagraphs(sec.text), BD.usesSubsections(s.law)).map(u => low(u.unit));
+    const moving = new Set(olds.map(low)), freed = freedElsewhere(S, s.law, s.loc, s);
+    const missing = olds.filter(u => !have.includes(low(u)));
+    if (missing.length) add('error', 'Citation', cap(unitWord(s.law, missing.length > 1)) + ' ' + missing.map(u => unitShow(s.law, u)).join(', ') + (missing.length > 1 ? ' are' : ' is') + ' not in section ' + BD.secId(s.loc) + ' of ' + name + '.', i);
+    const taken = rn.to.filter(u => have.includes(low(u)) && !moving.has(low(u)) && !freed.has(low(u)));
+    if (taken.length) add('error', 'Already in law', cap(unitWord(s.law, taken.length > 1)) + ' ' + taken.map(u => unitShow(s.law, u)).join(', ') + ' of section ' + BD.secId(s.loc) + (taken.length > 1 ? ' are' : ' is') + ' already in the law and stays: renumber or repeal it too, or choose other numbers.', i);
+    if (new Set(rn.to.map(low)).size !== rn.to.length) add('error', 'Amending clause', 'Two units would get the same number.', i, 'clause');
+    if (rn.add) {
+      const after = new Set(have.filter(u => !moving.has(u) && !freed.has(u)).concat(rn.to.map(low)));
+      if (after.has(low(rn.add))) add('error', 'Already in law', 'After the renumbering, section ' + BD.secId(s.loc) + ' still has a ' + unitWord(s.law) + ' ' + unitShow(s.law, rn.add) + ', so a new one can\'t take that number.', i);
+    }
+  }
+  const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+  // Units an amended text renumbers itself ("[5.] 4."), when the new number is held by a unit of the section that
+  // the bill leaves where it is.
+  async function checkTextRenumbering(s, law, add, S) {
+    if (!s.quoted || !s.unit) return;
+    const sec = BD.findSection(law, s.loc); if (!sec) return;
+    const sub = BD.usesSubsections(s.law), have = BD.subdivisions(BD.lawParagraphs(sec.text), sub).map(u => low(u.unit));
+    const freed = freedElsewhere(S, s.law, s.loc, s);
+    for (const r of BD.renumberedIn(s.quoted.paras, sub, unitTarget(s))) {
+      if (r.now.length !== 2) continue; // only a unit of the section itself
+      const nu = low(r.now[1][1]), was = low(r.old[1] && r.old[1][1]);
+      if (have.includes(nu) && nu !== was && !freed.has(nu))
+        add('warning', 'Already in law', 'This text renumbers ' + unitWord(s.law) + ' ' + unitShow(s.law, was) + ' as ' + unitShow(s.law, nu) + ', but section ' + BD.secId(s.loc) + ' already has a ' + unitWord(s.law) + ' ' + unitShow(s.law, nu) + ' that the bill leaves in place.', s.index);
+    }
+  }
+
+  async function checkAmendment(s, getLaw, add, S) {
     const i = s.index, law = await getLaw(s.law);
     const clause = s.clause || '';
     if (!clause) add('error', 'Amending clause', 'This section has no amending clause.', i, 'clause');
@@ -155,6 +226,7 @@
     const want = lawTextFor(law, s.quoted);
     if (!want) { add('error', 'Citation', 'Subdivision ' + s.quoted.unit + ' was not found in section ' + BD.secId(s.loc) + '.', i); return; }
     const r = BD.readings(s.quoted.paras);
+    await checkTextRenumbering(s, law, add, S || []);
     if (!BD.sameText(r.old, want)) add('error', 'Marking', 'The unmarked and bracketed words are not the law as it stands: something was changed without marking it, or the law changed. Use Mark changes.', i, 'mark');
     else if (BD.sameText(r.now, want)) add('warning', 'Amendments', 'This section amends nothing yet: the text reads the same as the law.', i);
   }

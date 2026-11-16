@@ -74,6 +74,9 @@
         <label><input type="radio" name="act" value="amendSub"> Amends <span id="sub-word">subdivision</span> <select id="sub" aria-label="Which one"></select></label>
         <label><input type="radio" name="act" value="add"> Adds a new section <input id="add-num" class="short" aria-label="New section number"></label>
         <label><input type="radio" name="act" value="addSub"> Adds a new <span id="sub-word2">subdivision</span> <input id="add-sub" class="short" aria-label="New number"> to it</label>
+        <label><input type="radio" name="act" value="renumber"> Renumbers <span class="sub-word-pl">subdivisions</span> <input id="rn-from" class="short" placeholder="6, 7" aria-label="Which ones, by their present numbers"> as <input id="rn-to" class="short" placeholder="5, 6" aria-label="Their new numbers"></label>
+        <label class="sub" id="rn-add-row"><input type="checkbox" id="rn-add-on"> and adds a new <span class="sub-word-one">subdivision</span> <input id="rn-add" class="short" aria-label="The new one's number"></label>
+        <label><input type="radio" name="act" value="renumberSec"> Renumbers the section as § <input id="rn-sec" class="short" aria-label="New section number"></label>
         <label><input type="radio" name="act" value="repeal"> Repeals the section</label>
         <div id="history-row">
           <label for="history">Last amended by <span class="opt">(optional)</span></label>

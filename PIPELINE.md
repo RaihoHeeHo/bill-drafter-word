@@ -64,7 +64,7 @@ Meaning lives in **tagged content controls** and two **character styles**. Nothi
 |---|---|
 | `akn:longTitle`, with `akn:subject` inside it | "AN ACT to amend …, in relation to *subject*" |
 | `akn:enactingFormula` | "The People of the State of New York …" |
-| `akn:section;act=amend\|add\|repeal\|new\|shortTitle\|findings\|severability\|effective;law=GCN;loc=12;unit=3` | One bill section |
+| `akn:section;act=amend\|add\|repeal\|renumber\|new\|shortTitle\|findings\|severability\|effective;law=GCN;loc=12;unit=3` | One bill section |
 | `akn:num`, `akn:heading`, `akn:mod` (inline, first line of a section) | "§ 2.", "Short title.", and the amending clause |
 | `akn:quoted;law=…;loc=…;unit=…` (block, inside a section) | The text of the law as the bill would leave it |
 
@@ -90,6 +90,7 @@ Word's own Track Changes marks and plain underlining are read the same way. Bill
   * The diff works word by word, with punctuation as separate tokens and a sum of money as one word. It finds the fewest changes.
   * Short kept runs between bigger changes are folded into one change, using the idea behind diff-match-patch's semantic cleanup.
   * Deletions come before additions.
+  * Numbered units (`1.`, `(a)`, `(iv)`, `§ 12.`) are matched paragraph to paragraph by their words first, so a unit taken out is struck whole (`[2. …]`), a unit put in is new whole, and a unit whose number changed is marked renumbered (`[3.] 2. …`) instead of being run together with its neighbours.
 
   The text is then rewritten as runs styled Bill Delete "[…]" and Bill Insert, but only in sections whose marking would change. Track Changes is paused while this happens, so the rewrite isn't recorded as a revision. The two readings always round-trip: the unmarked plus bracketed words are exactly the law, and the unmarked plus underlined words are exactly the drafter's text.
 
@@ -162,6 +163,7 @@ The output passes all three layers of the profile's validator: the OASIS Akoma N
   * the clean copy after an unmarked edit (the edit comes out bracketed); the clean copy refused once the Bank is removed
   * a section deleted in the document, and the offer to renumber
   * Akoma Ntoso and the clean-copy PDF in the pane, saved
+* **Renumbering** (`tests/renumber-flow.cjs`, and in the unit tests): paragraph (b) taken out of Executive Law § 296(1) and the rest lettered up, marked as one struck paragraph and six renumbered ones, each recorded from its old address; a renumbering section with a new subdivision; a section renumbered onto a number the law already has (an error) and then onto a free one; the XML valid. Against real bills (`tests/renum-real.cjs`), the add-in reads S.8760's eight renumberings exactly as the profile's converter recorded them.
 * **External checks:** the pane's clean copy and the desktop Typst's are identical; the example .docx opens in LibreOffice; the desktop demo's round-trip check agrees with the output.
 
 ## 9. Budget mode
@@ -230,11 +232,13 @@ This is what you see in the Bill Drafter pane in Word, and what to do.
 **Amend a law.** Under **Add a section**, with **Amend a law** chosen:
 
 1. Type the law and the section in the one box, for example `GCN 12`, `executive 296` or `tax 606(c)`. You can use the law's short name or a word of its name. Pick the section from the list (the arrow keys and Enter work too).
-2. Choose what the bill does: amend the whole section, amend one subdivision, add a new section (the next free number is filled in), add a new subdivision, or repeal it. Each pick starts at "amend the whole section", or at the subdivision you typed, never at your last choice.
+2. Choose what the bill does: amend the whole section, amend one subdivision, add a new section (the next free number is filled in), add a new subdivision, renumber subdivisions (for example 6, 7 as 5, 6, optionally adding a new one), renumber the section itself, or repeal it. Each pick starts at "amend the whole section", or at the subdivision you typed, never at your last choice.
 3. If you know the provision's last amendment, type it under **Last amended by**, for example *chapter 55 of the laws of 2023*. You can also add it later.
 4. Click the button. It says exactly what it will do, for example "Insert: amend EXC § 296 subd. 1". The section goes in its proper place, the sections renumber, and the title is rebuilt to name the law.
 
-**Edit the law's text** in the document like any other text: type, delete, paste. You don't put in brackets or underlining yourself.
+**Edit the law's text** in the document like any other text: type, delete, paste. You don't put in brackets or underlining yourself. If you take a paragraph out and letter the rest up, Mark changes strikes the old paragraph whole and shows each moved one as renumbered (`[(c)] (b)`); the XML records each move.
+
+**Renumbering.** "Renumbers subdivisions 6, 7 as 5, 6" writes the clause the Drafting Manual gives ("Subdivisions 6 and 7 of section … are renumbered subdivisions 5 and 6."), relettered for letters; ticking *and adds a new subdivision* adds the new one's text, underlined, for you to fill in. "Renumbers the section as § …" moves a whole section. The clause is the record: if you change its numbers in the document, the XML and the checks follow. The checks look in the Bank: a unit that isn't there, or a new number another unit still holds (unless the bill renumbers or repeals that one too), is an error.
 
 **Mark changes.** The button is in the bar at the bottom of the pane. One click and every amended text gets its marks: words taken out of the law go in [brackets], and new words are underlined. The bar tells you when this is needed, for example "§ 2 has edits not yet bracketed and underlined", and when it isn't: "Brackets and underlines are up to date."
 

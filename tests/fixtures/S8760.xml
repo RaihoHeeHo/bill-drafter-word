@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  REAL DOCUMENT: Senate bill 8760 of the 2025-2026 session, as printed (LBD00409-04-6),
+  marked up by hand from the PDF on 2026-11-14 as a test of the AKN-NY profile.
+  A chapter amendment ("as proposed in"). Text is the public bill text.
+  Not an official file: sponsor and committee identifiers are placeholders.
+-->
+<akomaNtoso xmlns="http://docs.oasis-open.org/legaldocml/ns/akn/3.0" xmlns:lbdc="urn:x-lbdc:akn:1.0">
+  <bill name="bill">
+    <meta>
+      <identification source="#lbdc">
+        <FRBRWork>
+          <FRBRthis value="/akn/us-ny/bill/2025/s8760/!main"/>
+          <FRBRuri value="/akn/us-ny/bill/2025/s8760"/>
+          <FRBRdate date="2026-01-08" name="introduced"/>
+          <FRBRauthor href="#senate"/>
+          <FRBRcountry value="us-ny"/>
+          <FRBRnumber value="S8760"/>
+        </FRBRWork>
+        <FRBRExpression>
+          <FRBRthis value="/akn/us-ny/bill/2025/s8760/eng@/!main"/>
+          <FRBRuri value="/akn/us-ny/bill/2025/s8760/eng@"/>
+          <FRBRdate date="2026-01-08" name="introduced"/>
+          <FRBRauthor href="#senate"/>
+          <FRBRlanguage language="eng"/>
+        </FRBRExpression>
+        <FRBRManifestation>
+          <FRBRthis value="/akn/us-ny/bill/2025/s8760/eng@/!main.xml"/>
+          <FRBRuri value="/akn/us-ny/bill/2025/s8760/eng@.akn"/>
+          <FRBRdate date="2026-11-14" name="markup"/>
+          <FRBRauthor href="#lbdc"/>
+        </FRBRManifestation>
+      </identification>
+      <analysis source="#lbdc">
+        <activeModifications>
+          <textualMod eId="amod_1" type="substitution">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a"/>
+          </textualMod>
+          <textualMod eId="amod_2" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_1__para_a__subpara_i"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_2__para_a"/>
+          </textualMod>
+          <textualMod eId="amod_3" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_1__para_a__subpara_ii"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_2__para_b"/>
+          </textualMod>
+          <textualMod eId="amod_4" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_1__para_a__subpara_iii"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_2__para_c"/>
+          </textualMod>
+          <textualMod eId="amod_5" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_1__para_b"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_3"/>
+          </textualMod>
+          <textualMod eId="amod_6" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_2"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_4"/>
+          </textualMod>
+          <textualMod eId="amod_7" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_4"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_5"/>
+          </textualMod>
+          <textualMod eId="amod_8" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_5"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_6"/>
+          </textualMod>
+          <textualMod eId="amod_9" type="renumbering">
+            <source href="#sec_1__mod_1"/>
+            <destination href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_6"/>
+            <new href="/akn/us-ny/act/consolidated/rpp/~sec_327-a__subdvs_7"/>
+          </textualMod>
+        </activeModifications>
+      </analysis>
+      <references source="#lbdc">
+        <TLCOrganization eId="lbdc" href="/akn/ontology/organization/us-ny/lbdc" showAs="Legislative Bill Drafting Commission"/>
+        <TLCOrganization eId="senate" href="/akn/ontology/organization/us-ny/senate" showAs="Senate"/>
+        <TLCOrganization eId="senate-rules" href="/akn/ontology/organization/us-ny/senate.committee.rules" showAs="Senate Committee on Rules"/>
+        <TLCPerson eId="sanders" href="/akn/ontology/person/us-ny/senate.member.sanders" showAs="Sen. Sanders"/>
+        <TLCConcept eId="effectiveDate" href="/akn/ontology/concept/us-ny/effective-date" showAs="Effective date provision"/>
+      </references>
+      <proprietary source="#lbdc">
+        <lbdc:documentInfo>
+          <lbdc:profile name="AKN-NY" version="0.3"/>
+          <lbdc:house>senate</lbdc:house>
+          <lbdc:session>2025-2026</lbdc:session>
+          <lbdc:printNumber>S8760</lbdc:printNumber>
+          <lbdc:lbdNumber>LBD00409-04-6</lbdc:lbdNumber>
+          <lbdc:convertedFrom file="S8760.pdf" tool="by hand, from pdfmarked.py output"/>
+        </lbdc:documentInfo>
+      </proprietary>
+    </meta>
+    <preface>
+      <p class="authority"><docAuthority>STATE OF NEW YORK</docAuthority></p>
+      <p class="number"><docNumber>8760</docNumber></p>
+      <p class="stage"><docStage>IN SENATE</docStage></p>
+      <p class="date"><docDate date="2026-01-08">January 8, 2026</docDate></p>
+      <p class="introduction">Introduced by Sen. <docProponent refersTo="#sanders">SANDERS</docProponent> -- read twice and ordered printed, and when printed to be committed to the Committee on <docCommittee refersTo="#senate-rules">Rules</docCommittee></p>
+      <longTitle>
+        <p>AN ACT to amend the real property law, in relation to requiring the modification of restrictive covenants prior to the sale of real property</p>
+      </longTitle>
+    </preface>
+    <preamble>
+      <formula name="enactingFormula">
+        <p>The People of the State of New York, represented in Senate and Assembly, do enact as follows:</p>
+      </formula>
+    </preamble>
+    <body>
+      <section eId="sec_1">
+        <num>Section 1.</num>
+        <content>
+          <p><mod eId="sec_1__mod_1"><ref href="/akn/us-ny/act/consolidated/rpp/~sec_327-a">Section 327-a of the real property law</ref>, as added by a chapter of the laws of 2025 amending the real property law relating to requiring the modification of restrictive covenants prior to the sale of real property, as proposed in legislative bills numbers <ref class="asProposedIn" href="/akn/us-ny/bill/2025/s3178/eng@a">S. 3178-A</ref> and <ref class="asProposedIn" href="/akn/us-ny/bill/2025/a1820/eng@a">A. 1820-A</ref>, is amended to read as follows:<quotedStructure eId="sec_1__mod_1__qstr">
+<section eId="sec_1__mod_1__qstr__sec_327-a"><num>§ 327-a.</num><heading>Modification of restrictive covenants.</heading>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_1"><num>1.</num><intro eId="sec_1__mod_1__qstr__sec_327-a__subdvs_1__intro"><p><ins>As used in this section, the following terms shall have the following meanings:</ins></p></intro><paragraph eId="sec_1__mod_1__qstr__sec_327-a__subdvs_1__para_a"><num>(a)</num><content><p><del>If any covenants, conditions and restrictions exist in a document to be recorded which discriminate on the basis of race, color, religion, sex, sexual orientation, familial status, marital status, disability, national origin, source of income, or ancestry</del> <ins>"Protected class" shall mean any class or category of persons protected from unlawful discriminatory practices under subdivision five of section two hundred ninety-six of the executive law.</ins></p></content></paragraph>
+<paragraph eId="sec_1__mod_1__qstr__sec_327-a__subdvs_1__para_b"><num><ins>(b)</ins></num><content><p><ins>"Unlawful restrictions" shall mean any covenants, conditions, or restrictions that unlawfully discriminate on the basis of a protected class in violation of state or federal law.</ins></p></content></paragraph>
+</subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_2"><num><ins>2.</ins></num><intro eId="sec_1__mod_1__qstr__sec_327-a__subdvs_2__intro"><p><ins>If any unlawful restrictions exist in a document to be recorded</ins>, any seller shall:</p></intro><paragraph eId="sec_1__mod_1__qstr__sec_327-a__subdvs_2__para_a"><num><del>(i)</del> <ins>(a)</ins></num><content><p>have such unlawful restrictions removed from such document by submitting a restrictive covenant modification document, which shall be available from the county recorder, either with the deed for recording, or separately;</p></content></paragraph>
+<paragraph eId="sec_1__mod_1__qstr__sec_327-a__subdvs_2__para_b"><num><del>(ii)</del> <ins>(b)</ins></num><content><p>provide the purchaser or title insurance applicant with a copy of the appropriate restrictive covenant modification document prior to or at the closing of title; and</p></content></paragraph>
+<paragraph eId="sec_1__mod_1__qstr__sec_327-a__subdvs_2__para_c"><num><del>(iii)</del> <ins>(c)</ins></num><content><p>record the restrictive covenant modification document, however, such seller shall not be required to pay filing fees for the recording of the restrictive covenant modification document.</p></content></paragraph>
+</subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_3"><num><del>(b)</del> <ins>3.</ins></num><content><p>Within one year of the effective date of this section, the board of managers of a condominium, the board of directors of a cooperative apartment corporation or a homeowners association if such real property is subject to the rules and regulations of such an association, shall delete or amend any <del>covenants, conditions and</del> <ins>unlawful</ins> restrictions that exist in a recorded document <del>which discriminate on the basis of race, color, religion, sex, sexual orientation, familial status, marital status, disability, national origin, source of income, or ancestry</del>. Such deletions or amendments shall not be subject to the approval of property owners.</p></content></subdivision>
+<paragraph eId="sec_1__mod_1__qstr__sec_327-a__para_c-old"><num><del class="spanStart">(c)</del></num><content><p><del class="spanMiddle">This section shall not apply to any lawful restrictions under state and federal law.</del></p></content></paragraph>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_4"><num><del class="spanEnd">2.</del> <ins>4.</ins></num><content><p>The restrictive covenant modification document <ins>that shall be made available from the county recorder pursuant to subdivision six of this section</ins> shall be indexed in the same manner as any previously recorded document or documents to which the modification document refers and shall reference the original document by book and page number or instrument number and the date of recording.</p></content></subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_3-old"><num><del class="spanStart">3.</del></num><content><p><del class="spanMiddle">Subject to covenants, conditions, and restrictions recorded after the original document containing unlawful restrictions, and subject to covenants, conditions and restrictions recorded after the restrictive covenant modification document, the restrictive covenant modification, once recorded, shall be deemed the only restrictions having effect on the property.</del></p></content></subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_5"><num><del class="spanEnd">4.</del> <ins>5.</ins></num><content><p>Any person holding an ownership interest in real property that such person believes is subject to an <del>unlawfully restrictive covenant in violation of state or federal law prohibiting restriction based on race, color, religion, sex, sexual orientation, familial status, marital status, disability, national origin, source of income, or ancestry</del> <ins>unlawful restriction</ins> may record a restrictive covenant modification document pursuant to subdivision <del>one</del> <ins>two</ins> of this section. Such recording shall include a complete copy of the original document containing the unlawful <del>language</del> <ins>restriction</ins> with the unlawful <del>language</del> <ins>restriction</ins> stricken and shall be signed under penalty of law.</p></content></subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_6"><num><del>5.</del> <ins>6.</ins></num><content><p>The county recorder shall make available to the public forms for preparation of a restrictive covenant modification document.</p></content></subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_7"><num><del>6.</del> <ins>7.</ins></num><content><p>If the holder of an ownership interest in property causes to be recorded a restrictive covenant modification document pursuant to this section which contains language not authorized by this section, any liability which derives from such recording shall be the sole responsibility of the holder of the ownership interest of record and the county recorder shall not incur any liability for recording such document.</p></content></subdivision>
+<subdivision eId="sec_1__mod_1__qstr__sec_327-a__subdvs_8"><num><ins>8.</ins></num><content><p><ins>This section shall not apply to any lawful covenants, conditions, or restrictions under state or federal law.</ins></p></content></subdivision>
+</section>
+          </quotedStructure></mod></p>
+        </content>
+      </section>
+      <section eId="sec_2" class="sameAsParent" refersTo="#effectiveDate">
+        <num>§ 2.</num>
+        <content>
+          <p>This act shall take effect on the same date and in the same manner as a chapter of the laws of 2025 amending the real property law relating to requiring the modification of restrictive covenants prior to the sale of real property, as proposed in legislative bills numbers S. 3178-A and A. 1820-A, takes effect.</p>
+        </content>
+      </section>
+    </body>
+  </bill>
+</akomaNtoso>
