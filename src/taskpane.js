@@ -284,14 +284,16 @@ const canon = paras => JSON.stringify(paras.map(p => BD.isTable(p) ? { caption: 
 // Compares each amended text with the Bank and writes the brackets and underlines; returns what it did.
 // quiet: no message (Make the clean copy and the XML export run it first and report themselves).
 async function markChanges(quiet) {
-  let done = 0, checked = 0; const problems = [];
+  let done = 0, checked = 0; const problems = [], waiting = [];
   await word(async ctx => quietly(ctx, async () => {
     const secs = await sectionControls(ctx);
     for (const c of secs) {
       const tag = BD.parseTag(c.tag); if (tag.act !== 'amend' && tag.act !== 'add') continue;
       const ox = c.getOoxml(); await ctx.sync();
-      const inner = BD.readBill(ox.value).sections, s = inner[0];
+      const read = BD.readBill(ox.value), inner = read.sections, s = inner[0];
       if (!s || !s.quoted) continue;
+      // Rewriting the section would throw away Word's tracked changes: someone's suggestions, not yet settled.
+      if (read.suggestions && read.suggestions.bySection[0]) { waiting.push(c.title || s.num || tag.loc); continue; }
       const now = BD.readings(s.quoted.paras).now;
       let out;
       if (tag.act === 'add') out = now.map(t => [{ t, k: 'ins' }]);
@@ -316,10 +318,10 @@ async function markChanges(quiet) {
     }
   }));
   await refresh();
-  const skipped = problems.map(x => x.where + ': ' + x.why).join('; ');
+  const skipped = problems.map(x => x.where + ': ' + x.why).concat(waiting.map(w => w + ': its suggested changes wait to be accepted or rejected')).join('; ');
   if (!quiet) notice(done ? 'Brackets and underlines put in ' + done + ' section' + (done === 1 ? '' : 's') + '.' + (skipped ? ' Not marked: ' + skipped : '')
-    : checked ? 'Brackets and underlines were already as the Bank says.' + (skipped ? ' Not marked: ' + skipped : '') : problems.length ? 'Not marked: ' + skipped : 'No amended sections to mark.', !!problems.length);
-  return { done, checked, problems };
+    : checked ? 'Brackets and underlines were already as the Bank says.' + (skipped ? ' Not marked: ' + skipped : '') : problems.length || waiting.length ? 'Not marked: ' + skipped : 'No amended sections to mark.', !!(problems.length || waiting.length));
+  return { done, checked, problems, waiting };
 }
 // Nothing leaves the add-in with unmarked changes. Before a clean copy or the XML is made, every amended text is
 // marked again against the Bank, so the bill can't print the law as other than it stands (words taken out of the
@@ -435,7 +437,7 @@ async function refreshOnce() {
   welcome();
   if (model.title && document.activeElement !== $('subject')) $('subject').value = model.title.subject.replace(/^_+$/, '');
   $('subject').classList.toggle('need', found.some(f => f.fix === 'subject'));
-  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model);
+  drawOutline(model, found); billFixes(found); dockStatus(model, found); stdButtons(model); listTables(model); if (!$('rv-status').closest('[data-panel]').hidden) drawReview(model);
   const errs = found.filter(f => f.level === 'error').length;
   $('check-count').textContent = String(errs); $('check-count').hidden = !errs || !hasBill;
   return model;
@@ -451,8 +453,10 @@ function drawOutline(model, found) {
     const chip = (text, cls, title, fn) => { const b = el('button', { className: 'chip ' + cls, textContent: text, title }); b.onclick = e => { e.stopPropagation(); busy(b, fn); }; chips.append(b); };
     const mark = mine.find(f => f.fix === 'mark'), hist = mine.find(f => f.fix === 'history');
     const others = mine.filter(f => f.level === 'error' && f.fix !== 'mark' && f.fix !== 'renumber');
-    if (mark) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', () => markChanges());
+    if (mark && !(model.suggestions && model.suggestions.bySection[i])) chip('Not marked', 'err', 'Edits in the law\'s text are not bracketed and underlined yet. Press to mark them.', () => markChanges());
     if (others.length) chip(others.length === 1 ? (SHORT[others[0].rule] || others[0].rule) : others.length + ' to fix', 'err', others.map(f => f.text).join('\n'), async () => showTab('checks', i));
+    const waitN = model.suggestions ? model.suggestions.bySection[i] : 0;
+    if (waitN) chip(plural(waitN, 'suggestion') + ' waiting', 'warn', 'Word\'s tracked changes: accept or reject them in Word (Review). Mark changes leaves this section alone until then.', async () => goTo(i));
     if (hist) chip('Add history', 'warn', 'The amending clause should cite the last amendment. The Bank does not have it: type it in.', async () => { openRow = openRow === i ? null : i; rowDraft = ''; rowFocus = true; drawOutline(state.model, state.found); });
     if (!mine.some(f => f.level === 'error' || f.fix === 'history') && (s.act === 'amend' || s.act === 'add' || s.act === 'repeal')) chips.append(el('span', { className: 'ok', textContent: '✓', title: 'Nothing to fix' }));
     const li = el('li', { className: openRow === i ? 'open' : '' }, el('div', { className: 'line' }, main, chips));
@@ -705,13 +709,163 @@ function infoSummary() {
     sum.append(' ', b, '.');
   }
 }
+/* ---------- several people (profile 0.4 working copies) ----------
+   Word's Track Changes are suggestions: who suggested what. Mark changes leaves a section alone until they are
+   accepted or rejected, and no clean copy is made while any wait. The review (src/lib/review.js) goes drafter,
+   examiner, proofreader, examiner, drafter; its steps and everyone's role are kept in the document, in a custom XML
+   part of their own. Who is at this computer is kept on this computer. */
+const NSR = 'urn:x-lbdc:bill-drafter:review', RV = BD.review;
+let review = { roles: {}, steps: [], cards: {} }, reviewPart = null;
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const waitingText = m => 'Not made: ' + plural(m.suggestions.total, 'suggested change') + ' (Word\'s tracked changes) ' + (m.suggestions.total === 1 ? 'waits' : 'wait') + ' to be accepted or rejected. Settle ' + (m.suggestions.total === 1 ? 'it' : 'them') + ' (Review tab), then make the clean copy.';
+const peopleOf = m => [...new Set([...((m && m.suggestions && m.suggestions.people) || []), ...RV.stepPeople(review.steps)])];
+const needRoles = m => peopleOf(m).filter(n => !RV.ROLES.includes(review.roles[n]));
+const me = () => { try { const v = JSON.parse(localStorage.getItem('bill-drafter-me') || 'null'); return v && v.name ? v : null; } catch (e) { return null; } };
+const setMe = v => { try { localStorage.setItem('bill-drafter-me', JSON.stringify(v)); } catch (e) { /* storage off */ } };
+const xcall = (fn, ...a) => new Promise((res, rej) => fn(...a, r => (r.status === 'succeeded' || (Office.AsyncResultStatus && r.status === Office.AsyncResultStatus.Succeeded)) ? res(r.value) : rej(new Error((r.error && r.error.message) || 'Word could not store the review.'))));
+async function loadReview() {
+  if (!inWord || !Office.context.document || !Office.context.document.customXmlParts) return;
+  const cx = Office.context.document.customXmlParts, ps = await xcall(cx.getByNamespaceAsync.bind(cx), NSR);
+  for (const p of ps) {
+    const r = new DOMParser().parseFromString(await xcall(p.getXmlAsync.bind(p)), 'application/xml').documentElement;
+    try { const v = JSON.parse(r.textContent); review = { roles: v.roles || {}, steps: v.steps || [], cards: v.cards || {} }; reviewPart = p; } catch (e) { /* not ours */ }
+  }
+  if (!reviewPart && Office.context.requirements.isSetSupported('WordApi', '1.3')) { // roles kept by the earlier version
+    await Word.run(async ctx => {
+      const cp = ctx.document.properties.customProperties; cp.load('items/key,items/value'); await ctx.sync();
+      const old = cp.items.find(x => x.key === 'Bill Drafter review roles');
+      if (old) try { review.roles = JSON.parse(String(old.value)) || {}; } catch (e) { /* ignore */ }
+    });
+  }
+}
+async function saveReview() {
+  if (!inWord) return;
+  const cx = Office.context.document.customXmlParts;
+  if (reviewPart) { try { await xcall(reviewPart.deleteAsync.bind(reviewPart)); } catch (e) { /* already gone */ } }
+  const text = JSON.stringify(review).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  reviewPart = await xcall(cx.addAsync.bind(cx), '<review xmlns="' + NSR + '">' + text + '</review>');
+}
+function drawPeople(model) {
+  const card = $('people-card'); if (!card) return;
+  const sg = model.suggestions || { total: 0, people: [] }, n = (model.comments || []).length, people = peopleOf(model), m = me();
+  if (m && !people.includes(m.name)) people.push(m.name);
+  $('people-summary').textContent = plural(sg.total, 'suggested change') + ' and ' + plural(n, 'comment') + ' in the document.' +
+    (sg.total ? ' Mark changes leaves sections with suggestions alone, and no clean copy is made, until they are accepted or rejected.' : '');
+  const ul = $('people'); ul.innerHTML = '';
+  if (!people.length) ul.append(el('li', { className: 'hint', textContent: 'No one yet.' }));
+  for (const name of people) {
+    const sel = el('select'); sel.setAttribute('aria-label', 'Review role of ' + name);
+    for (const [v, t] of [['', 'Choose a role'], ['drafter', 'Drafter'], ['examiner', 'Examiner'], ['proofreader', 'Proofreader']]) sel.append(el('option', { value: v, textContent: t }));
+    sel.value = review.roles[name] || '';
+    sel.classList.toggle('need', !sel.value);
+    sel.onchange = () => busy(null, async () => { review.roles[name] = sel.value; sel.classList.toggle('need', !sel.value); await saveReview(); drawReview(state.model); });
+    ul.append(el('li', {}, el('b', { textContent: name }), ' ', sel));
+  }
+}
+// The bill's XML as it stands, with the review: what a sign-off's hash is taken from.
+async function currentXml(model) {
+  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: { roles: review.roles, steps: review.steps } };
+  return BD.toAkn(model, info);
+}
+function step(event, extra) {
+  const m = me(); review.steps.push({ at: new Date().toISOString(), by: m.name, role: m.role, event, ...(extra || {}) });
+}
+const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+let reviewDrawn = 0, drawToken = 0;
+async function drawReview(model) {
+  if (!model || !$('rv-status')) return;
+  const m = me(), steps = review.steps, status = RV.statusOf(steps), sg = model.suggestions || { items: [] };
+  $('me-name').value = m ? m.name : ''; $('me-role').value = m ? m.role : '';
+  $('rv-status').textContent = 'The draft is ' + RV.STATUS[status] + '.' + (steps.length ? ' Last: ' + RV.EVENTS[steps[steps.length - 1].event].toLowerCase() + ' by ' + steps[steps.length - 1].by + ', ' + fmtDate(steps[steps.length - 1].at) + '.' : '');
+  const h = RV.handOff(steps, m), send = $('rv-send');
+  send.hidden = false; send.textContent = h.label || 'Send on'; send.disabled = !h.ok; $('rv-send-why').textContent = h.ok ? '' : h.why;
+  // suggestions
+  const ul = $('rv-sugs'); ul.innerHTML = '';
+  if (!sg.items || !sg.items.length) ul.append(el('li', { className: 'hint', textContent: 'None waiting.' }));
+  for (const it of sg.items || []) {
+    const where = it.sec == null ? 'Title' : (model.sections[it.sec].num || '§ ?');
+    const d = RV.mayDecide(m, review.roles[it.by]);
+    const btn = (label, accept) => { const b = el('button', { className: 'mini', textContent: label, disabled: !d.ok, title: d.ok ? '' : d.why }); b.onclick = () => busy(b, () => decide(it, accept)); return b; };
+    ul.append(el('li', {}, el('span', { className: 'n', textContent: where }), ' ', el('span', { textContent: it.by + (it.kind === 'insert' ? ' adds ' : ' takes out ') + '“' + it.text.trim().slice(0, 80) + (it.text.trim().length > 80 ? '…' : '') + '”' }), ' ', el('span', { className: 'chips' }, btn('Accept', true), btn('Reject', false))));
+  }
+  // sections
+  const so = RV.signoffs(steps), pr = RV.proofread(steps), sl = $('rv-secs'), token = ++drawToken;
+  let xml = null, hashes = {};
+  if (so.size) { try { xml = await currentXml(model); for (const eid of so.keys()) hashes[eid] = await RV.sectionHash(xml, eid); } catch (e) { xml = null; } }
+  if (token !== drawToken) return; // a later drawing has started: it draws the rest
+  sl.innerHTML = '';
+  model.sections.forEach((s, i) => {
+    const eid = 'sec_' + (i + 1), sgo = so.get(eid), p = pr.get(eid);
+    const bits = [];
+    if (sgo) bits.push(xml && hashes[eid] !== sgo.hash ? 'Signed off by ' + sgo.by + ' (' + fmtDate(sgo.at) + '), but changed since: stale' : 'Signed off by ' + sgo.by + ', ' + fmtDate(sgo.at));
+    if (p) bits.push('proofread by ' + p.by + ', ' + fmtDate(p.at));
+    const chips = el('span', { className: 'chips' });
+    if (RV.maySignOff(m)) {
+      const stale = sgo && xml && hashes[eid] !== sgo.hash;
+      const b = el('button', { className: 'mini', textContent: sgo && !stale ? 'Withdraw' : 'Sign off' });
+      b.onclick = () => busy(b, () => sgo && !stale ? withdraw(eid) : signOff(i));
+      chips.append(b);
+    }
+    if (RV.mayProofread(m) && !p) { const b = el('button', { className: 'mini', textContent: 'Proofread' }); b.onclick = () => busy(b, async () => { step('proofread', { section: eid }); await saveReview(); await drawReview(state.model); }); chips.append(b); }
+    const stale = sgo && xml && hashes[eid] !== sgo.hash;
+    sl.append(el('li', { className: stale ? 'stale' : '' }, el('span', { className: 'n', textContent: s.num || '§ ?' }), ' ', el('span', { className: 'what', textContent: bits.join('; ') || 'Not signed off' }), ' ', chips));
+  });
+  drawPeople(model);
+  const ol = $('rv-history'); ol.innerHTML = '';
+  for (const st of steps) ol.append(el('li', { textContent: fmtDate(st.at) + ': ' + RV.EVENTS[st.event] + ' by ' + st.by + ' (' + RV.ROLE_NAME[st.role] + ')' + (st.section ? ', ' + st.section.replace('sec_', '§ ') : '') + (st.suggestionBy ? ', ' + st.suggestionBy + '\'s' : '') }));
+  $('rv-count').textContent = steps.length ? plural(steps.length, 'step') : 'nothing yet';
+  reviewDrawn = Date.now();
+}
+function needMe() {
+  const m = me(); if (!m || !m.role) throw new Error('Say who you are first (You, at the top of the Review tab).');
+  return m;
+}
+async function sendOn() {
+  const h = RV.handOff(review.steps, needMe()); if (!h.ok) throw new Error(h.why);
+  step(h.event); await saveReview(); await drawReview(state.model);
+  notice(RV.EVENTS[h.event] + '. The draft is ' + RV.STATUS[RV.statusOf(review.steps)] + '.');
+}
+async function signOff(i) {
+  const m = needMe(); if (!RV.maySignOff(m)) throw new Error('Examiners sign off sections.');
+  await markChanges(true); // what is signed off is the section as it will be exported, marked against the Bank
+  const model = await word(readModel), missing = needRoles(model);
+  if (missing.length) throw new Error('Give a review role to ' + missing.join(', ') + ' first (People, below).');
+  const eid = 'sec_' + (i + 1), hash = await RV.sectionHash(await currentXml(model), eid);
+  if (!hash) throw new Error('That section is not in the bill any more.');
+  step('signedOff', { section: eid, hash }); await saveReview(); await refresh();
+  notice('Signed off ' + (model.sections[i].num || eid).replace(/\.$/, '') + '.');
+}
+async function withdraw(eid) {
+  needMe(); step('signoffWithdrawn', { section: eid }); await saveReview(); await drawReview(state.model);
+}
+// Accept or reject one suggestion through Word's tracked changes (WordApi 1.6), as the rules allow, and record it.
+async function decide(it, accept) {
+  const m = needMe(), d = RV.mayDecide(m, review.roles[it.by]); if (!d.ok) throw new Error(d.why);
+  if (!Office.context.requirements.isSetSupported('WordApi', '1.6')) throw new Error('This version of Word can\'t accept or reject from the pane: use Word\'s Review tab.');
+  const done = await word(async ctx => {
+    const tcs = ctx.document.body.getTrackedChanges(); tcs.load('items/author,items/date,items/text,items/type'); await ctx.sync();
+    const want = it.text.replace(/\s+/g, ' ').trim(), type = it.kind === 'insert' ? 'Added' : 'Deleted';
+    const same = tc => tc.author === it.by && tc.type === type;
+    const tc = tcs.items.find(tc => same(tc) && tc.text.replace(/\s+/g, ' ').trim() === want) || tcs.items.find(tc => same(tc) && want && tc.text.includes(want));
+    if (!tc) return false;
+    if (accept) tc.accept(); else tc.reject();
+    await ctx.sync(); return true;
+  });
+  if (!done) throw new Error('Word did not find that tracked change; it may have been settled already. Look in Word\'s Review tab.');
+  step(accept ? 'accepted' : 'rejected', { suggestionBy: it.by }); await saveReview(); await refresh();
+  notice((accept ? 'Accepted' : 'Rejected') + ' ' + it.by + '\'s suggestion.' + (accept ? ' Mark changes will bracket and underline it against the Bank.' : ''));
+}
 const paneInfo = () => ({ lbd: $('lbd').value.trim(), year: $('year').value.trim(), house: $('house').value, billNumber: $('billno').value.trim(), sponsor: $('sponsor').value.trim(), committee: $('committee').value.trim(), date: $('bdate').value || undefined });
 let aknText = '';
-async function toAkn() {
+async function toAkn(forPrint) {
   const { model, found, marked } = await markedForExport();
-  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws };
+  if (forPrint && model.suggestions && model.suggestions.total) throw new Error(waitingText(model));
+  const laws = {}, info = { ...paneInfo(), lawNames: await lawNamesFor(model, laws), laws, review: forPrint ? null : { roles: review.roles, steps: review.steps } };
+  if (forPrint) { model.comments = []; } // comments are not printed; the clean copy is made from the bill alone
+  if (!forPrint) { const missing = needRoles(model); if (missing.length) { drawPeople(model); throw new Error('Not made: give a review role to ' + missing.join(', ') + ' (People, on the Review tab). Everyone who made a suggestion or a comment, or took a step in the review, needs one.'); } }
   if (!info.year && info.date) info.year = info.date.slice(0, 4);
   aknText = BD.toAkn(model, info);
+  if (!forPrint && model.suggestions && (model.suggestions.total || model.comments.length || review.steps.length)) notice('A working copy: the XML carries ' + plural(model.suggestions.total, 'suggested change') + ', ' + plural(model.comments.length, 'comment') + ' and ' + plural(review.steps.length, 'review step') + ', with who made them. A published print carries none.');
   $('akn-out').value = aknText; $('akn-copy').disabled = $('akn-save').disabled = false;
   return { errs: found.filter(f => f.level === 'error').length, marked };
 }
@@ -724,15 +878,20 @@ function saveAkn() {
 let pdfUrl = null;
 async function toPdf() {
   $('pdf-actions').hidden = true; $('pdf-status').textContent = 'Checking the brackets and underlines against the Bank…';
-  const { errs, marked } = await toAkn();
+  { const m = await word(readModel); if (m.suggestions && m.suggestions.total) { $('pdf-status').textContent = waitingText(m); throw new Error(waitingText(m)); } }
+  const { errs, marked } = await toAkn(true);
   const status = t => { $('pdf-status').textContent = t; };
   const t0 = Date.now();
-  const pdf = await BD.cleanCopyPdf(aknText, status);
+  let keys = null; try { if (me()) keys = await myKeys(); } catch (e) { /* not signed */ }
+  const fp = keys ? await PK.xmlFingerprint(aknText) : '';
+  let pdf = await BD.cleanCopyPdf(aknText, status, fp ? [['fingerprint', fp]] : []);
+  if (keys) { status('Signing…'); pdf = await PK.embedInPdf(pdf, await PK.build({ xml: aknText, keys, copy: 'clean' }), aknText); }
   if (pdfUrl) URL.revokeObjectURL(pdfUrl);
   pdfUrl = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
   $('pdf-open').disabled = $('pdf-save').disabled = false; $('pdf-actions').hidden = false;
   status('Clean copy ready (' + Math.max(1, Math.round(pdf.length / 1024)) + ' KB, ' + ((Date.now() - t0) / 1000).toFixed(1) + ' s). ' +
-    (marked ? 'Changes were marked against the Bank first in ' + marked + ' section' + (marked === 1 ? '' : 's') + '.' : 'Brackets and underlines checked against the Bank.'));
+    (marked ? 'Changes were marked against the Bank first in ' + marked + ' section' + (marked === 1 ? '' : 's') + '.' : 'Brackets and underlines checked against the Bank.') +
+    (keys ? ' Signed by ' + keys.card.name + ': every page carries the fingerprint ' + fp + ', and the PDF carries its signed package.' : ' Not signed: say who you are (Review tab) to sign clean copies.'));
   if (errs) {
     const b = el('button', { className: 'link', textContent: 'Show them' }); b.onclick = () => showTab('checks');
     $('pdf-status').append(' Check found ' + errs + ' error' + (errs === 1 ? '' : 's') + ' to fix before it goes out. ', b);
@@ -742,6 +901,125 @@ async function toPdf() {
 function savePdf() {
   const a = el('a', { href: pdfUrl, download: ($('lbd').value.trim() || 'bill') + ' clean copy.pdf' });
   document.body.append(a); a.click(); a.remove();
+}
+
+/* ---------- signed packages (.nysakn, src/lib/package.js) ----------
+   Whoever is at this computer (Review tab) has a key pair, made the first time they sign and kept on this computer;
+   their public card goes into the document (the review part), so the others can send them encrypted packages and see
+   who signed what. The clean copy is signed too: its pages carry the bill's fingerprint and the PDF carries its signed
+   package. Keys kept in the browser are for the demonstration: in production signatures would rest on the state's own
+   sign-ins or certificates. */
+const PK = BD.nysakn;
+const keyName = m => 'bill-drafter-key:' + m.name + '|' + m.role;
+// The keys each person at this computer trusts (their own among them).
+const trustName = () => 'bill-drafter-trusted:' + ((me() && me().name) || '');
+const trustedKeys = () => { try { return new Set(JSON.parse(localStorage.getItem(trustName()) || '[]')); } catch (e) { return new Set(); } };
+const trustKey = id => { const t = trustedKeys(); t.add(id); try { localStorage.setItem(trustName(), JSON.stringify([...t])); } catch (e) { /* storage off */ } };
+async function myKeys() {
+  const m = me(); if (!m || !m.role) throw new Error('Say who you are first (Review tab, You): packages and clean copies are signed with your key.');
+  let stored = null; try { stored = JSON.parse(localStorage.getItem(keyName(m)) || 'null'); } catch (e) { /* none */ }
+  if (!stored) { stored = await PK.makeKeys({ name: m.name, role: m.role, device: 'Word' }); try { localStorage.setItem(keyName(m), JSON.stringify(stored)); } catch (e) { throw new Error('This computer would not keep your key (storage is off), so nothing can be signed.'); } }
+  const keys = await PK.loadKeys(stored); trustKey(keys.card.keyId);
+  const had = review.cards[m.name];
+  if (!had || had.keyId !== keys.card.keyId) { review.cards[m.name] = PK.cardOf(keys.card); await saveReview(); drawLock(); }
+  return keys;
+}
+// People this document holds a card for (everyone who has signed something in it), other than me.
+function drawLock() {
+  const box = $('pk-people'); if (!box) return;
+  const m = me(), people = Object.entries(review.cards || {}).filter(([n]) => !m || n !== m.name);
+  box.innerHTML = '';
+  if (!people.length) { box.append(el('p', { className: 'hint', textContent: 'No one else in this document has a key yet. A person\'s card is added when they first sign something here.' })); return; }
+  for (const [n, c] of people) {
+    const cb = el('input', { type: 'checkbox', value: n });
+    box.append(el('label', { className: 'check' }, cb, ' ', el('b', { textContent: n }), ' ' + (RV.ROLE_NAME[c.role] || c.role || '') + ' ', el('span', { className: 'fp', textContent: PK.fingerprint(c.keyId) })));
+  }
+}
+async function savePackage() {
+  const keys = await myKeys(), clean = $('pk-clean').checked;
+  if (clean) await toAkn(true); else await toAkn();
+  const lock = {};
+  if ($('pk-lock-pw').checked) {
+    if ($('pk-pw').value.length < 8) throw new Error('Use a password of at least 8 characters.');
+    if ($('pk-pw').value !== $('pk-pw2').value) throw new Error('The two passwords are not the same.');
+    lock.password = $('pk-pw').value;
+  }
+  if ($('pk-lock-people').checked) {
+    lock.to = [...$('pk-people').querySelectorAll('input:checked')].map(c => review.cards[c.value]);
+    if (!lock.to.length) throw new Error('Choose at least one person to send it to.');
+  }
+  const inner = await PK.build({ xml: aknText, keys, copy: clean ? 'clean' : 'working', note: $('pk-note').value.trim() });
+  const out = await PK.encrypt(inner, lock, keys.card);
+  const name = ($('lbd').value.trim() || 'bill') + (clean ? ' clean copy' : ' working copy') + '.nysakn';
+  const a = el('a', { href: URL.createObjectURL(new Blob([out], { type: PK.MIME })), download: name });
+  document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  $('pk-pw').value = $('pk-pw2').value = '';
+  notice('Saved ' + name + ', signed by ' + keys.card.name + (lock.password || lock.to ? ', encrypted' + (lock.password ? ' with a password' : '') + (lock.to ? (lock.password ? ' and' : '') + ' for ' + lock.to.map(c => c.name).join(', ') : '') : '') + '. Fingerprint ' + await PK.xmlFingerprint(aknText) + '.');
+}
+// Check a package, or a clean copy PDF that carries one.
+let checked = null;
+async function checkPackage(file, password) {
+  const data = new Uint8Array(await file.arrayBuffer()); let pkgBytes = data, fromPdf = null;
+  if (PK.isPdf(data)) {
+    const att = await PK.pdfAttachments(data);
+    if (!att.has('bill.nysakn')) throw new Error(file.name + ' does not carry a signed bill package, so it cannot be checked.');
+    pkgBytes = att.get('bill.nysakn'); fromPdf = data;
+  }
+  let keys = null; try { if (me()) keys = await myKeys(); } catch (e) { /* not signed in */ }
+  const o = await PK.open(pkgBytes, { password, keys, trusted: trustedKeys() });
+  checked = { name: file.name, file, o, fromPdf };
+  drawChecked();
+}
+async function drawChecked() {
+  const box = $('pk-result'), { name, o, fromPdf } = checked; box.hidden = false; box.innerHTML = '';
+  if (o.needPassword || o.needKey) {
+    box.append(el('p', {}, el('b', { textContent: name + ' is encrypted. ' }), 'It opens with ' + (o.recipients || []).join(' or ') + '.'));
+    for (const w of o.warnings) box.append(el('p', { className: 'bad', textContent: w }));
+    if (o.needPassword) {
+      const pw = el('input', { type: 'password', placeholder: 'Password', autocomplete: 'off' }), go = el('button', { className: 'primary', textContent: 'Open' });
+      go.onclick = () => busy(go, () => checkPackage(checked.file, pw.value));
+      pw.onkeydown = e => { if (e.key === 'Enter') go.click(); };
+      box.append(el('div', { className: 'row' }, pw, go));
+    } else box.append(el('p', { className: 'hint', textContent: 'It was not sent to you (' + (me() ? me().name : 'say who you are on the Review tab') + '). Open it as the person it was sent to.' }));
+    return;
+  }
+  const s = o.signature, m = o.manifest || {}, verdict = o.void ? 'void' : s.trust === 'trusted' ? 'good' : 'meh';
+  box.append(el('div', { className: 'verdict ' + verdict }, el('b', { textContent: o.void ? 'VOID: do not rely on this ' + (fromPdf ? 'PDF' : 'package') : s.trust === 'trusted' ? 'Signed and unchanged' : 'Signed and unchanged, by a key this computer does not yet trust' }),
+    el('div', { textContent: (m.copy === 'clean' ? 'Clean copy' : 'Working copy') + (m.bill && m.bill.lbd ? ' of ' + m.bill.lbd : '') + (m.bill && m.bill.status ? ' (' + (RV.STATUS[m.bill.status] || m.bill.status) + ')' : '') + (s.signer ? ', signed by ' + PK.cardText(s.signer) + (s.at ? ', ' + fmtDate(s.at) : '') : '') + '.' })));
+  if (o.void) box.append(el('ul', { className: 'bad' }, ...o.void.reasons.map(r => el('li', { textContent: (/^[\w-]+\.\w+\b/.test(r) ? r : r.charAt(0).toUpperCase() + r.slice(1)) + '.' }))));
+  if (s.signer) {
+    const line = el('p', {}, 'Key ', el('span', { className: 'fp', textContent: s.fingerprint }), ' ');
+    if (s.status === 'valid' && s.trust !== 'trusted') {
+      const t = el('button', { className: 'link', textContent: 'They match: trust this key' });
+      t.onclick = () => { trustKey(s.signer.keyId); notice((me() ? me().name : 'You') + ' now trust' + (me() ? 's ' : ' ') + s.signer.name + '\'s key on this computer.'); checkPackage(checked.file); };
+      line.append('— ask ' + s.signer.name + ' to read you their fingerprint (in person or by phone, not by email). ', t);
+    }
+    box.append(line);
+  }
+  if (o.fingerprint) box.append(el('p', { className: 'hint', textContent: 'Bill fingerprint ' + o.fingerprint + (fromPdf ? '. It should be at the foot of every page; the words on the pages themselves are compared with the signed XML by the profile\'s tools/nysakn.py check --rerender.' : '. A clean copy printed from it carries this at the foot of every page.') }));
+  if (m.note) box.append(el('p', {}, el('b', { textContent: 'Note: ' }), m.note));
+  if (o.encrypted) box.append(el('p', { className: 'hint', textContent: 'It was encrypted for ' + (o.recipients || []).join(', ') + '.' }));
+  if (o.xml) {
+    const offs = await RV.signoffsInXml(o.xml);
+    if (offs.length) box.append(el('p', { textContent: 'Sign-offs: ' + offs.map(x => (x.section.replace(/^sec_/, '§ ')) + ' by ' + x.by + (x.stale ? ' — stale: the section changed after it was signed off' : '')).join('; ') + '.' }));
+  }
+  for (const w of o.warnings.filter(w => !/whose key this computer does not yet trust/.test(w))) box.append(el('p', { className: 'hint', textContent: w }));
+  const row = el('div', { className: 'row' });
+  if (o.xml) {
+    const pending = /lbdc:suggest="/.test(o.xml);
+    const show = el('button', { className: o.void ? '' : 'primary', textContent: o.void ? 'Print it with VOID across the pages' : 'Open the clean copy', disabled: pending, title: pending ? 'A working copy with suggestions waiting has no clean copy.' : '' });
+    show.onclick = () => busy(show, async () => {
+      let pdf;
+      if (fromPdf && !o.void) pdf = fromPdf;
+      else pdf = await BD.cleanCopyPdf(o.xml, t => notice(t), [['fingerprint', o.fingerprint], ['void', o.void ? 'yes' : 'no']]);
+      const u = URL.createObjectURL(new Blob([pdf], { type: 'application/pdf' }));
+      if (!window.open(u, '_blank')) { const a = el('a', { href: u, download: name.replace(/\.(nysakn|pdf)$/i, '') + (o.void ? ' VOID' : '') + '.pdf' }); document.body.append(a); a.click(); a.remove(); }
+    });
+    const xmlBtn = el('button', { textContent: 'Save the XML' });
+    xmlBtn.onclick = () => { const a = el('a', { href: URL.createObjectURL(new Blob([o.xml], { type: 'application/xml' })), download: name.replace(/\.(nysakn|pdf)$/i, '') + (o.void ? ' VOID' : '') + '.akn.xml' }); document.body.append(a); a.click(); a.remove(); };
+    row.append(show, xmlBtn);
+  }
+  box.append(row);
 }
 
 /* ---------- the Bank ---------- */
@@ -779,6 +1057,7 @@ function showTab(name, focusSec) {
   if (mode === 'budget') { document.body.classList.toggle('has-dock', name === 'draft' && !$('b-dock').hidden); BUD.onTab(name, focusSec); return; }
   if (name === 'checks' && inWord) busy($('run-checks'), () => runChecks(focusSec));
   if (name === 'export') infoSummary();
+  if (name === 'review' && inWord) busy(null, async () => { await refresh(); await drawReview(state.model); });
   if (name === 'draft' && inWord) busy(null, refresh);
 }
 // Bill or budget: each tab shows the part of itself for that kind of work.
@@ -829,9 +1108,24 @@ function wire() {
   on('te-save', saveTable);
   $('te-cancel').onclick = closeEditor; $('te-close').onclick = closeEditor;
   on('to-akn', async () => { await toAkn(); $('akn-card').open = true; });
+  $('rv-send').onclick = () => { $('rv-send').disabled = true; busy(null, sendOn).then(() => drawReview(state.model)); };
+  const meChanged = () => busy(null, async () => {
+    const name = $('me-name').value.trim(), role = $('me-role').value, was = me();
+    if (was && was.name === name && was.role === role) return; // no change (a blur after typing): don't redraw under the pointer
+    setMe(name ? { name, role } : null);
+    if (name && role && review.roles[name] !== role) { review.roles[name] = role; await saveReview(); }
+    if (name && role) await myKeys(); // their key, and their card in the document, so others can send them packages
+    drawLock(); if ($('pk-result')) $('pk-result').hidden = true; // what was checked was checked as someone else
+    if (state.model) await drawReview(state.model);
+  });
+  $('me-name').addEventListener('change', meChanged); $('me-role').addEventListener('change', meChanged);
   on('akn-copy', async () => { await toAkn(); $('akn-out').select(); try { await navigator.clipboard.writeText(aknText); } catch (e) { document.execCommand('copy'); } notice('Copied.'); });
   on('akn-save', async () => { await toAkn(); saveAkn(); });
   on('to-pdf', toPdf); on('pdf-save', async () => savePdf());
+  on('pk-save', savePackage);
+  for (const id of ['pk-lock-none', 'pk-lock-pw', 'pk-lock-people']) $(id).onchange = () => { $('pk-pw-box').hidden = !$('pk-lock-pw').checked; $('pk-people').hidden = !$('pk-lock-people').checked; if ($('pk-lock-people').checked) drawLock(); };
+  $('pk-file').onchange = () => { const f = $('pk-file').files[0]; $('pk-file').value = ''; if (f) busy(null, () => checkPackage(f)); };
+  on('pk-check', async () => $('pk-file').click());
   on('pdf-open', async () => { if (!window.open(pdfUrl, '_blank')) savePdf(); });
   on('bank-clear', async () => { if (!confirmClear()) return; await BD.bank.clear(); await showBank(); await fillLaws(); notice('The Bank was removed from this computer.'); });
   // Bill information is saved as it is typed.
@@ -869,6 +1163,7 @@ async function start(host) {
   if (!inWord) notice('This pane works inside Word. Here you can still load the Bank.', false);
   await showBank(); await fillLaws();
   if (inWord) {
+    await loadReview().catch(e => console.error(e));
     await busy(null, refresh);
     const info = await loadInfo().catch(() => ({}));
     for (const [id] of INFO) if (info[id]) $(id).value = info[id];

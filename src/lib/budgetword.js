@@ -179,7 +179,6 @@
     const p = all(body, e => ln(e) === 'p')[0]; if (!p) return [];
     const out = [];
     for (const r of all(p, e => ln(e) === 'r')) {
-      if (ancestors(r).some(a => ln(a) === 'del' && a.namespaceURI === W)) { /* Word's own tracked deletion */ }
       const pr = kid(r, 'rPr'); let k = '';
       if (pr) {
         const st = kid(pr, 'rStyle'), u = kid(pr, 'u'), s = kid(pr, 'strike'), v = n => n && (n.getAttributeNS ? n.getAttributeNS(W, 'val') || n.getAttribute('w:val') : n.getAttribute('w:val'));
@@ -187,13 +186,15 @@
         if (/^BillInsert/i.test(sv)) k = 'ins'; else if (/^BillDelete/i.test(sv)) k = 'del';
         else if (u && v(u) !== 'none') k = 'ins'; else if (s && v(s) !== '0' && v(s) !== 'false') k = 'del';
       }
-      const rev = ancestors(r).find(a => a.namespaceURI === W && (ln(a) === 'ins' || ln(a) === 'del'));
-      if (rev) k = ln(rev) === 'ins' ? 'ins' : 'del';
+      // Word's own tracked changes are suggestions, not new or old matter (profile 0.4): the caller leaves an item
+      // with any alone until they are accepted or rejected.
+      const rev = ancestors(r).find(a => a.namespaceURI === W && (ln(a) === 'ins' || ln(a) === 'del' || ln(a) === 'moveTo' || ln(a) === 'moveFrom'));
+      if (rev) out.suggested = true;
       let t = '';
       for (const c of kids(r)) { const n = ln(c); if (n === 't' || n === 'delText') t += c.textContent; else if (n === 'tab') t += '\t'; }
       push(out, t, k);
     }
-    return bracketize(out);
+    const res = bracketize(out); res.suggested = !!out.suggested; return res;
   }
   // Brackets typed in plain text open and close old matter, as in the bill side.
   function bracketize(rs) {

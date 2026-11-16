@@ -107,6 +107,19 @@
           text: p.textContent, load() { return this; }, delete() { if (p.parentNode) p.parentNode.removeChild(p); },
           get parentContentControlOrNullObject() { const a = parentSdt(p); return a ? ccFor(a) : NULL_CC; } })) };
       },
+      // Word's tracked changes (WordApi 1.6): accepting an insertion keeps its words, rejecting it takes them out;
+      // accepting a deletion takes the words out, rejecting it puts them back.
+      getTrackedChanges() {
+        const unwrap = n => { while (n.firstChild) n.parentNode.insertBefore(n.firstChild, n); n.parentNode.removeChild(n); };
+        const items = [...body.getElementsByTagNameNS(W, '*')].filter(n => n.localName === 'ins' || n.localName === 'del').map(n => {
+          const ins = n.localName === 'ins';
+          const text = [...n.getElementsByTagNameNS(W, '*')].filter(e => e.localName === 't' || e.localName === 'delText').map(e => e.textContent).join('');
+          return { author: n.getAttribute('w:author'), date: n.getAttribute('w:date'), text, type: ins ? 'Added' : 'Deleted',
+            accept() { window.__ops.push('tc.accept'); if (ins) unwrap(n); else n.parentNode.removeChild(n); },
+            reject() { window.__ops.push('tc.reject'); if (ins) n.parentNode.removeChild(n); else { for (const e of [...n.getElementsByTagNameNS(W, 'delText')]) { const t = doc.createElementNS(W, 'w:t'); t.textContent = e.textContent; e.parentNode.replaceChild(t, e); } unwrap(n); } } };
+        });
+        return { items, load() { return this; } };
+      },
       insertOoxml(x, where) {
         window.__ops.push('body.insertOoxml ' + where);
         const kids = bodyKids(x);
@@ -140,5 +153,17 @@
     for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(find)) { t.textContent = t.textContent.replace(find, replace); return true; }
     return false;
   };
+  // Test helper: Word's Track Changes. A tracked insertion by `author` right after the run that holds `after`.
+  window.__suggestInLaw = (after, text, author) => {
+    for (const t of doc.getElementsByTagNameNS(W, 't')) if (t.textContent.includes(after)) {
+      const r = t.parentNode, ins = doc.createElementNS(W, 'w:ins');
+      ins.setAttributeNS(W, 'w:id', '901'); ins.setAttributeNS(W, 'w:author', author); ins.setAttributeNS(W, 'w:date', '2026-11-15T15:00:00Z');
+      const nr = doc.createElementNS(W, 'w:r'), nt = doc.createElementNS(W, 'w:t'); nt.setAttribute('xml:space', 'preserve'); nt.textContent = text;
+      nr.appendChild(nt); ins.appendChild(nr); r.parentNode.insertBefore(ins, r.nextSibling); return true;
+    }
+    return false;
+  };
+  // Test helper: accepting every tracked change (Word's Review > Accept All).
+  window.__acceptAll = () => { for (const ins of [...doc.getElementsByTagNameNS(W, 'ins')]) { while (ins.firstChild) ins.parentNode.insertBefore(ins.firstChild, ins); ins.remove(); } };
   window.__docXml = () => ser(doc);
 })();

@@ -1,7 +1,7 @@
 // Unit tests for the shared libraries (no Word needed): node tests/unit.cjs
 const assert = require('assert'); const path = require('path'); const fs = require('fs');
 const { DOMParser } = require('@xmldom/xmldom');
-for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
+for (const f of ['drafting', 'laws', 'tables', 'bank', 'ooxml', 'checks', 'akn', 'review', 'package', 'budget', 'budgetword']) require(path.join(__dirname, '..', 'src', 'lib', f + '.js'));
 const BD = globalThis.BD; let n = 0; const t = (name, fn) => { fn(); n++; console.log('ok -', name); };
 
 t('law names', () => {
@@ -207,6 +207,99 @@ t('output is valid AKN-NY 0.3', () => {
   const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--quiet', ...files], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
 });
+// Several people (profile 0.4 working copies): Word's tracked changes are suggestions, not new matter; comments
+// come from the comments part; the XML is a working copy that the profile's own checker accepts.
+function trackedBill() {
+  const m = taxBill(), s = m.sections[0];
+  let body = BD.sectionXml({ act: 'amend', law: 'TAX', loc: '606', unit: 'c', num: 'Section 1.', clause: s.clause, content: [], more: [], quoted: s.quoted.paras }) +
+    BD.sectionXml({ act: 'effective', num: '§ 2.', content: [r('This act shall take effect immediately.')], more: [] });
+  const forty = '<w:r><w:rPr><w:rStyle w:val="BillInsert"/><w:u w:val="single"/></w:rPr><w:t xml:space="preserve">forty</w:t></w:r>';
+  assert.ok(body.includes(forty), 'fixture: the forty run');
+  body = body.replace(forty, '<w:commentRangeStart w:id="1"/>' + forty + '<w:commentRangeEnd w:id="1"/><w:r><w:commentReference w:id="1"/></w:r>' +
+    '<w:ins w:id="9" w:author="Lee Smith" w:date="2026-11-14T15:20:00Z"><w:r><w:rPr><w:rStyle w:val="BillInsert"/></w:rPr><w:t xml:space="preserve"> or forty-five</w:t></w:r></w:ins>');
+  const eff = '<w:t xml:space="preserve">This act shall take effect immediately.</w:t></w:r>';
+  assert.ok(body.includes(eff), 'fixture: the effective date run');
+  body = body.replace(eff, '<w:t xml:space="preserve">This act shall take effect </w:t></w:r><w:del w:id="10" w:author="Ana Ruiz" w:date="2026-11-15T09:00:00Z"><w:r><w:delText>immediately</w:delText></w:r></w:del>' +
+    '<w:ins w:id="11" w:author="Ana Ruiz" w:date="2026-11-15T09:00:00Z"><w:r><w:t>on the thirtieth day after it shall have become a law</w:t></w:r></w:ins><w:r><w:t>.</w:t></w:r>');
+  const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml', W15 = 'http://schemas.microsoft.com/office/word/2012/wordml';
+  const comments = '<pkg:part pkg:name="/word/comments.xml" pkg:contentType="application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"><pkg:xmlData><w:comments xmlns:w="' + BD.W_NS + '" xmlns:w14="' + W14 + '">' +
+    '<w:comment w:id="1" w:author="Lee Smith" w:date="2026-11-14T15:22:00Z"><w:p w14:paraId="0A000001"><w:r><w:t>Is this the Executive Budget figure?</w:t></w:r></w:p></w:comment>' +
+    '<w:comment w:id="2" w:author="Kim Lo" w:date="2026-11-14T16:00:00Z"><w:p w14:paraId="0A000002"><w:r><w:t>Yes, per the sponsor.</w:t></w:r></w:p></w:comment>' +
+    '</w:comments></pkg:xmlData></pkg:part>' +
+    '<pkg:part pkg:name="/word/commentsExtended.xml" pkg:contentType="application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"><pkg:xmlData><w15:commentsEx xmlns:w15="' + W15 + '">' +
+    '<w15:commentEx w15:paraId="0A000001" w15:done="0"/><w15:commentEx w15:paraId="0A000002" w15:paraIdParent="0A000001" w15:done="0"/></w15:commentsEx></pkg:xmlData></pkg:part>';
+  const xml = BD.pkg(body).replace('</pkg:package>', comments + '</pkg:package>');
+  const model = BD.readBill(xml, DOMParser);
+  model.title = m.title; model.enacting = { text: BD.ENACTING };
+  return model;
+}
+t('several people: tracked changes are suggestions, comments are read, the working copy is valid', () => {
+  const m = trackedBill(), q = m.sections[0].quoted.paras;
+  assert.strictEqual(m.suggestions.total, 3, JSON.stringify(m.suggestions));
+  assert.deepStrictEqual(m.suggestions.bySection, [1, 2]);
+  assert.deepStrictEqual(m.suggestions.people.sort(), ['Ana Ruiz', 'Kim Lo', 'Lee Smith']);
+  assert.strictEqual(m.comments.length, 1); assert.strictEqual(m.comments[0].replies[0].by, 'Kim Lo');
+  // the tracked insertion is not new matter, and not in the text until it is accepted
+  assert.ok(!BD.readings(q).now.join(' ').includes('forty-five'));
+  assert.ok(m.sections[1].text.includes('immediately') && !m.sections[1].text.includes('thirtieth'));
+  // every person needs a review role
+  assert.throws(() => BD.toAkn(m, info()), e => e.missingRoles && e.missingRoles.length === 3);
+  const roles = { 'Lee Smith': 'examiner', 'Kim Lo': 'drafter', 'Ana Ruiz': 'proofreader' };
+  const x = BD.toAkn(m, info({ review: { roles } }));
+  assert.ok(x.includes('<ins><span lbdc:comment="c1">forty</span><span lbdc:suggest="insert" lbdc:by="#staff-lee-smith" lbdc:at="2026-11-14T15:20:00Z"> or forty-five</span></ins>'), x.slice(x.indexOf('<quotedStructure'), x.indexOf('</quotedStructure>')));
+  assert.ok(x.includes('<span lbdc:suggest="delete" lbdc:by="#staff-ana-ruiz" lbdc:at="2026-11-15T09:00:00Z">immediately</span>'));
+  assert.ok(x.includes('<lbdc:working status="drafting"><lbdc:comment id="c1" by="#staff-lee-smith"'));
+  assert.ok(x.includes('<lbdc:reply by="#staff-kim-lo"'));
+  // the effective date's kind is read from the text as it stands
+  assert.ok(/refersTo="#effectiveDate"/.test(x) && /class="immediate"/.test(x));
+  const cp = require('child_process'), os = require('os');
+  try { cp.execFileSync('python3', ['-c', 'import lxml'], { stdio: 'ignore' }); } catch (e) { return; }
+  const f = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'akn-')), 'working.xml'); fs.writeFileSync(f, x);
+  const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), f], { encoding: 'utf8' });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+});
+// The review: hand-offs, sign-offs, decisions; the sign-off hash is the one the profile's validate.py works out.
+const pending = [];
+t('review: whose turn it is, who may decide, and a sign-off the profile accepts', () => {
+  const R = BD.review, kim = { name: 'Kim Lo', role: 'drafter' }, lee = { name: 'Lee Smith', role: 'examiner' }, ana = { name: 'Ana Ruiz', role: 'proofreader' };
+  assert.strictEqual(R.statusOf([]), 'drafting');
+  assert.ok(R.handOff([], kim).ok); assert.ok(!R.handOff([], lee).ok);
+  const steps = [{ at: '2026-11-14T10:00:00Z', by: 'Kim Lo', role: 'drafter', event: 'sentToExamination' }];
+  assert.strictEqual(R.statusOf(steps), 'examination'); assert.strictEqual(R.handOff(steps, lee).event, 'sentToProofreading');
+  assert.ok(!R.mayDecide(ana, 'examiner').ok); assert.ok(!R.mayDecide(lee, 'drafter').ok); assert.ok(R.mayDecide(lee, 'proofreader').ok); assert.ok(R.mayDecide(kim, 'drafter').ok);
+  assert.ok(R.maySignOff(lee) && !R.maySignOff(kim)); assert.ok(R.mayProofread(ana) && !R.mayProofread(lee));
+  pending.push((async () => {
+    const m = trackedBill(), roles = { 'Lee Smith': 'examiner', 'Kim Lo': 'drafter', 'Ana Ruiz': 'proofreader' };
+    const before = BD.toAkn(m, info({ review: { roles, steps } }));
+    const hash = await R.sectionHash(before, 'sec_1', DOMParser);
+    assert.ok(/^[0-9a-f]{64}$/.test(hash));
+    const all = steps.concat([
+      { at: '2026-11-14T11:00:00Z', by: 'Lee Smith', role: 'examiner', event: 'signedOff', section: 'sec_1', hash },
+      { at: '2026-11-14T11:05:00Z', by: 'Lee Smith', role: 'examiner', event: 'sentToProofreading' },
+      { at: '2026-11-15T09:30:00Z', by: 'Ana Ruiz', role: 'proofreader', event: 'proofread', section: 'sec_1' },
+      { at: '2026-11-15T09:40:00Z', by: 'Ana Ruiz', role: 'proofreader', event: 'returnedToExaminer' },
+      { at: '2026-11-15T10:00:00Z', by: 'Lee Smith', role: 'examiner', event: 'rejected', suggestionBy: 'Ana Ruiz' }]);
+    const x = BD.toAkn(m, info({ review: { roles, steps: all } }));
+    assert.ok(x.includes('<lbdc:working status="returned">'));
+    assert.ok(x.includes('<workflow source="#lbdc-review"><step date="2026-11-14" by="#staff-kim-lo" as="#drafter" refersTo="#sentToExamination"/>'));
+    assert.strictEqual(await R.sectionHash(x, 'sec_1', DOMParser), hash, 'the hash does not depend on the steps');
+    // Lee's comment and Kim's reply do not make the sign-off stale; a changed word does.
+    const cp = require('child_process'), os = require('os');
+    try { cp.execFileSync('python3', ['-c', 'import lxml'], { stdio: 'ignore' }); } catch (e) { return; }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'akn-')), f = path.join(dir, 'review.xml'), g = path.join(dir, 'stale.xml');
+    fs.writeFileSync(f, x);
+    const res = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), f], { encoding: 'utf8' });
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    assert.ok(!/stale/.test(res.stdout), res.stdout);
+    const hashPy = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), '--section-hash', 'sec_1', f], { encoding: 'utf8' }).stdout.trim();
+    assert.strictEqual(hashPy, hash, 'JavaScript and Python give the same sign-off hash');
+    const changed = x.replace('Renumbered text.', 'Renumbered text, changed.');
+    fs.writeFileSync(g, changed);
+    const res2 = cp.spawnSync('python3', [path.join(__dirname, '..', 'profile', 'validate.py'), g], { encoding: 'utf8' });
+    assert.ok(/stale/.test(res2.stdout), 'a changed section makes the sign-off stale: ' + res2.stdout);
+    assert.notStrictEqual(await R.sectionHash(changed, 'sec_1', DOMParser), hash);
+  })());
+});
 t('the pane loads every file the clean-copy template reads', () => {
   // A file the template reads but the pane doesn't map stops the build with "failed to load file (access denied)".
   const dir = path.join(__dirname, '..'), js = fs.readFileSync(path.join(dir, 'src', 'cleancopy.js'), 'utf8');
@@ -299,4 +392,51 @@ t('budget: the whole of S.3003-D, as the Python tools find it', () => {
   const V = B.placeVetoes(d, JSON.parse(fs.readFileSync(path.join(dir, 'vetoes-2025.json'), 'utf8')), JSON.parse(fs.readFileSync(path.join(dir, 'S3003D.lines.json'), 'utf8')));
   for (const v of V) assert.deepStrictEqual(v.items, exp.vetoes[v.number], 'veto ' + v.number);
 });
-console.log(n + ' passed');
+
+// Signed packages (.nysakn): made and checked here and by the profile's tools/nysakn.py, each checking the other's.
+pending.push((async () => {
+  const P = BD.nysakn, cp = require('child_process'), os = require('os');
+  const xml = fs.readFileSync(path.join(__dirname, '..', 'examples', 'Example bill.akn.xml'), 'utf8');
+  const ann = await P.makeKeys({ name: 'Ann Drafter', role: 'drafter' }), ed = await P.makeKeys({ name: 'Ed Examiner', role: 'examiner' });
+  const ka = await P.loadKeys(ann), ke = await P.loadKeys(ed), trusted = new Set([ann.card.keyId]);
+  assert.ok(await P.cardValid(ann.card)); assert.ok(!await P.cardValid({ ...ann.card, name: 'Someone' }));
+  const z = await P.build({ xml, keys: ka, copy: 'clean', note: 'For proofreading' });
+  let o = await P.open(z, { trusted });
+  assert.strictEqual(o.signature.status, 'valid'); assert.strictEqual(o.void, null); assert.deepStrictEqual(o.warnings, []);
+  assert.strictEqual(o.fingerprint, await P.xmlFingerprint(xml)); assert.strictEqual(o.manifest.bill.lbd, 'LBD12345-01-6');
+  assert.ok((await P.open(z)).warnings.some(w => /does not yet trust/.test(w)));
+  const { files, order } = await P.readZip(z), rezip = ch => { const f = ch(new Map(files)); return P.writeZip([...order, ...[...f.keys()].filter(k => !order.includes(k))].filter(k => f.has(k)).map(k => ({ path: k, data: f.get(k), store: k === 'mimetype' }))); };
+  o = await P.open(await rezip(f => f.set('bill.akn.xml', new TextEncoder().encode(xml.replace('1234', '1235')))));
+  assert.ok(o.void && o.void.reasons.some(r => /bill.akn.xml was changed/.test(r)));
+  o = await P.open(await rezip(f => f.set('manifest.json', new TextEncoder().encode(new TextDecoder().decode(f.get('manifest.json')).replace('For proofreading', 'For printing')))));
+  assert.ok(o.void && o.void.reasons.some(r => /signature does not match/.test(r)));
+  o = await P.open(await rezip(f => f.set('extra.txt', new TextEncoder().encode('later'))), { trusted });
+  assert.strictEqual(o.void, null); assert.ok(o.warnings.some(w => /Left out extra.txt/.test(w)));
+  const e = await P.encrypt(z, { password: 'correct horse', to: [ed.card] }, ann.card);
+  assert.ok((await P.open(e)).needPassword);
+  assert.strictEqual((await P.open(e, { password: 'correct horse' })).signature.status, 'valid');
+  assert.strictEqual((await P.open(e, { keys: ke })).signature.status, 'valid');
+  assert.ok((await P.open(e, { password: 'wrong one' })).needPassword);
+  // the PDF carries its package
+  globalThis.PDFLib = require('pdf-lib');
+  const blank = await PDFLib.PDFDocument.create(); blank.addPage(); const pdf = await P.embedInPdf(await blank.save(), z, xml);
+  const att = await P.pdfAttachments(pdf);
+  assert.ok(P.isPdf(pdf)); assert.deepStrictEqual([...att.keys()].sort(), ['bill.akn.xml', 'bill.nysakn']);
+  assert.strictEqual((await P.open(att.get('bill.nysakn'), { trusted })).void, null);
+  n++; console.log('ok - signed packages: build, check, VOID, encryption, a PDF carrying its package');
+  // and the Python tools, each way
+  try { cp.execFileSync('python3', ['-c', 'import cryptography, lxml'], { stdio: 'ignore' }); } catch (x) { console.log('   (Python side skipped: needs python3 with cryptography and lxml)'); return; }
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nysakn-')), tool = path.join(__dirname, '..', 'profile', 'tools', 'nysakn.py');
+  fs.writeFileSync(path.join(dir, 'js.nysakn'), z); fs.writeFileSync(path.join(dir, 'js-enc.nysakn'), e); fs.writeFileSync(path.join(dir, 'ed.key.json'), JSON.stringify(ed));
+  let r = cp.spawnSync('python3', [tool, 'check', path.join(dir, 'js.nysakn'), '--trust', ann.card.keyId, '--json'], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr); assert.strictEqual(JSON.parse(r.stdout).fingerprint, await P.xmlFingerprint(xml));
+  r = cp.spawnSync('python3', [tool, 'check', path.join(dir, 'js-enc.nysakn'), '--key', path.join(dir, 'ed.key.json'), '--no-profile'], { encoding: 'utf8' });
+  assert.strictEqual(r.status, 0, r.stdout + r.stderr);
+  fs.writeFileSync(path.join(dir, 'bill.xml'), xml);
+  cp.execFileSync('python3', [tool, 'key', '--name', 'Pat Proofreader', '--role', 'proofreader', '-o', path.join(dir, 'pat.key.json')]);
+  cp.execFileSync('python3', [tool, 'make', path.join(dir, 'bill.xml'), '--key', path.join(dir, 'pat.key.json'), '--to', path.join(dir, 'ed.key.json'), '-o', path.join(dir, 'py.nysakn')], { env: { ...process.env } });
+  o = await P.open(fs.readFileSync(path.join(dir, 'py.nysakn')), { keys: ke });
+  assert.strictEqual(o.signature.status, 'valid'); assert.strictEqual(o.void, null); assert.strictEqual(o.signature.signer.name, 'Pat Proofreader');
+  n++; console.log('ok - signed packages: the profile\'s tools/nysakn.py checks ours and we check its');
+})());
+Promise.all(pending).then(() => console.log(n + ' passed'), e => { console.error(e); process.exit(1); });

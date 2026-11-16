@@ -55,6 +55,62 @@ class Result:
         return not self.errors
 
 
+AKN_NS = "http://docs.oasis-open.org/legaldocml/ns/akn/3.0"
+
+
+def section_hash(section) -> str:
+    """SHA-256 of a bill section as a sign-off records it: the section's exclusive canonical XML, with comment
+    anchors left out (a comment does not change what was signed off; a suggested change does)."""
+    import copy, hashlib
+    el = copy.deepcopy(section)
+    for span in list(el.iter(f"{{{AKN_NS}}}span")):
+        if span.get(f"{{{LBDC_NS}}}comment") is None:
+            continue
+        del span.attrib[f"{{{LBDC_NS}}}comment"]
+        if span.get(f"{{{LBDC_NS}}}suggest") is None and not span.attrib:   # a bare anchor: keep its words only
+            parent, i = span.getparent(), span.getparent().index(span)
+            prev = span.getprevious()
+            text, tail = span.text or "", span.tail or ""
+            kids = list(span)
+            if prev is not None:
+                prev.tail = (prev.tail or "") + text
+            else:
+                parent.text = (parent.text or "") + text
+            for k, kid in enumerate(kids):
+                parent.insert(i + k, kid)
+            last = kids[-1] if kids else prev
+            if last is not None:
+                last.tail = (last.tail or "") + tail
+            else:
+                parent.text = (parent.text or "") + tail
+            parent.remove(span)
+    el.tail = None
+    return hashlib.sha256(etree.tostring(el, method="c14n", exclusive=True)).hexdigest()
+
+
+def stale_signoffs(doc) -> list:
+    """A sign-off still standing whose section has changed since: a warning, so the examiner looks again."""
+    out = []
+    ns = {"a": AKN_NS, "l": LBDC_NS}
+    standing = {}
+    for st in doc.xpath("//a:meta/a:workflow[@source='#lbdc-review']/a:step[@l:section]", namespaces=ns):
+        sec = st.get(f"{{{LBDC_NS}}}section")
+        if st.get("refersTo") == "#signedOff":
+            standing[sec] = st
+        elif st.get("refersTo") == "#signoffWithdrawn":
+            standing.pop(sec, None)
+    for sec, st in standing.items():
+        found = doc.xpath("//a:body//a:section[@eId=$e][not(ancestor::a:quotedStructure)]", e=sec, namespaces=ns)
+        if found and st.get(f"{{{LBDC_NS}}}hash") and section_hash(found[0]) != st.get(f"{{{LBDC_NS}}}hash"):
+            who = st.get("by", "").lstrip("#")
+            named = doc.xpath("//a:references/a:TLCPerson[@eId=$e]/@showAs", e=who, namespaces=ns)
+            who = named[0] if named else who
+            out.append(Problem("profile", "warning", f"line {st.sourceline}",
+                               f"The sign-off on {sec} by {who} ({st.get('date')}) is stale: the section has changed since. "
+                               "It needs to be looked at and signed off again."))
+    return out
+
+
 class Validator:
     def __init__(self):
         self.akn = etree.XMLSchema(etree.parse(str(AKN_XSD)))
@@ -89,6 +145,7 @@ class Validator:
             text = " ".join("".join(fa.find(f"{{{SVRL}}}text").itertext()).split())
             result.problems.append(Problem("profile", "warning" if role == "warning" else "error",
                                            self._where(doc, fa.get("location", "")), text))
+        result.problems.extend(stale_signoffs(doc))
         return result
 
     @staticmethod
@@ -109,7 +166,14 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Validate Akoma Ntoso documents against the AKN-NY profile.")
     ap.add_argument("files", nargs="+", type=Path)
     ap.add_argument("-q", "--quiet", action="store_true", help="only print files with problems")
+    ap.add_argument("--section-hash", metavar="EID", help="print the sign-off hash of this bill section and stop")
     args = ap.parse_args(argv)
+    if args.section_hash:
+        for path in args.files:
+            sec = etree.parse(str(path)).xpath("//a:body//a:section[@eId=$e][not(ancestor::a:quotedStructure)]",
+                                               e=args.section_hash, namespaces={"a": AKN_NS})
+            print(section_hash(sec[0]) if sec else f"{path}: no section {args.section_hash}")
+        return 0
 
     v = Validator()
     failed = 0

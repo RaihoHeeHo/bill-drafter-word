@@ -44,7 +44,32 @@
 #let part-front = sys.inputs.at("front", default: "yes") == "yes"
 #let part-toc = sys.inputs.at("toc", default: "yes") == "yes"
 #let earlier-pages = json(bytes(sys.inputs.at("agency-pages", default: "{}")))
+// A signed package (AKN-NY 0.4 draft, .nysakn): the first twelve hex digits of the SHA-256 of the bill's XML are printed
+// at the foot of every page ("fingerprint" input, XXXX-XXXX-XXXX), so a page can be matched to the signed XML it was
+// printed from. A package that failed its checks is printed with VOID across every page ("void" input).
+#let fingerprint = sys.inputs.at("fingerprint", default: "")
+#let void-copy = sys.inputs.at("void", default: "no") == "yes"
+#let stamp = {
+  if void-copy {
+    place(center + horizon, rotate(-40deg, text(size: 150pt, weight: "bold", fill: rgb(180, 35, 24, 90), tracking: 6pt, "VOID")))
+  }
+  if fingerprint != "" {
+    place(bottom + left, dx: spec.left, dy: -0.32in, text(size: 6.5pt, fill: luma(110), "Signed package fingerprint " + fingerprint + if void-copy { " · VOID: this copy failed its checks" } else { "" }))
+  }
+}
 #let root = source.filter(n => type(n) == dictionary and n.tag != "").first()
+// A working copy (AKN-NY 0.4 draft) can carry suggested changes that no one has settled yet. The clean copy is
+// the bill as it reads, so it is not made while any is pending; comment anchors only print their words.
+#let pending-suggestions(n) = if type(n) != dictionary { 0 } else {
+  let here = if n.attrs.keys().any(k => k.ends-with("suggest")) { 1 } else { 0 }
+  here + n.children.map(pending-suggestions).sum(default: 0)
+}
+#{
+  let n = pending-suggestions(root)
+  if n > 0 {
+    panic("This working copy has " + str(n) + " suggested change" + if n == 1 { "" } else { "s" } + " that no one has accepted or rejected yet. Settle them before making the clean copy.")
+  }
+}
 
 #let is-el(n, tag: none) = type(n) == dictionary and n.tag != "" and (tag == none or n.tag == tag)
 #let kids(n, tag) = n.children.filter(c => is-el(c, tag: tag))
@@ -963,7 +988,7 @@
     }
   }
   let tm = spec.first-line - 0.8 * spec.size + ntop * spec.pitch
-  page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, {
+  page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: { fg; stamp }, {
     // where the agency begins, for the table of contents (and, with its page, for printing in parts)
     [#metadata(attr(n, "eId")) <agency-start>]
     context [#metadata((eid: attr(n, "eId"), page: here().page() + page-offset)) <agency-page>]
@@ -1275,6 +1300,7 @@
   paper: "us-letter",
   margin: (left: spec.left, right: 8.5in - spec.left - measure, top: top-margin, bottom: 11in - top-margin - body-height),
   header-ascent: top-margin - (spec.header + 0.2 * spec.size),
+  foreground: stamp,
   header: context {
     if here().page() + page-offset > 1 and approp {
       // appropriation bills: the page number centred, the LBD number (without "LBD") ending at column 72
@@ -1403,7 +1429,7 @@
     place(top + left, dx: spec.left + 68 * char, dy: spec.first-line - 0.8 * spec.size + spec.pitch, text("Page"))
   }
   let tm = spec.first-line - 0.8 * spec.size + 3 * spec.pitch
-  page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: fg, context {
+  page(margin: (left: spec.left, right: 8.5in - spec.left - measure, top: tm, bottom: 11in - (spec.first-line - 0.8 * spec.size) - body-height), header-ascent: tm - (spec.header + 0.2 * spec.size), foreground: { fg; stamp }, context {
     let pages = (:)
     for m in query(<agency-start>) { if m.value not in pages { pages.insert(m.value, str(m.location().page() + page-offset)) } }
     let blocks = ()

@@ -52,6 +52,56 @@ advice is reported as warnings.
 | chapter-2025-245.xml | enacted chapter with its fiscal note attached |
 | consolidated-tax-606-excerpt.xml | consolidated law excerpt, as exported from the Bank |
 | line-veto-memo-2025-1.xml | line veto citing an appropriation item by eId |
+| working-s1234a.xml | a working copy of S.1234-A: suggested changes, comments, review steps and a sign-off (0.4 draft) |
+
+## Working copies (0.4 draft, 2026-11-15)
+
+Inside the Commission a draft is worked on by a drafter, examiners and proofreaders before it is printed. A
+**working copy** carries that work in the same AKN-NY file; a published print and a clean copy carry none of it.
+Everything below is ordinary Akoma Ntoso plus attributes and elements in the LBDC namespace, so the file stays
+valid against the AKN schema.
+
+| What | Encoding |
+| --- | --- |
+| It is a working copy, and who has it | `<lbdc:working status="drafting\|examination\|proofreading\|returned">` at the end of `lbdc:documentInfo` |
+| The people and their roles | `TLCPerson` with `lbdc:role="#drafter"`, `"#examiner"` or `"#proofreader"`; a `TLCRole` for each role, href `/akn/ontology/role/us-ny/lbdc.drafter` (and so on) |
+| A suggested change | `<span lbdc:suggest="insert\|delete" lbdc:by="#person" lbdc:at="2026-11-14T15:20:00Z">words</span>`. It goes inside `ins` or `del`, never around them: the brackets and underscoring are worked out again, against the law, once the suggestion is settled. |
+| A comment | the words it is on wrapped in `<span lbdc:comment="c1">`, and the thread in `lbdc:working`: `<lbdc:comment id by at assignees resolved resolvedBy>` with `lbdc:text` and `lbdc:reply` (`resolvedBy` where the editor records it; Word does not) |
+| The review | one `<workflow source="#lbdc-review">` (a `TLCOrganization` of that eId) with a `step` per event: `sentToExamination`, `sentToProofreading`, `returnedToExaminer`, `returnedToDrafter`, `signedOff`, `signoffWithdrawn`, `proofread`, `accepted`, `rejected` (`refersTo` a `TLCEvent`; `by` the person, `as` their role) |
+| A section sign-off | a `signedOff` step with `lbdc:section="sec_2"` and `lbdc:hash`, the SHA-256 of the section's exclusive canonical XML with comment anchors left out (`python3 validate.py --section-hash sec_2 file.xml`) |
+| A suggestion settled | an `accepted` or `rejected` step with `lbdc:suggestionBy="#person"`; the text then simply reads as decided |
+
+The rules (pattern `working-copy`):
+
+- A document with suggestions, comment anchors or review steps must be marked as a working copy; so a
+  published print has none of them.
+- The review goes drafter → examiner → proofreader → examiner → drafter, each hand-off sent by the role whose
+  turn it is, and `lbdc:working/@status` follows the last hand-off.
+- Proofreaders do not accept or reject suggestions; an examiner does not decide a drafter's. A proofreader
+  resolves only a proofreader's comment (where the file records who resolved it).
+- Every person named (suggestions, comments, replies, assignees, steps) is a `TLCPerson` with a review role, and
+  a step's role is that person's.
+- Steps are in date order; a sign-off names a bill section and carries its hash.
+- `validate.py` warns when a sign-off still standing no longer matches its section (it has changed since).
+
+`bill.typ` refuses to make a clean copy while any suggestion is pending; comment anchors print as their words.
+Who may edit, and when, is the editing tool's business (the Word add-in, or Propylon's editor): the file records
+what was done, so the checker can show the rules were kept.
+
+## Signed packages (0.4 draft, 2026-11-15)
+
+A document can travel in a signed package (`.nysakn`): a zip with the AKN-NY file, a manifest of every file's
+SHA-256 and the signer's Ed25519 signature over the manifest's exact bytes, optionally encrypted for a password
+or for named people (X25519). A clean copy PDF prints the bill's fingerprint (the start of its XML's SHA-256) at
+the foot of every page and carries its signed package inside. A package or PDF that fails a check is VOID. The
+format, the checks and what it is not (keys on the computer are for the demonstration; production would use the
+state's sign-ins or certificates) are in [PACKAGE.md](PACKAGE.md).
+
+```
+pip install cryptography pypdf
+python3 profile/tools/nysakn.py check bill.nysakn            # or a clean copy PDF; --rerender compares page words
+python3 profile/tests/test_package.py
+```
 
 ## Status
 

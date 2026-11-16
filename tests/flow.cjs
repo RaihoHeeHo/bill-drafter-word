@@ -113,6 +113,84 @@ const BANK = process.argv[2], OUT = process.argv[3] || '.';
   const xml2 = await p.inputValue('#akn-out');
   if (!/<del>[^<]*in this state[^<]*<\/del>/.test(xml2)) throw new Error('the clean copy left an unmarked change: ' + (xml2.match(/.{80}acknowledgment of deeds.{60}/) || [''])[0]);
   console.log('marked before the clean copy:', (xml2.match(/.{30}<del>[^<]*in this state[^<]*<\/del>.{10}/) || [''])[0]);
+  // Several people and the review. Kim, the drafter, sends the draft to examination; Lee, an examiner, signs off § 2
+  // and then suggests a change in it with Track Changes on: the sign-off goes stale, Mark changes leaves the section
+  // alone, no clean copy is made, and Ana (a proofreader) may not decide it; Kim accepts it. The working copy carries
+  // the steps, and the profile's checker accepts it.
+  const who = async (name, role) => { await p.fill('#me-name', name); await p.dispatchEvent('#me-name', 'change'); await p.selectOption('#me-role', role); await p.waitForTimeout(400); };
+  await p.click('[data-tab=review]'); await p.waitForTimeout(600);
+  await who('Kim Lo', 'drafter');
+  console.log('review:', await p.textContent('#rv-status'), '|', await p.textContent('#rv-send'));
+  await step('send to examination', () => p.click('#rv-send')); await p.waitForTimeout(300);
+  if (!/in examination/.test(await p.textContent('#rv-status'))) throw new Error('not in examination: ' + await p.textContent('#rv-status'));
+  if (!(await p.isDisabled('#rv-send'))) throw new Error('the drafter can send the draft on while it is in examination');
+  await who('Lee Smith', 'examiner');
+  await step('sign off § 2', async () => { await p.click('#rv-secs li:nth-child(2) button:has-text("Sign off")'); await p.waitForFunction(() => /Signed off/.test(document.querySelector('#rv-secs li:nth-child(2)').textContent) || /Not|first|error/i.test(document.querySelector('#notice').textContent), null, { timeout: 20000 }).catch(() => {}); });
+  console.log('sections:', await p.$$eval('#rv-secs li', l => l.slice(0, 3).map(x => x.textContent.replace(/\s+/g, ' ').trim())));
+  if (!/Signed off by Lee Smith/.test(await p.textContent('#rv-secs li:nth-child(2)'))) throw new Error('no sign-off on § 2');
+  console.log('suggested:', await p.evaluate(() => __suggestInLaw('When an affidavit is authorized', 'commissioner of deeds or ', 'Lee Smith')));
+  await p.click('[data-tab=draft]'); await p.click('[data-tab=review]'); await p.waitForTimeout(800);
+  if (!/stale/.test(await p.textContent('#rv-secs li:nth-child(2)'))) throw new Error('the sign-off did not go stale: ' + await p.textContent('#rv-secs li:nth-child(2)'));
+  console.log('suggestions:', await p.$$eval('#rv-sugs li', l => l.map(x => x.textContent.replace(/\s+/g, ' ').trim())));
+  await p.screenshot({ path: OUT + '/5b-review.png', fullPage: true });
+  await p.click('[data-tab=draft]');
+  await step('mark changes with a suggestion waiting', () => p.click('#mark'));
+  if (!/suggested changes wait/.test(await notice())) throw new Error('Mark changes did not leave the section with a suggestion alone');
+  await p.click('[data-tab=export]');
+  await step('clean copy with a suggestion waiting', async () => { await p.click('#to-pdf'); await p.waitForTimeout(800); });
+  if (!/Not made: 1 suggested change/.test(await p.textContent('#pdf-status'))) throw new Error('a clean copy was made with a suggestion waiting');
+  await p.click('[data-tab=review]'); await p.waitForTimeout(600);
+  await who('Ana Ruiz', 'proofreader');
+  if (!(await p.isDisabled('#rv-sugs li button:has-text("Accept")'))) throw new Error('a proofreader may accept a suggestion');
+  await who('Kim Lo', 'drafter');
+  await step('XML: a working copy', async () => { await p.click('[data-tab=export]'); await p.click('#to-akn'); });
+  const wc = await p.inputValue('#akn-out');
+  if (!/<lbdc:working status="examination">/.test(wc) || !/lbdc:suggest="insert" lbdc:by="#staff-lee-smith"[^>]*>commissioner of deeds or ?<\/span>/.test(wc) || !/refersTo="#signedOff" lbdc:section="sec_2" lbdc:hash="[0-9a-f]{64}"/.test(wc)) throw new Error('no working copy: ' + (wc.match(/<workflow.{0,400}/) || [''])[0]);
+  fs.writeFileSync(OUT + '/working-copy.akn.xml', wc);
+  await p.click('[data-tab=review]'); await p.waitForTimeout(600);
+  await step('Kim accepts Lee\'s suggestion', () => p.click('#rv-sugs li button:has-text("Accept")')); await p.waitForTimeout(500);
+  console.log('history:', await p.$$eval('#rv-history li', l => l.map(x => x.textContent)));
+  if (!/accepted by Kim Lo/.test(await p.textContent('#rv-history'))) throw new Error('the acceptance was not recorded');
+  await p.click('[data-tab=export]');
+  await step('clean copy once it is accepted', async () => { await p.click('#to-pdf'); await p.waitForFunction(() => /ready|Not made/.test(document.querySelector('#pdf-status').textContent + document.querySelector('#notice').textContent), null, { timeout: 120000 }); });
+  console.log('pdf status:', await p.textContent('#pdf-status'));
+  if (!/commissioner of deeds[^<]*<\/ins>|<ins>[^<]*commissioner of deeds/.test(await p.inputValue('#akn-out'))) throw new Error('the accepted suggestion was not marked as new matter: ' + ((await p.inputValue('#akn-out')).match(/.{80}commissioner.{40}/) || [''])[0]);
+  // Signed: the clean copy carries the fingerprint on its pages and its signed package; the profile's checker agrees.
+  if (!/Signed by Kim Lo: every page carries the fingerprint [0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}/.test(await p.textContent('#pdf-status'))) throw new Error('the clean copy was not signed: ' + await p.textContent('#pdf-status'));
+  const signedPdf = OUT + '/signed clean copy.pdf';
+  fs.writeFileSync(signedPdf, Buffer.from(await p.evaluate(async () => { const u = new Uint8Array(await (await fetch(pdfUrl)).arrayBuffer()); let s = ''; for (const c of u) s += String.fromCharCode(c); return btoa(s); }), 'base64'));
+  const cp = require('child_process'), tool = path.join(__dirname, '..', 'profile', 'tools', 'nysakn.py');
+  const py = cp.spawnSync('python3', [tool, 'check', signedPdf, '--no-profile'], { encoding: 'utf8' });
+  console.log('nysakn.py on the clean copy:', py.status, py.stdout.split('\n').slice(0, 4).join(' / '));
+  if (py.status !== 0) throw new Error('the profile\'s checker does not accept the signed clean copy: ' + py.stdout + py.stderr);
+  // Kim sends Lee a working copy only Lee can open; Lee checks it; a changed copy is VOID; the PDF checks too.
+  await step('save a signed package for Lee', async () => {
+    await p.check('#pk-working'); await p.check('#pk-lock-people'); await p.waitForTimeout(200);
+    await p.check('#pk-people input[value="Lee Smith"]'); await p.fill('#pk-note', 'Please look at section 2 again.');
+    const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('#pk-save')]);
+    await dl.saveAs(OUT + '/for-lee.nysakn'); console.log('saved:', dl.suggestedFilename(), fs.statSync(OUT + '/for-lee.nysakn').size, 'bytes');
+  });
+  const checkFile = async f => { await p.setInputFiles('#pk-file', f); await p.waitForFunction(() => !document.querySelector('#pk-result').hidden && document.querySelector('#pk-result').textContent.length > 20, null, { timeout: 30000 }); await p.waitForTimeout(300); return (await p.textContent('#pk-result')).replace(/\s+/g, ' '); };
+  let res = await checkFile(OUT + '/for-lee.nysakn'); console.log('Kim checks it:', res.slice(0, 120));
+  if (!/encrypted/.test(res)) throw new Error('Kim could open a package sent only to Lee: ' + res);
+  await p.click('[data-tab=review]'); await who('Lee Smith', 'examiner'); await p.click('[data-tab=export]');
+  res = await checkFile(OUT + '/for-lee.nysakn'); console.log('Lee checks it:', res.slice(0, 260));
+  if (!/Signed and unchanged, by a key this computer does not yet trust/.test(res) || !/Working copy/.test(res) || !/Please look at section 2 again/.test(res)) throw new Error('Lee could not check the package: ' + res);
+  await p.screenshot({ path: OUT + '/7-package.png', fullPage: true });
+  await step('Lee trusts Kim\'s key', () => p.click('#pk-result button:has-text("trust this key")')); await p.waitForTimeout(800);
+  if (!/^Signed and unchanged ?Working/.test((await p.textContent('#pk-result')).replace(/\s+/g, ' ').trim())) throw new Error('trusting did not take: ' + await p.textContent('#pk-result'));
+  // A copy of an unencrypted package with one word changed.
+  await p.click('[data-tab=review]'); await who('Kim Lo', 'drafter'); await p.click('[data-tab=export]'); await p.check('#pk-lock-none');
+  const [dl2] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('#pk-save')]); await dl2.saveAs(OUT + '/open.nysakn');
+  const bad = await p.evaluate(async b64 => { const P = BD.nysakn, u = Uint8Array.from(atob(b64), c => c.charCodeAt(0)), { files, order } = await P.readZip(u);
+    files.set('bill.akn.xml', new TextEncoder().encode(new TextDecoder().decode(files.get('bill.akn.xml')).replace('notary public', 'notary publick')));
+    const z = await P.writeZip(order.map(k => ({ path: k, data: files.get(k), store: k === 'mimetype' }))); let s = ''; for (const c of z) s += String.fromCharCode(c); return btoa(s); }, fs.readFileSync(OUT + '/open.nysakn').toString('base64'));
+  fs.writeFileSync(OUT + '/changed.nysakn', Buffer.from(bad, 'base64'));
+  res = await checkFile(OUT + '/changed.nysakn'); console.log('a changed copy:', res.slice(0, 160));
+  if (!/VOID/.test(res) || !/bill.akn.xml was changed after the package was signed/.test(res)) throw new Error('a changed package was not VOID: ' + res);
+  await p.screenshot({ path: OUT + '/7b-void.png', fullPage: true });
+  res = await checkFile(signedPdf); console.log('the clean copy PDF:', res.slice(0, 160));
+  if (!/^Signed and unchanged ?Clean copy/.test(res.trim())) throw new Error('the signed clean copy did not check: ' + res);
   // The drafter deletes a section in the document: back in the pane, the list offers to renumber.
   await p.click('[data-tab=draft]');
   await p.evaluate(() => { const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';

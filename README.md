@@ -10,7 +10,9 @@ A Word add-in that brings parts of the bill drafter into Word:
 
 6. **Budget mode.** Changes to an appropriation bill, with every check of LBDC's budget tools (below).
 
-It does **not** try to look like a printed bill: no line numbers, no bill spacing or fonts.
+A bill being drafted does **not** try to look like a printed bill: no line numbers, no bill spacing or fonts (the clean copy is the printed form). A budget bill is laid out as the print reads, with amounts at the margin.
+
+**Guides:** [PIPELINE.md](PIPELINE.md), Part 2, is the plain-language guide to everything in the pane, step by step; Part 1 is how it works. [FORMAT.md](FORMAT.md) is the document's structure and its Akoma Ntoso mapping.
 
 Nothing is installed on the computer and there is no .exe: Word loads the add-in from this site, and the laws stay on the computer.
 
@@ -58,6 +60,18 @@ The section list under **This bill** shows what each section does and what it st
 
 Click a section to go to it in the document; the section holding the cursor is highlighted. If the numbers or the title stop matching the sections (after deleting one in the document, say), a note above the list offers to renumber or rebuild the title. The bar at the bottom says whether the brackets and underlines are up to date. Standard sections already in the bill offer to go to them instead of adding another, and the effective date says whether it adds one or replaces the one in the bill.
 
+## Working with others
+
+Word's **Track Changes** are suggestions: what a reviewer types or deletes with it on is kept in their name, to be accepted or rejected in Word's **Review** tab. Word's comments work as usual.
+
+- A section with suggestions shows **suggestions waiting**. **Mark changes** leaves it alone until they are accepted or rejected, then brackets and underlines the accepted ones against the Bank like any other change.
+- **No clean copy** is made while a suggestion waits.
+- **Review** tab: say who you are (name and role, kept on this computer). **Where the draft is** sends it on, drafter → examiner → proofreader → examiner → drafter, by whoever's turn it is. **Suggested changes** can be accepted or rejected there, keeping to the rules (proofreaders don't decide; an examiner doesn't decide a drafter's), and each decision is recorded. Examiners **sign off** sections and proofreaders mark them **proofread**; a sign-off shows as stale when its section changes afterwards.
+- **People** (Review tab) lists everyone who made a suggestion or a comment or took a step; give each a role (drafter, examiner or proofreader). The roles and the review are saved in the document.
+- **Show the XML** then gives a *working copy* in the profile's terms: the bill with the suggestions, comments and review steps, who made them, and their roles.
+- **Signed package** (Clean copy tab) saves the working copy or the clean copy's XML in a `.nysakn` file signed with your key, for anyone, with a password, or only for people in the document (no password to share). **Check a package or PDF…** shows who signed it, whether anything changed since (if so it's **VOID**), stale sign-offs and the note; a VOID one prints with VOID across every page. Your key is made when you first say who you are and is kept on this computer (a demonstration: production would use the state's sign-ins or certificates); your public card goes into the document so others can send you packages. Compare a signer's fingerprint with them before trusting their key.
+- **Signed clean copies**: once you've said who you are, every clean copy prints the bill's fingerprint at the foot of each page and carries its signed package inside the PDF. The profile's `tools/nysakn.py check` checks packages and PDFs from the command line, and with `--rerender` compares every page's words with the signed XML. See `profile/PACKAGE.md`.
+
 ## Budget mode
 
 Switch the pane to **Budget** at the top. It works on an appropriation bill as LBDC changes one for an amended print:
@@ -66,7 +80,7 @@ Switch the pane to **Budget** at the top. It works on an appropriation bill as L
 - **Make changes in the document**, then **Mark changes**. A *reappropriation* continues existing law: changed words and original amounts are put in [brackets] and underlined, the way the prints show them ("[(15126)] (60501) ... [1,312,000] 1,433,000 ... (re. $1,433,000)"); the amount reappropriated is this year's figure and is reprinted. An *appropriation* is new money in this bill: it takes the new words and amount. The item at the cursor is shown in the pane, where an appropriation can be added after it or an item taken out.
 - **Totals.** Program totals, subtotals and agency summaries (fund rows and All Funds) are computed from the items; those that no longer add up are listed with a button to update them.
 - **Check** runs the budget tools' checks on the XML, the same way they run in Python: the print-error report's amount checks; reappropriations against **last year's chapter** (by agency, account, program and object, as `prior_check.py`); **changes in this print**, against the bill as opened or another print (`compare_prints.py`); and **line vetoes** placed on the items printed on their lines, each with its line veto memorandum (`line_vetoes.py`). `tests/budget-expected.json` holds what the Python tools find in the samples, and the unit tests check the add-in finds the same.
-- **Clean copy** reads the document's edits back first, refuses if any reappropriation no longer reads as existing law once its brackets and underlines are taken into account, and typesets the bill with the same template.
+- **Clean copy** reads the document's edits back first, refuses if any reappropriation no longer reads as existing law once its brackets and underlines are taken into account (or if an item has tracked changes waiting), and typesets the bill with the same template.
 
 ### A whole budget bill
 

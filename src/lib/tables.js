@@ -14,7 +14,7 @@
   'use strict';
   const BD = root.BD = root.BD || {};
   const isTable = p => !!p && !Array.isArray(p) && typeof p === 'object' && p.table === true;
-  const cellText = c => Array.isArray(c) ? c.map(r => r.t).join('') : String(c == null ? '' : c);
+  const cellText = c => Array.isArray(c) ? c.filter(r => !(r.sug && r.sug.kind === 'insert')).map(r => r.t).join('') : String(c == null ? '' : c);
   const GROUP = /^Group [A-Z]+:?$/, NOTE = /^\{\d+\}/, CAPTION = /^TABLE [A-Z]+\.?$/;
   // A table as text, row by row (for comparing and for the style checks).
   const tableText = t => t.rows.map(r => r.cells.map(cellText).join(' ')).join('\n');
@@ -181,8 +181,8 @@
   function tableReadings(t) {
     const old = [], now = [];
     for (const r of t.rows) {
-      const o = r.cells.map(c => (Array.isArray(c) ? c : [{ t: String(c), k: '' }]).filter(x => x.k !== 'ins').map(x => x.k === 'del' ? stripBr(x.t) : x.t).join('').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim());
-      const n = r.cells.map(c => (Array.isArray(c) ? c : [{ t: String(c), k: '' }]).filter(x => x.k !== 'del').map(x => x.t).join('').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim());
+      const o = r.cells.map(c => (Array.isArray(c) ? c : [{ t: String(c), k: '' }]).filter(x => x.k !== 'ins' && !(x.sug && x.sug.kind === 'insert')).map(x => x.k === 'del' ? stripBr(x.t) : x.t).join('').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim());
+      const n = r.cells.map(c => (Array.isArray(c) ? c : [{ t: String(c), k: '' }]).filter(x => x.k !== 'del' && !(x.sug && x.sug.kind === 'insert')).map(x => x.t).join('').replace(/[ \t]+/g, ' ').replace(/ ?\n ?/g, '\n').trim());
       const allNew = r.cells.every(c => (Array.isArray(c) ? c : []).every(x => x.k === 'ins' || !x.t.trim())) && r.cells.some(c => cellText(c).trim());
       const allOld = r.cells.every(c => (Array.isArray(c) ? c : []).every(x => x.k === 'del' || !x.t.trim())) && r.cells.some(c => cellText(c).trim());
       if (!allNew && o.some(Boolean)) old.push({ kind: r.kind, cells: o });

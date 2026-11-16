@@ -164,13 +164,15 @@ const BUD = (() => {
   // take out the items deleted in the document, and lay the edited items out again.
   async function mark(quiet) {
     const pend = await pending();
-    let marked = 0, replaced = 0, removed = 0;
+    let marked = 0, replaced = 0, removed = 0; const waiting = [];
     if (pend.edited.length) await word(async ctx => quietly(ctx, async () => {
       const map = new Map((await ours(ctx)).map(x => [x.t.eId, x.c]));
       for (const id of pend.edited) {
         const cc = map.get(id), e = byEId(id); if (!cc || !e) continue;
         const ox = cc.getOoxml(); await ctx.sync();
-        const how = BW.applyEdit(e, BW.wordRuns(ox.value));
+        const rs = BW.wordRuns(ox.value);
+        if (rs.suggested) { waiting.push(id); continue; } // someone's tracked changes, not yet accepted or rejected
+        const how = BW.applyEdit(e, rs);
         if (how === 'same') continue;
         if (how === 'marked') marked++; else replaced++;
         await replaceControl(ctx, cc, BW.render(e));
@@ -179,8 +181,9 @@ const BUD = (() => {
     for (const id of pend.missing) { const e = byEId(id); if (e) { BW.removeItem(e); removed++; } }
     if (marked || replaced || removed) { changed(); await store(); }
     await refresh();
-    if (!quiet) notice(marked || replaced || removed ? [marked && pl(marked, 'reappropriation') + ' marked against the law', replaced && pl(replaced, 'appropriation') + ' changed', removed && pl(removed, 'item') + ' taken out'].filter(Boolean).join(', ') + '.' + (S.totals.length ? ' ' + pl(S.totals.length, 'total') + ' no longer add up: update them below.' : '') : 'No edits to mark: the document and the XML agree.');
-    return { marked, replaced, removed };
+    if (waiting.length) notice(pl(waiting.length, 'item') + ' with suggested changes (Word\'s tracked changes) left as they are: accept or reject them in Word (Review), then Mark changes.' + (marked || replaced || removed ? '' : ''), true);
+    else if (!quiet) notice(marked || replaced || removed ? [marked && pl(marked, 'reappropriation') + ' marked against the law', replaced && pl(replaced, 'appropriation') + ' changed', removed && pl(removed, 'item') + ' taken out'].filter(Boolean).join(', ') + '.' + (S.totals.length ? ' ' + pl(S.totals.length, 'total') + ' no longer add up: update them below.' : '') : 'No edits to mark: the document and the XML agree.');
+    return { marked, replaced, removed, waiting };
   }
   // Totals computed from the items, set where they differ, and laid out again.
   async function updateTotals() {
@@ -432,6 +435,7 @@ const BUD = (() => {
   }
   async function forExport() {
     const r = await mark(true);
+    if (r.waiting.length) throw new Error('Not made: ' + pl(r.waiting.length, 'item') + ' in the document ' + (r.waiting.length === 1 ? 'has' : 'have') + ' suggested changes (Word\'s tracked changes) waiting. Accept or reject them in Word (Review), then try again.');
     const bad = lawIntact();
     if (bad.length) throw new Error('Not made: ' + pl(bad.length, 'reappropriation') + ' no longer read' + (bad.length === 1 ? 's' : '') + ' as existing law once its brackets and underlines are taken into account, so the copy could misstate the law. ' + bad.slice(0, 3).map(x => x.split('__').slice(1).join(' ')).join('; ') + '.');
     return r;
